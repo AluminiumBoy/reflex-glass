@@ -1323,11 +1323,17 @@ export default function App() {
   const isPlaying = screen === "playing";
 
   // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
-  useEffect(() => {
-    if(!pattern) return;
-    let running = true;
-    function loop() {
-      if(!running) return;
+// ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
+useEffect(() => {
+  if (!pattern) return;
+
+  let running = true;
+
+  function loop() {
+    if (!running) return;
+
+    // Csak akkor rajzolunk, ha a screen "playing", "revealing" vagy "outcome"
+    if (screen === "playing" || screen === "revealing" || screen === "outcome") {
       drawChart(
         chartRef.current,
         pattern.candles,
@@ -1336,11 +1342,18 @@ export default function App() {
         pattern.continuation,
         godMode
       );
-      rafChartRef.current = requestAnimationFrame(loop);
     }
-    loop();
-    return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
-  }, [pattern, screen, contProgress, godMode]);
+
+    rafChartRef.current = requestAnimationFrame(loop);
+  }
+
+  loop();
+
+  return () => {
+    running = false;
+    cancelAnimationFrame(rafChartRef.current);
+  };
+}, [pattern, screen, contProgress, godMode]);
 
   // ── low-time haptic pulse ──
   useEffect(() => {
