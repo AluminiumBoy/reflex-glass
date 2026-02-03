@@ -527,16 +527,21 @@ function getArchetype(stats) {
   function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    const dpr = window.devicePixelRatio || 1;
-    const W   = canvas.clientWidth;
-    const H   = canvas.clientHeight;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const W   = canvas.clientWidth;
+      const H   = canvas.clientHeight;
 
-    canvas.width  = W * dpr;
-    canvas.height = H * dpr;
+      canvas.width  = W * dpr;
+      canvas.height = H * dpr;
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
+      // 🔥 TELJES RESET
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 🔥 EZUTÁN skálázunk
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
 
 
   // ── background ──
