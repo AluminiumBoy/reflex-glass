@@ -1296,117 +1296,109 @@ function TipPanel() {
     19  ROOT APP  —  STATE MACHINE + GAME LOOP
         States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
    ═══════════════════════════════════════════════════════════════ */
-export default function App() {
-  // ── state ──
-  const [screen, setScreen]               = useState(loadName() ? "home" : "name");
-  const [playerName, setPlayerName]       = useState(loadName());
-  const [round, setRound]                 = useState(0);        // 0-based
-  const [pattern, setPattern]             = useState(null);     // current pattern object
-  const [timeLeft, setTimeLeft]           = useState(DECISION_MS);
-  const [choice, setChoice]               = useState(null);
-  const [streak, setStreak]               = useState(0);
-  const [scores, setScores]               = useState([]);       // per-round score
-  const [roundStats, setRoundStats]       = useState([]);       // {correct, speedMs, choice, signal}
-  const [contProgress, setContProgress]   = useState(0);        // 0 → 10 (animated candle count)
-  const [particleBurst, setParticleBurst] = useState(false);
-  const [godMode, setGodMode]             = useState(false);
-  const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
+      export default function App() {
+      // ── STATE ──
+      const [screen, setScreen] = useState(loadName() ? "home" : "name");
+      const [pattern, setPattern] = useState(null);
+      const [contProgress, setContProgress] = useState(0);
+      const [choice, setChoice] = useState(null);
+      const [decisionEnabled, setDecisionEnabled] = useState(false);
 
-  // refs
-  const chartRef      = useRef(null);
-  const timerRef      = useRef(null);
-  const contAnimRef   = useRef(null);
-  const rafChartRef   = useRef(null);
-  const choiceTimeRef = useRef(null);       // ms when choice was made
+      // refs
+      const chartRef = useRef(null);
+      const contAnimRef = useRef(null);
+      const rafChartRef = useRef(null);
+      const choiceTimeRef = useRef(null);
 
-  // ── derived ──
-  const isPlaying = screen === "playing";
+      // ── CHART RAF LOOP ──
+      useEffect(() => {
+        if (!pattern) return;
+        let running = true;
 
-  // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
-// ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
-useEffect(() => {
-  if (!pattern) return;
+        function loop() {
+          if (!running) return;
+          drawChart(
+            chartRef.current,
+            pattern.candles,
+            22, // initial candles always fully visible
+            contProgress,
+            pattern.continuation,
+            godMode
+          );
+          rafChartRef.current = requestAnimationFrame(loop);
+        }
 
-  let running = true;
+        loop();
+        return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
+      }, [pattern, contProgress, godMode]);
 
-  function loop() {
-    if (!running) return;
+      // ── START NEW ROUND ──
+      const startPlaying = useCallback(() => {
+        const p = getRandomPattern();
+        setPattern(p);              // chart adat előbb
+        setContProgress(0);
+        setChoice(null);
+        setScreen("playing");       // screen váltás csak utána
+        choiceTimeRef.current = null;
+        setDecisionEnabled(false);  // decision gombok tiltva
 
-    // Csak akkor rajzolunk, ha a screen "playing", "revealing" vagy "outcome"
-    if (screen === "playing" || screen === "revealing" || screen === "outcome") {
-      drawChart(
-        chartRef.current,
-        pattern.candles,
-        22,                          // initial candles always fully visible
-        screen === "revealing" || screen === "outcome" ? contProgress : 0,
-        pattern.continuation,
-        godMode
-      );
-    }
+        // animáció időablak (pl. 1s), utána a user dönthet
+        const animDuration = 1000;
+        setTimeout(() => setDecisionEnabled(true), animDuration);
+      }, []);
 
-    rafChartRef.current = requestAnimationFrame(loop);
-  }
+      // ── CONTINUATION ANIMATION ──
+      useEffect(() => {
+        if (screen !== "playing" || !pattern) return;
+        const startTime = Date.now();
+        const duration = 900; // ms az animációra
+        function animate() {
+          const elapsed = Date.now() - startTime;
+          const pct = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - pct, 3); // ease-out cubic
+          setContProgress(eased * 10);
 
-  loop();
-
-  return () => {
-    running = false;
-    cancelAnimationFrame(rafChartRef.current);
-  };
-}, [pattern, screen, contProgress, godMode]);
-
-  // ── low-time haptic pulse ──
-  useEffect(() => {
-    if(isPlaying && timeLeft <= 1000 && timeLeft > 0) {
-      haptic([40, 30, 40]);
-      setScreenPulse(true);
-      const t = setTimeout(() => setScreenPulse(false), 200);
-      return () => clearTimeout(t);
-    }
-  }, [isPlaying, timeLeft]);
-
-  // ── countdown timer (playing state) ──
-  useEffect(() => {
-    if(!isPlaying) { clearInterval(timerRef.current); return; }
-    setTimeLeft(DECISION_MS);
-    const start = Date.now();
-    timerRef.current = setInterval(() => {
-      const rem = DECISION_MS - (Date.now() - start);
-      if(rem <= 0) {
-        clearInterval(timerRef.current);
-        setTimeLeft(0);
-        // timeout = wrong answer
-        handleChoice(null);
-      } else {
-        setTimeLeft(rem);
-      }
-    }, 60);
-    return () => clearInterval(timerRef.current);
-  }, [isPlaying]); // eslint-disable-line
-
-  // ── continuation candle wave-reveal animation ──
-  useEffect(() => {
-    if(screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
-    setContProgress(0);
-    const startTime = Date.now();
-    const duration  = 900; // ms for all 10 candles
-    function animate() {
-      const elapsed = Date.now() - startTime;
-      const pct     = Math.min(elapsed / duration, 1);
-      // ease-out cubic
-      const eased   = 1 - Math.pow(1 - pct, 3);
-      setContProgress(eased * 10);
-      if(pct < 1) {
+          if (pct < 1) {
+            contAnimRef.current = requestAnimationFrame(animate);
+          } else {
+            setContProgress(10);
+          }
+        }
         contAnimRef.current = requestAnimationFrame(animate);
-      } else {
-        setContProgress(10);
-        // after reveal completes → show outcome
-        setTimeout(() => setScreen("outcome"), 200);
-      }
-    }
-    contAnimRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(contAnimRef.current);
-  }, [screen]);
+        return () => cancelAnimationFrame(contAnimRef.current);
+      }, [screen, pattern]);
+
+      // ── HANDLE USER CHOICE ──
+      const handleChoice = useCallback((ch) => {
+        if (!decisionEnabled || choice !== null) return; // még nem engedélyezett vagy már választott
+        choiceTimeRef.current = choiceTimeRef.current || Date.now();
+        setChoice(ch);
+
+        const speedMs = Date.now() - choiceTimeRef.current;
+        const correct = ch === pattern.signal;
+        haptic(correct ? [30,20,30] : [80]);
+
+        if (correct) {
+          SND.correct();
+          const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+          const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
+          const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+          setScores(prev => [...prev, pts]);
+          setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
+          setStreak(streak + 1);
+          setParticleBurst(true);
+          setTimeout(() => setParticleBurst(false), 600);
+        } else {
+          SND.wrong();
+          setScores(prev => [...prev, 0]);
+          setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
+          setStreak(0);
+        }
+
+        // után outcome
+        setScreen("outcome");
+      }, [decisionEnabled, choice, pattern, streak]);
+
 
     // ── GAME ACTIONS ──
 
@@ -1427,18 +1419,8 @@ useEffect(() => {
     }, []);
 
 
-    // 2️⃣ countdown vége → csak screen váltás
-    const startPlaying = useCallback(() => {
-      setScreen("playing");
-      choiceTimeRef.current = Date.now();
-    }, []);
 
-
-    // 3️⃣ választás kezelése (változatlan logika)
-    const handleChoice = useCallback((ch) => {
-      if (choice !== null) return;
-
-      clearInterval(timerRef.current);
+  
 
       const speedMs =
         choiceTimeRef.current
@@ -1488,7 +1470,7 @@ useEffect(() => {
       }
 
       setScreen("revealing");
-    }, [choice, pattern, streak, godMode]);
+    } [choice, pattern, streak, godMode]
 
 
     // 4️⃣ következő kör
@@ -1729,4 +1711,3 @@ useEffect(() => {
       </div>
     </div>
   );
-}
