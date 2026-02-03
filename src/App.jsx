@@ -524,64 +524,77 @@ function getArchetype(stats) {
 /* ═══════════════════════════════════════════════════════════════
     7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
    ═══════════════════════════════════════════════════════════════ */
+/* ── 7  CANVAS CHART RENDERER (Javított, DPR-aware, 60fps animált reveal) ── */
 function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
-  if (!canvas) return;
-  const ctx    = canvas.getContext("2d");
-  const dpr    = window.devicePixelRatio || 1;
-  const W      = canvas.clientWidth;
-  const H      = canvas.clientHeight;
-  canvas.width = W * dpr;
-  canvas.height= H * dpr;
-  ctx.scale(dpr, dpr);
+  if (!canvas || !candles || candles.length === 0) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+
+  // csak ha méret változott, hogy ne töröljön minden frame
+  if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset
+    ctx.scale(dpr, dpr);
+  }
 
   // ── background ──
-  const grd = ctx.createLinearGradient(0,0,0,H);
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
   grd.addColorStop(0, "#0d0d1a");
   grd.addColorStop(1, "#06060c");
   ctx.fillStyle = grd;
-  ctx.fillRect(0,0,W,H);
+  ctx.fillRect(0, 0, W, H);
 
   // ── grid lines ──
   ctx.strokeStyle = "rgba(255,255,255,0.045)";
-  ctx.lineWidth   = 1;
-  for(let y=0;y<H;y+=H/6){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  for(let x=0;x<W;x+=W/8){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= H; y += H / 6) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  for (let x = 0; x <= W; x += W / 8) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
 
   // ── god-mode ambient glow ──
-  if(godMode) {
+  if (godMode) {
     ctx.save();
-    const pulse = 0.15 + 0.08*Math.sin(Date.now()*0.006);
-    ctx.shadowColor = C.nGreen; ctx.shadowBlur = 40;
+    const pulse = 0.15 + 0.08 * Math.sin(Date.now() * 0.006);
+    ctx.shadowColor = C.nGreen;
+    ctx.shadowBlur = 40;
     ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
     ctx.lineWidth = 2;
-    ctx.strokeRect(4,4,W-8,H-8);
+    ctx.strokeRect(4, 4, W - 8, H - 8);
     ctx.restore();
   }
 
-  // Visible candles = initial reveal (animated in) + continuation (animated in)
-  const totalVisible = revealCount + continuationCount;
-  const allCandles   = [...candles.slice(0, revealCount), ...(contCandles||[]).slice(0, continuationCount)];
-  if(allCandles.length === 0) return;
-
-  // ── price scale  ──
+  // ── Calculate price scale ──
+  const scaleCandles = [...candles, ...(contCandles || [])];
   let lo = Infinity, hi = -Infinity;
-  // Use ALL candles (initial + full continuation) for a stable scale
-  const scaleCandles = [...candles, ...(contCandles||[])];
   scaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
-  const pad  = (hi - lo) * 0.12;
+  const pad = (hi - lo) * 0.12;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
 
   const totalSlots = candles.length + (contCandles?.length || 0);
-  const slotW      = W / totalSlots;
-  const bodyW      = slotW * 0.55;
-  const offX       = (slotW - bodyW) / 2;
-
+  const slotW = W / totalSlots;
+  const bodyW = slotW * 0.55;
+  const offX = (slotW - bodyW) / 2;
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── price label (right axis) for last visible candle ──
+  // ── Prepare all visible candles ──
+  const allCandles = [
+    ...candles.slice(0, revealCount),
+    ...(contCandles || []).slice(0, continuationCount)
+  ];
+
+  if (allCandles.length === 0) return;
+
+  // ── price label for last candle ──
   const lastC = allCandles[allCandles.length - 1];
-  const lblY  = toY(lastC.c);
+  const lblY = toY(lastC.c);
   ctx.save();
   const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
   ctx.fillStyle = lblColor + "33";
@@ -592,28 +605,23 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   ctx.fillText(lastC.c.toFixed(2), W - 4, lblY + 3.5);
   ctx.restore();
 
-  // ── draw candles ──
+  // ── Draw each candle ──
   allCandles.forEach((c, i) => {
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // wave-reveal fade for continuation candles
+    // continuation fade
     let alpha = 1;
     if (i >= revealCount) {
       const ci = i - revealCount;
-      // continuationCount is the *current* animated count (0 → 10)
-      // each candle fades in as continuationCount passes it
-      alpha = CL(continuationCount - ci, 0, 1);
+      alpha = Math.min(Math.max(continuationCount - ci, 0), 1);
     }
-
-    const bodyColor = bull ? C.bull : C.bear;
-    const wickColor = bull ? "#00b85a" : "#e01030";
 
     ctx.globalAlpha = alpha;
     ctx.save();
 
     // wick
-    ctx.strokeStyle = wickColor;
+    ctx.strokeStyle = bull ? "#00b85a" : "#e01030";
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(x + slotW/2, toY(c.h));
@@ -621,15 +629,14 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.stroke();
 
     // body
-    const bodyTop    = toY(Math.max(c.o, c.c));
+    const bodyTop = toY(Math.max(c.o, c.c));
     const bodyBottom = toY(Math.min(c.o, c.c));
     const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
 
-    // glass-style body gradient
-    const bg = ctx.createLinearGradient(x+offX, bodyTop, x+offX+bodyW, bodyTop);
-    bg.addColorStop(0, bodyColor);
+    const bg = ctx.createLinearGradient(x + offX, bodyTop, x + offX + bodyW, bodyTop);
+    bg.addColorStop(0, bull ? C.bull : C.bear);
     bg.addColorStop(0.4, bull ? "#00ff9d" : "#ff4466");
-    bg.addColorStop(1, bodyColor);
+    bg.addColorStop(1, bull ? C.bull : C.bear);
     ctx.fillStyle = bg;
     ctx.fillRect(x + offX, bodyTop, bodyW, bodyHeight);
 
@@ -642,6 +649,7 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.globalAlpha = 1;
   });
 }
+
 
 /* ═══════════════════════════════════════════════════════════════
     8  PARTICLE BURST  (perfect round / god mode)
