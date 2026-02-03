@@ -1285,7 +1285,7 @@ function NameInput({ onSubmit }) {
    ═══════════════════════════════════════════════════════════════ */
 
 // ── config ──────────────────────────────────────────────────────
-const DONATION_ADDRESS = "0xYOUR_ADDRESS_HERE";           // ← replace with your Base address
+const DONATION_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";           // ← replace with your Base address
 const USDC_BASE        = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base mainnet USDC
 const TIPS = [
   { amount: 0.5, label: "☕ 0.5 USDC" },
