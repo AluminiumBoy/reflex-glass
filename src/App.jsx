@@ -679,6 +679,24 @@ function ParticleCanvas({ active, godMode }) {
     }
   }, [active, godMode, spawn]);
 
+  
+      useEffect(() => {
+      const c = chartRef.current;
+      if (!c) return;
+
+      const resize = () => {
+        const { width, height } = c.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        c.width  = Math.round(width * dpr);
+        c.height = Math.round(height * dpr);
+      };
+
+      resize();
+      window.addEventListener("resize", resize);
+      return () => window.removeEventListener("resize", resize);
+    }, []);
+
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if(!canvas) return;
@@ -1587,7 +1605,17 @@ export default function App() {
 
       {/* chart */}
       <div style={{ flex:1, minHeight:0, position:"relative" }}>
-        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
+          <canvas
+            ref={chartRef}
+              width={1}
+              height={1}
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: 20,
+                display: "block"
+              }}
+            />
         {/* pattern name watermark */}
         {screen === "outcome" && pattern && (
           <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
