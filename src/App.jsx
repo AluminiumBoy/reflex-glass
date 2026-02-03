@@ -796,20 +796,19 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
 /* ═══════════════════════════════════════════════════════════════
     11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
    ═══════════════════════════════════════════════════════════════ */
-      /* ── COUNTDOWN OVERLAY ── */
-      function Countdown({ onDone }) {
+      import { useState, useEffect } from "react";
+
+      // Countdown overlay komponens
+      export default function Countdown({ onDone }) {
         const [num, setNum] = useState(3);
 
         useEffect(() => {
-          SND.tick(3);
+          // hang és haptik minden számhoz
+          SND.tick(num);
           haptic([25]);
 
           if (num > 1) {
-            const t = setTimeout(() => {
-              SND.tick(num - 1);
-              haptic([25]);
-              setNum(n => n - 1);
-            }, 900);
+            const t = setTimeout(() => setNum(n => n - 1), 900);
             return () => clearTimeout(t);
           } else {
             // "1" után rövid delay, majd eltűnés
@@ -827,7 +826,8 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
             alignItems: "center",
             justifyContent: "center",
             background: "rgba(6,6,12,0.72)",
-            backdropFilter: "blur(12px)"
+            backdropFilter: "blur(12px)",
+            pointerEvents: "none" // ne blokkolja a canvas inputot, ha kell
           }}>
             <div style={{
               width: 140,
