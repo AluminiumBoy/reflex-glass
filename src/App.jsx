@@ -479,58 +479,32 @@ function getRandomPattern() {
    §5  LIVE TICKER  — DexScreener API  (top-10 trending on Base)
        Static seed fallback when offline / rate-limited.
    ═══════════════════════════════════════════════════════════════ */
+          async function fetchDexTrendingBaseTop10() {
+            const res = await fetch(
+              "https://api.dexscreener.com/latest/dex/pairs/base",
+              { signal: AbortSignal.timeout(4000) }
+            );
 
-const TICKER_SEEDS = [
-  { sym:"PEPE",      price:0.000014,   chg:+12.4  },
-  { sym:"DOGE",      price:0.081,      chg:-3.7   },
-  { sym:"SHIB",      price:0.0000091,  chg:+5.2   },
-  { sym:"FLOKI",     price:0.000182,   chg:-1.1   },
-  { sym:"BASE",      price:1.32,       chg:+8.9   },
-  { sym:"AERO",      price:0.42,       chg:-2.4   },
-  { sym:"BRETT",     price:0.0021,     chg:+22.1  },
-  { sym:"BALD",      price:0.0000003,  chg:-9.8   },
-  { sym:"TOSHI",     price:0.00000078, chg:+4.1   },
-  { sym:"BASED",     price:0.00034,    chg:-0.6   },
-];
+            if (!res.ok) throw new Error("DexScreener API error");
 
-async function fetchDexTrending() {
-  try {
-    // 1) grab top boosted tokens (free tier, no key needed)
-    const res = await fetch(
-      "https://api.dexscreener.com/token-boosts/top/v1",
-      { signal: AbortSignal.timeout(3800) }
-    );
-    if (!res.ok) return null;
-    const boosts = await res.json();                          // array of {chainId, tokenAddress, …}
+            const data = await res.json();
+            if (!data?.pairs?.length) throw new Error("No pairs returned");
 
-    // 2) keep only Base-chain boosts, take first 10
-    const baseBoosts = (boosts || [])
-      .filter(b => b.chainId === "base")
-      .slice(0, 10);
-    if (baseBoosts.length === 0) return null;
+            // rendezzük 24h volume alapján
+            const top10 = data.pairs
+              .filter(p => p.baseToken && p.priceUsd)
+              .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+              .slice(0, 10);
 
-    // 3) resolve token details in ONE request (multi-address endpoint)
-    const addrs = baseBoosts.map(b => b.tokenAddress).join(",");
-    const res2 = await fetch(
-      `https://api.dexscreener.com/simple/dex/tokens/base/${addrs}`,
-      { signal: AbortSignal.timeout(3800) }
-    );
-    if (!res2.ok) return null;
-    const tokens = (await res2.json()).tokens || [];
+            return top10.map(p => ({
+              symbol: p.baseToken.symbol,
+              price: Number(p.priceUsd),
+              change24h: p.priceChange?.h24 ?? 0,
+              liquidity: p.liquidity?.usd ?? 0,
+              pairUrl: p.url
+            }));
+          }
 
-    // 4) map → our ticker shape, drop zero-price ghosts
-    return tokens
-      .slice(0, 10)
-      .map(t => ({
-        sym:   (t.symbol || t.name || "???").toUpperCase().slice(0, 7),
-        price: +Number(t.priceUsd || 0).toPrecision(4),
-        chg:   +Number(t.priceChange?.h24 ?? 0).toFixed(2),
-      }))
-      .filter(t => t.price > 0);
-  } catch (_) {
-    return null;
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════
    §6  TRADER ARCHETYPES  (final verdict engine)
