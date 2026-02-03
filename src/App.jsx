@@ -1304,6 +1304,8 @@ function TipPanel() {
         const [particleBurst, setParticleBurst] = useState(false);
         const [godMode, setGodMode] = useState(false);
         const [screenPulse, setScreenPulse] = useState(false);
+        const [gameReady, setGameReady] = useState(false); // canvas render kész
+
 
         // refs
         const chartRef = useRef(null);
@@ -1397,10 +1399,17 @@ function TipPanel() {
 
         const startPlaying = useCallback(() => {
           const p = getRandomPattern();
-          setPattern(p);       // chart előre renderelve
+          setPattern(p);       
           setContProgress(0);
           setChoice(null);
-          setScreen("playing"); // chart azonnal látható
+          setGameReady(false);   // most indul a canvas render
+          setScreen("playing");  // játék előkészítése
+
+          // Kis delay, amíg a canvas teljesen renderelődik
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => setGameReady(true)); // két frame delay
+          });
+
           choiceTimeRef.current = null;
         }, []);
 
