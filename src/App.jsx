@@ -45,7 +45,7 @@ const STREAK_MULT  = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
 // ── USDC on Base mainnet ──
 const USDC_CONTRACT = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const DONATION_ADDRESS = "0xYOUR_DONATION_ADDRESS_HERE"; // ← replace before deploy
+const DONATION_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498"; // ← replace before deploy
 
 const C = {
   nGreen  : "#00ffaa",
@@ -473,10 +473,13 @@ function useDexScreenerTicker() {
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       
+      // Filter for Base chain and exclude any tokens with "BASE" in symbol
       const basePairs = json.pairs?.filter(p => 
         p.chainId === "base" && 
         p.baseToken?.symbol && 
-        p.baseToken.symbol !== "BASE"
+        !p.baseToken.symbol.toUpperCase().includes("BASE") &&
+        p.priceUsd && 
+        p.priceChange?.h24 !== undefined
       ) || [];
       
       const sorted = basePairs
@@ -486,13 +489,16 @@ function useDexScreenerTicker() {
       setTokens(sorted);
     } catch (e) {
       console.error("DexScreener fetch failed:", e);
-      // Fallback to static tokens if API fails
+      // Use static fallback tokens
       setTokens([
         { baseToken: { symbol: "ETH" }, priceUsd: "3500", priceChange: { h24: 2.5 }, volume: { h24: 50000000 } },
-        { baseToken: { symbol: "USDC" }, priceUsd: "1.00", priceChange: { h24: 0.1 }, volume: { h24: 100000000 } },
         { baseToken: { symbol: "WETH" }, priceUsd: "3502", priceChange: { h24: 2.3 }, volume: { h24: 30000000 } },
+        { baseToken: { symbol: "USDC" }, priceUsd: "1.00", priceChange: { h24: 0.1 }, volume: { h24: 100000000 } },
         { baseToken: { symbol: "DAI" }, priceUsd: "0.999", priceChange: { h24: -0.05 }, volume: { h24: 20000000 } },
         { baseToken: { symbol: "CBETH" }, priceUsd: "4100", priceChange: { h24: 1.8 }, volume: { h24: 15000000 } },
+        { baseToken: { symbol: "UNI" }, priceUsd: "12.5", priceChange: { h24: 3.2 }, volume: { h24: 25000000 } },
+        { baseToken: { symbol: "AAVE" }, priceUsd: "125", priceChange: { h24: 1.5 }, volume: { h24: 18000000 } },
+        { baseToken: { symbol: "LINK" }, priceUsd: "18.7", priceChange: { h24: 2.8 }, volume: { h24: 22000000 } },
       ]);
     } finally {
       setIsLoading(false);
@@ -864,12 +870,12 @@ function Countdown({ onDone }) {
     SND.tick(3);
     haptic([25]);
     if(num > 1) {
-      const t = setTimeout(() => { SND.tick(num-1); haptic([25]); setNum(n=>n-1); }, 750); // snappier
+      const t = setTimeout(() => { SND.tick(num-1); haptic([25]); setNum(n=>n-1); }, 750);
       return () => clearTimeout(t);
     } else {
       const t1 = setTimeout(() => setShatter(true), 480);
-      const t2 = setTimeout(() => setExit(true),    720);
-      const t3 = setTimeout(onDone,                 820); // faster shatter → play
+      const t2 = setTimeout(() => setExit(true), 720);
+      const t3 = setTimeout(onDone, 820);
       return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }
   }, [num, onDone]);
@@ -1006,7 +1012,6 @@ function OutcomeCard({ correct, points, streak, patternName, choice, signal, onN
    §15  USDC TIP BUTTONS  (wagmi sendTransaction, no approval)
    ═══════════════════════════════════════════════════════════════ */
 function parseUnits(value, decimals) {
-  // tiny helper – avoids pulling in ethers/viem just for this
   const [whole = "0", frac = ""] = value.split(".");
   const paddedFrac = frac.padEnd(decimals, "0").slice(0, decimals);
   return BigInt(whole + paddedFrac);
@@ -1017,7 +1022,6 @@ function TipButtons() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
   const [lastTipAmt, setLastTipAmt] = useState(null);
 
-  // reset on success so buttons re-enable
   useEffect(() => {
     if (isSuccess) {
       const t = setTimeout(reset, 2800);
@@ -1028,7 +1032,6 @@ function TipButtons() {
   const sendTip = (amount) => {
     setLastTipAmt(amount);
     const usdcAmount = parseUnits(amount.toString(), 6);
-    // ERC-20 transfer(address,uint256) selector = 0xa9059cbb
     const data =
       "0xa9059cbb" +
       DONATION_ADDRESS.slice(2).padStart(64, "0") +
@@ -1099,13 +1102,11 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
   const arch  = getArchetype(stats);
   const stars = Math.round((stats.correct / ROUNDS) * 5);
 
-  // fire verdict sound once on mount
   useEffect(() => { playSound("verdict"); }, []);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:18, padding:"20px 16px", maxWidth:420, margin:"0 auto" }}>
       <GlassPanel style={{ padding:30, textAlign:"center", width:"100%", position:"relative", overflow:"hidden" }}>
-        {/* animated top accent */}
         <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
           background:`linear-gradient(90deg, transparent, ${C.nGreen}, ${C.nPurple}, ${C.nPink}, transparent)` }} />
 
@@ -1119,7 +1120,6 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
           "{arch.roast}"
         </div>
 
-        {/* stars */}
         <div style={{ display:"flex", justifyContent:"center", gap:4, margin:"16px 0 4px" }}>
           {Array.from({length:5}, (_,i) => (
             <span key={i} style={{ fontSize:22, filter:i<stars?`drop-shadow(0 0 6px ${C.nAmber})`:"none" }}>
@@ -1128,7 +1128,6 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
           ))}
         </div>
 
-        {/* stats row */}
         <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:12 }}>
           {[
             { label:"Score",   val:stats.totalScore,            color:C.nGreen },
@@ -1143,11 +1142,9 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
           ))}
         </div>
 
-        {/* USDC tip row */}
         <TipButtons />
       </GlassPanel>
 
-      {/* action buttons */}
       <div style={{ display:"flex", gap:10, width:"100%", maxWidth:380 }}>
         <GlassButton onClick={onRestart}    color={C.nGreen}  style={{ flex:2, justifyContent:"center" }}>🔄 Play Again</GlassButton>
         <GlassButton onClick={onShare}      color={C.nPurple} style={{ flex:1, justifyContent:"center" }}>📤 Share</GlassButton>
@@ -1377,7 +1374,7 @@ export default function App() {
       }
     }, 60);
     return () => clearInterval(timerRef.current);
-  }, [isPlaying]); // eslint-disable-line
+  }, [isPlaying]);
 
   // ── continuation reveal animation ──
   useEffect(() => {
@@ -1403,7 +1400,6 @@ export default function App() {
 
   // ── GAME ACTIONS ──
 
-  // skip countdown on very first play if coming straight from name input
   const startGame = useCallback(() => {
     setRound(0);
     setScores([]);
@@ -1465,7 +1461,7 @@ export default function App() {
       setRound(nextRound);
       setScreen("countdown");
     }
-  }, [round, playerName]); // eslint-disable-line
+  }, [round, playerName]);
 
   function computeStats() {
     const totalScore = scores.reduce((a,b)=>a+b, 0);
@@ -1505,7 +1501,6 @@ export default function App() {
   // ── HOME ──
   const renderHome = () => (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100%", gap:24, padding:24 }}>
-      {/* logo */}
       <div style={{ textAlign:"center" }}>
         <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
           background:`linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
@@ -1524,7 +1519,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* info card */}
       <GlassPanel style={{ padding:20, maxWidth:340, width:"100%", textAlign:"center" }}>
         <div style={{ display:"flex", justifyContent:"center", gap:20 }}>
           {[
@@ -1541,7 +1535,6 @@ export default function App() {
         </div>
       </GlassPanel>
 
-      {/* CTA */}
       <GlassButton onClick={startGame} color={C.nGreen} style={{ padding:"18px 56px", fontSize:18, position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", inset:0, background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
           backgroundSize:"200% 100%", animation:"shimmer 2.2s linear infinite", pointerEvents:"none" }} />
@@ -1630,26 +1623,21 @@ export default function App() {
       background:`radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
       position:"relative" }}>
 
-      {/* ambient orbs */}
       <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0 }}>
         <div style={{ position:"absolute", top:"10%",  left:"15%", width:220, height:220, borderRadius:"50%", background:`radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`, filter:"blur(40px)" }} />
         <div style={{ position:"absolute", top:"60%", right:"10%", width:180, height:180, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`, filter:"blur(36px)" }} />
         <div style={{ position:"absolute", bottom:"15%", left:"40%", width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPink}09 0%, transparent 70%)`, filter:"blur(30px)" }} />
       </div>
 
-      {/* live ticker – always visible */}
       <LiveTicker />
 
-      {/* particle layer */}
       <ParticleCanvas active={particleBurst} godMode={godMode} />
 
-      {/* low-time edge pulse */}
       {screenPulse && (
         <div style={{ position:"fixed", inset:0, zIndex:198, pointerEvents:"none",
           boxShadow:`inset 0 0 60px ${C.nPink}55`, transition:"opacity 0.15s" }} />
       )}
 
-      {/* main content */}
       <div style={{ position:"relative", zIndex:1, paddingTop:34, minHeight:"calc(100dvh - 34px)", display:"flex", flexDirection:"column" }}>
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
