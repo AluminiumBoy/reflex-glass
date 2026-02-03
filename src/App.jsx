@@ -679,24 +679,6 @@ function ParticleCanvas({ active, godMode }) {
     }
   }, [active, godMode, spawn]);
 
-  
-      useEffect(() => {
-      const c = chartRef.current;
-      if (!c) return;
-
-      const resize = () => {
-        const { width, height } = c.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        c.width  = Math.round(width * dpr);
-        c.height = Math.round(height * dpr);
-      };
-
-      resize();
-      window.addEventListener("resize", resize);
-      return () => window.removeEventListener("resize", resize);
-    }, []);
-
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if(!canvas) return;
