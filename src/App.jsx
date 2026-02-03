@@ -1597,10 +1597,9 @@ export default function App() {
 
       {/* chart */}
       <div style={{ flex:1, minHeight:0, position:"relative" }}>
+          
           <canvas
             ref={chartRef}
-            width={1}
-            height={1}
             style={{
               width: "100%",
               height: "100%",
@@ -1608,6 +1607,7 @@ export default function App() {
               display: "block"
             }}
           />
+
 
         {/* pattern name watermark */}
         {screen === "outcome" && pattern && (
