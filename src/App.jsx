@@ -796,42 +796,30 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
 /* ═══════════════════════════════════════════════════════════════
     11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
    ═══════════════════════════════════════════════════════════════ */
-    
-    function Countdown({ onDone }) {
-      const [num, setNum] = useState(3);
-      const [shatter, setShatter] = useState(false);
-      const [exit, setExit] = useState(false);
+      /* ── COUNTDOWN OVERLAY ── */
+      function Countdown({ onDone }) {
+        const [num, setNum] = useState(3);
 
-      // countdown logika
-      useEffect(() => {
-        SND.tick(num);      // hang
-        haptic([25]);       // haptikus rezgés
+        useEffect(() => {
+          SND.tick(3);
+          haptic([25]);
 
-        if (num > 1) {
-          const t = setTimeout(() => setNum(n => n - 1), 900);
-          return () => clearTimeout(t);
-        } else {
-          // utolsó szám után shatter animáció
-          const t1 = setTimeout(() => setShatter(true), 600);
-          const t2 = setTimeout(() => setExit(true), 900);
-          const t3 = setTimeout(onDone, 1050); // itt hívjuk a játék startját
-          return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-        }
-      }, [num, onDone]);
+          if (num > 1) {
+            const t = setTimeout(() => {
+              SND.tick(num - 1);
+              haptic([25]);
+              setNum(n => n - 1);
+            }, 900);
+            return () => clearTimeout(t);
+          } else {
+            // "1" után rövid delay, majd eltűnés
+            const t = setTimeout(onDone, 900);
+            return () => clearTimeout(t);
+          }
+        }, [num, onDone]);
 
-      // shatter fragmentek
-      const frags = useMemo(() =>
-        Array.from({ length: 12 }, (_, i) => ({
-          id: i,
-          angle: (i / 12) * 360,
-          dist: R(40, 160),
-          delay: i * 30,
-        })),
-      []);
-
-      return (
-        <div
-          style={{
+        return (
+          <div style={{
             position: "fixed",
             inset: 0,
             zIndex: 250,
@@ -839,70 +827,34 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
             alignItems: "center",
             justifyContent: "center",
             background: "rgba(6,6,12,0.72)",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          {!shatter ? (
-            <div style={{ position: "relative" }}>
-              {/* outer glass ring */}
-              <div
-                style={{
-                  width: 140,
-                  height: 140,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
-                  border: `2px solid ${C.nGreen}50`,
-                  boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  animation: "ringPulse 0.9s ease-out",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 72,
-                    fontWeight: 800,
-                    fontFamily: "'SF Mono','Fira Code',monospace",
-                    color: num === 1 ? C.nPink : C.nGreen,
-                    textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
-                    animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)",
-                  }}
-                >
-                  {num}
-                </span>
-              </div>
+            backdropFilter: "blur(12px)"
+          }}>
+            <div style={{
+              width: 140,
+              height: 140,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
+              border: `2px solid ${C.nGreen}50`,
+              boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              animation: "ringPulse 0.9s ease-out"
+            }}>
+              <span style={{
+                fontSize: 72,
+                fontWeight: 800,
+                fontFamily: "'SF Mono','Fira Code',monospace",
+                color: num === 1 ? C.nPink : C.nGreen,
+                textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
+                animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)"
+              }}>
+                {num}
+              </span>
             </div>
-          ) : (
-            // shatter fragments
-            <div style={{ position: "relative", width: 140, height: 140 }}>
-              {frags.map(f => (
-                <div
-                  key={f.id}
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    top: "50%",
-                    width: R(15, 40),
-                    height: R(10, 28),
-                    background: `linear-gradient(${f.angle}deg, ${C.nGreen}44, ${C.nPurple}22)`,
-                    border: `1px solid ${C.nGreen}30`,
-                    borderRadius: R(2, 6),
-                    transform: exit
-                      ? `translate(${Math.cos(f.angle * Math.PI / 180) * f.dist}px, ${Math.sin(f.angle * Math.PI / 180) * f.dist}px) rotate(${f.angle}deg) scale(0)`
-                      : "translate(-50%,-50%) scale(1)",
-                    opacity: exit ? 0 : 1,
-                    transition: `transform 0.35s cubic-bezier(0.55,0,1,1) ${f.delay}ms, opacity 0.3s ease ${
-                      f.delay + 100
-                    }ms`,
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
+          </div>
+        );
+      }
 
 
 /* ═══════════════════════════════════════════════════════════════
