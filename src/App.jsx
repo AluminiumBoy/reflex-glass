@@ -1406,14 +1406,15 @@ export default function App() {
     setScreen("countdown");
   }, []);
 
-  const beginRound = useCallback(() => {
-    const p = getRandomPattern();
-    setPattern(p);
-    setChoice(null);
-    setContProgress(0);
-    setScreen("playing");
-    choiceTimeRef.current = null;
-  }, []);
+      // ── új round / Play Again ──
+      const beginRound = useCallback(() => {
+        const p = getRandomPattern();       // azonnal új pattern
+        setPattern(p);                       // ← ne nullázd
+        setChoice(null);
+        setContProgress(0);
+        setScreen("playing");                // RAF loop azonnal rajzol
+        choiceTimeRef.current = null;
+      }, []);
 
   const handleChoice = useCallback((ch) => {
     if(choice !== null) return; // already chose
@@ -1451,18 +1452,17 @@ export default function App() {
   // record start-of-playing timestamp
   useEffect(() => { if(isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
 
-  const advanceRound = useCallback(() => {
-    const nextRound = round + 1;
-    if(nextRound >= ROUNDS) {
-      // game over → save to leaderboard → verdict
-      const stats = computeStats();
-      addToLeaderboard(playerName, stats);
-      setScreen("verdict");
-    } else {
-      setRound(nextRound);
-      setScreen("countdown");
-    }
-  }, [round, playerName]); // eslint-disable-line
+    const advanceRound = useCallback(() => {
+      const nextRound = round + 1;
+      if(nextRound >= ROUNDS) {
+        const stats = computeStats();
+        addToLeaderboard(playerName, stats);
+        setScreen("verdict");
+      } else {
+        setRound(nextRound);
+        beginRound();                       // ← közvetlenül indítsa az új round-ot
+      }
+    }, [round, playerName, beginRound]);
 
   function computeStats() {
     const totalScore = scores.reduce((a,b)=>a+b, 0);
