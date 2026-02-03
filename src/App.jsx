@@ -524,16 +524,15 @@ function getArchetype(stats) {
 /* ═══════════════════════════════════════════════════════════════
     7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
    ═══════════════════════════════════════════════════════════════ */
-/* ── 7  CANVAS CHART RENDERER (Javított, DPR-aware, 60fps animált reveal) ── */
-function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
+function drawChart(canvas, candles, revealCount, continuationCount, contCandles = [], godMode = false) {
   if (!canvas || !candles || candles.length === 0) return;
+
   const ctx = canvas.getContext("2d");
   const dpr = window.devicePixelRatio || 1;
-
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
 
-  // csak ha méret változott, hogy ne töröljön minden frame
+  // ── Only resize if changed ──
   if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
     canvas.width = W * dpr;
     canvas.height = H * dpr;
@@ -541,24 +540,20 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.scale(dpr, dpr);
   }
 
-  // ── background ──
+  // ── Background ──
   const grd = ctx.createLinearGradient(0, 0, 0, H);
   grd.addColorStop(0, "#0d0d1a");
   grd.addColorStop(1, "#06060c");
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, W, H);
 
-  // ── grid lines ──
+  // ── Grid lines ──
   ctx.strokeStyle = "rgba(255,255,255,0.045)";
   ctx.lineWidth = 1;
-  for (let y = 0; y <= H; y += H / 6) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
-  for (let x = 0; x <= W; x += W / 8) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
+  for (let y = 0; y <= H; y += H / 6) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  for (let x = 0; x <= W; x += W / 8) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
 
-  // ── god-mode ambient glow ──
+  // ── God mode glow ──
   if (godMode) {
     ctx.save();
     const pulse = 0.15 + 0.08 * Math.sin(Date.now() * 0.006);
@@ -570,30 +565,27 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.restore();
   }
 
-  // ── Calculate price scale ──
-  const scaleCandles = [...candles, ...(contCandles || [])];
+  // ── Price scale ──
+  const allScaleCandles = [...candles, ...contCandles];
   let lo = Infinity, hi = -Infinity;
-  scaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
+  allScaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
   const pad = (hi - lo) * 0.12;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
 
-  const totalSlots = candles.length + (contCandles?.length || 0);
+  const totalSlots = candles.length + contCandles.length;
   const slotW = W / totalSlots;
   const bodyW = slotW * 0.55;
   const offX = (slotW - bodyW) / 2;
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── Prepare all visible candles ──
-  const allCandles = [
-    ...candles.slice(0, revealCount),
-    ...(contCandles || []).slice(0, continuationCount)
-  ];
+  // ── Prepare visible candles ──
+  const visibleCandles = [...candles.slice(0, revealCount), ...contCandles.slice(0, continuationCount)];
 
-  if (allCandles.length === 0) return;
+  if (visibleCandles.length === 0) return;
 
-  // ── price label for last candle ──
-  const lastC = allCandles[allCandles.length - 1];
+  // ── Price label for last candle ──
+  const lastC = visibleCandles[visibleCandles.length - 1];
   const lblY = toY(lastC.c);
   ctx.save();
   const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
@@ -605,12 +597,12 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   ctx.fillText(lastC.c.toFixed(2), W - 4, lblY + 3.5);
   ctx.restore();
 
-  // ── Draw each candle ──
-  allCandles.forEach((c, i) => {
+  // ── Draw candles ──
+  visibleCandles.forEach((c, i) => {
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // continuation fade
+    // fade in for continuation candles
     let alpha = 1;
     if (i >= revealCount) {
       const ci = i - revealCount;
@@ -624,8 +616,8 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.strokeStyle = bull ? "#00b85a" : "#e01030";
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(x + slotW/2, toY(c.h));
-    ctx.lineTo(x + slotW/2, toY(c.l));
+    ctx.moveTo(x + slotW / 2, toY(c.h));
+    ctx.lineTo(x + slotW / 2, toY(c.l));
     ctx.stroke();
 
     // body
@@ -633,11 +625,11 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     const bodyBottom = toY(Math.min(c.o, c.c));
     const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
 
-    const bg = ctx.createLinearGradient(x + offX, bodyTop, x + offX + bodyW, bodyTop);
-    bg.addColorStop(0, bull ? C.bull : C.bear);
-    bg.addColorStop(0.4, bull ? "#00ff9d" : "#ff4466");
-    bg.addColorStop(1, bull ? C.bull : C.bear);
-    ctx.fillStyle = bg;
+    const grad = ctx.createLinearGradient(x + offX, bodyTop, x + offX + bodyW, bodyTop);
+    grad.addColorStop(0, bull ? C.bull : C.bear);
+    grad.addColorStop(0.4, bull ? "#00ff9d" : "#ff4466");
+    grad.addColorStop(1, bull ? C.bull : C.bear);
+    ctx.fillStyle = grad;
     ctx.fillRect(x + offX, bodyTop, bodyW, bodyHeight);
 
     // subtle border
