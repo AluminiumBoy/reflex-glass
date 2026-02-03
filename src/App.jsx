@@ -464,25 +464,48 @@ function getRandomPattern() {
    ═══════════════════════════════════════════════════════════════ */
 function useDexScreenerTicker() {
   const [tokens, setTokens] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchTokens = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("https://api.dexscreener.com/latest/dex/search?q=base");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const json = await res.json();
+      
+      const basePairs = json.pairs?.filter(p => 
+        p.chainId === "base" && 
+        p.baseToken?.symbol && 
+        p.baseToken.symbol !== "BASE"
+      ) || [];
+      
+      const sorted = basePairs
+        .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+        .slice(0, 10);
+      
+      setTokens(sorted);
+    } catch (e) {
+      console.error("DexScreener fetch failed:", e);
+      // Fallback to static tokens if API fails
+      setTokens([
+        { baseToken: { symbol: "ETH" }, priceUsd: "3500", priceChange: { h24: 2.5 }, volume: { h24: 50000000 } },
+        { baseToken: { symbol: "USDC" }, priceUsd: "1.00", priceChange: { h24: 0.1 }, volume: { h24: 100000000 } },
+        { baseToken: { symbol: "WETH" }, priceUsd: "3502", priceChange: { h24: 2.3 }, volume: { h24: 30000000 } },
+        { baseToken: { symbol: "DAI" }, priceUsd: "0.999", priceChange: { h24: -0.05 }, volume: { h24: 20000000 } },
+        { baseToken: { symbol: "CBETH" }, priceUsd: "4100", priceChange: { h24: 1.8 }, volume: { h24: 15000000 } },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchTokens = async () => {
-      try {
-        const res  = await fetch("https://api.dexscreener.com/latest/dex/search?q=base");
-        const json = await res.json();
-        const basePairs = json.pairs?.filter(p => p.chainId === "base") || [];
-        const sorted = basePairs
-          .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
-          .slice(0, 10);
-        setTokens(sorted);
-      } catch (e) { /* silent – fall back to empty */ }
-    };
     fetchTokens();
     const interval = setInterval(fetchTokens, 45000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchTokens]);
 
-  return tokens;
+  return { tokens, isLoading };
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -735,7 +758,7 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
    §10  LIVE TICKER BAR  (DexScreener real data + neon style)
    ═══════════════════════════════════════════════════════════════ */
 function LiveTicker() {
-  const dexTokens   = useDexScreenerTicker();
+  const { tokens, isLoading } = useDexScreenerTicker();
   const [offset, setOffset] = useState(0);
   const rafRef      = useRef(null);
   const lastT       = useRef(Date.now());
@@ -759,14 +782,14 @@ function LiveTicker() {
 
   // normalise DexScreener pair → simple ticker shape
   const tickers = useMemo(() => {
-    if (dexTokens.length === 0) return [];
-    return dexTokens.map(p => ({
+    if (tokens.length === 0) return [];
+    return tokens.map(p => ({
       sym:   p.baseToken?.symbol || "?",
       price: p.priceUsd ? parseFloat(p.priceUsd) : 0,
       chg:   p.priceChange?.h24 ?? 0,
       vol:   p.volume?.h24 ?? 0,
     }));
-  }, [dexTokens]);
+  }, [tokens]);
 
   // format price smartly
   const fmtPrice = (n) => {
@@ -784,6 +807,17 @@ function LiveTicker() {
     if (n >= 1e3) return (n/1e3).toFixed(0) + "K";
     return n.toFixed(0);
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ position:"fixed", top:0, left:0, right:0, height:34, zIndex:300,
+        background:"linear-gradient(90deg, rgba(6,6,12,0.88) 0%, rgba(15,15,26,0.92) 100%)",
+        backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.glassBr}`,
+        overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <span style={{ color:C.nBlue, fontSize:11, fontFamily:"monospace" }}>Loading tickers...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, height:34, zIndex:300,
