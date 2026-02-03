@@ -26,7 +26,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 /* ═══════════════════════════════════════════════════════════════
-   §1  CONSTANTS & COLOR TOKENS
+    1  CONSTANTS & COLOR TOKENS
    ═══════════════════════════════════════════════════════════════ */
 
 const ROUNDS       = 7;
@@ -52,38 +52,57 @@ const C = {                         // colour palette
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   §2  HAPTIC HELPER
+    2  HAPTIC HELPER
    ═══════════════════════════════════════════════════════════════ */
 function haptic(pattern = [30]) {
   try { navigator?.vibrate?.(pattern); } catch(_) {}
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
+    3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
    ═══════════════════════════════════════════════════════════════ */
+  
+   /* =====================
+   SOUND ENGINE
+   (Web Audio API — lazy-inited on first user tap)
+   ===================== */
 class SoundEngine {
-  constructor() { this.ctx = null; this.on = true; }
+  constructor() { 
+    this.ctx = null; 
+    this.on = true; 
+  }
 
+  // ── init / resume audio context ──
   _ensure() {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
   }
 
+  // ── call this on user gesture to unlock audio
+  unlock() {
+    if (!this.on) return;
+    const ctx = this._ensure();
+    if (ctx.state === "suspended") ctx.resume();
+  }
+
+  // ── internal tone player ──
   _tone(freq, dur, type = "sine", vol = 0.13, startDelay = 0) {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime + startDelay;
     const osc = ctx.createOscillator();
     const g   = ctx.createGain();
-    osc.connect(g); g.connect(ctx.destination);
+    osc.connect(g); 
+    g.connect(ctx.destination);
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
     g.gain.setValueAtTime(vol, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    osc.start(now); osc.stop(now + dur);
+    osc.start(now); 
+    osc.stop(now + dur);
   }
 
+  // ── simple effects ──
   click()     { this._tone(420, 0.07, "sine", 0.11); }
   tick(n)     { n === 1 ? this._tone(1100, 0.11, "square", 0.18) : this._tone(680, 0.07, "triangle", 0.13); }
   correct()   { [523,659,784].forEach((f,i) => this._tone(f, 0.14, "sine", 0.16, i*0.09)); }
@@ -91,8 +110,8 @@ class SoundEngine {
   godBurst()  { [440,554,659,880,1046].forEach((f,i) => this._tone(f, 0.22, "sine", 0.2, i*0.08)); }
   reveal()    { this._tone(900, 0.06, "sine", 0.08); }
 
-  // ── verdict + tips ──────────────────────────────────────────
-  whoosh() {                                    // verdict-screen entrance sweep
+  // ── verdict + tips ──
+  whoosh() { 
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     const osc = ctx.createOscillator(), g = ctx.createGain();
@@ -104,7 +123,8 @@ class SoundEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
     osc.start(now); osc.stop(now + 0.34);
   }
-  tipTap() {                                    // metallic coin-clink on button press
+
+  tipTap() { 
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     [1900, 2600].forEach((f, i) => {
@@ -118,18 +138,16 @@ class SoundEngine {
       o.start(t); o.stop(t + 0.13);
     });
   }
-  tipSent() {                                   // celebratory arp when tx confirmed
-    [392, 523, 659, 784, 1047].forEach((f, i) =>
-      this._tone(f, 0.18, "sine", 0.17, i * 0.07)
-    );
-  }
-  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); } // subtle live-data refresh ping
+
+  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); }
 }
 
+// ── singleton instance ──
 const SND = new SoundEngine();
 
+
 /* ═══════════════════════════════════════════════════════════════
-   §4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
+    4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
       Each factory returns:
         { candles: OHLC[22], continuation: OHLC[10],
           signal: 'buy'|'sell'|'hold', name: string, cat: string }
@@ -478,7 +496,7 @@ function getRandomPattern() {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   §6  TRADER ARCHETYPES  (final verdict engine)
+    6  TRADER ARCHETYPES  (final verdict engine)
    ═══════════════════════════════════════════════════════════════ */
 const ARCHETYPES = [
   { name:"Impulse Ape",        emoji:"🐒", cond: r => r.buyCount > 4,
@@ -504,7 +522,7 @@ function getArchetype(stats) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
+    7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
    ═══════════════════════════════════════════════════════════════ */
 function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
   if (!canvas) return;
@@ -626,7 +644,7 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §8  PARTICLE BURST  (perfect round / god mode)
+    8  PARTICLE BURST  (perfect round / god mode)
    ═══════════════════════════════════════════════════════════════ */
 function ParticleCanvas({ active, godMode }) {
   const canvasRef = useRef(null);
@@ -703,7 +721,7 @@ function ParticleCanvas({ active, godMode }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §9  GLASS UI PRIMITIVES
+    9  GLASS UI PRIMITIVES
    ═══════════════════════════════════════════════════════════════ */
 
 // Specular highlight that follows pointer
@@ -776,7 +794,7 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
 
 
 /* ═══════════════════════════════════════════════════════════════
-   §11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
+    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
    ═══════════════════════════════════════════════════════════════ */
 function Countdown({ onDone }) {
   const [num, setNum]       = useState(3);
@@ -847,7 +865,7 @@ function Countdown({ onDone }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §12  TIMER BAR  (liquid progress, pulse when low)
+    12  TIMER BAR  (liquid progress, pulse when low)
    ═══════════════════════════════════════════════════════════════ */
 function TimerBar({ timeLeft, totalTime }) {
   const pct    = (timeLeft / totalTime) * 100;
@@ -868,7 +886,7 @@ function TimerBar({ timeLeft, totalTime }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §13  DECISION BUTTONS
+    13  DECISION BUTTONS
    ═══════════════════════════════════════════════════════════════ */
 function DecisionButtons({ onChoose, disabled }) {
   return (
@@ -890,7 +908,7 @@ function DecisionButtons({ onChoose, disabled }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §14  OUTCOME CARD  (shown after continuation animates in)
+    14  OUTCOME CARD  (shown after continuation animates in)
    ═══════════════════════════════════════════════════════════════ */
 function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
   return (
@@ -934,7 +952,7 @@ function OutcomeCard({ correct, points, streak, patternName, choice, signal, onN
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §15  FINAL VERDICT SCREEN
+    15  FINAL VERDICT SCREEN
    ═══════════════════════════════════════════════════════════════ */
 function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
   const arch = getArchetype(stats);
@@ -998,7 +1016,7 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §16  LEADERBOARD  (localStorage)
+    16  LEADERBOARD  (localStorage)
    ═══════════════════════════════════════════════════════════════ */
 const LB_KEY = "reflexglass_lb_v2";
 function loadLB() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch(_){ return []; } }
@@ -1060,7 +1078,7 @@ function Leaderboard({ onClose, currentName }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
+    17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
    ═══════════════════════════════════════════════════════════════ */
 function generateShareSVG(stats) {
   const arch = getArchetype(stats);
@@ -1119,7 +1137,7 @@ function triggerShare(stats, playerName) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §18  NAME INPUT (first-time / before leaderboard)
+    18  NAME INPUT (first-time / before leaderboard)
    ═══════════════════════════════════════════════════════════════ */
 const NAME_KEY = "reflexglass_name_v2";
 function loadName() { try { return localStorage.getItem(NAME_KEY) || ""; } catch(_){ return ""; } }
@@ -1145,7 +1163,7 @@ function NameInput({ onSubmit }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
+    20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
         Uses raw ERC-20 transfer calldata — no wagmi contract hooks needed.
         Caller must supply sendTransaction (wagmi useWriteContract or
         equivalent) via the global hook wired in main.jsx / provider.
@@ -1275,7 +1293,7 @@ function TipPanel() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §19  ROOT APP  —  STATE MACHINE + GAME LOOP
+    19  ROOT APP  —  STATE MACHINE + GAME LOOP
         States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
    ═══════════════════════════════════════════════════════════════ */
 export default function App() {
