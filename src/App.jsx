@@ -1395,88 +1395,135 @@ export default function App() {
     return () => cancelAnimationFrame(contAnimRef.current);
   }, [screen]);
 
-  // ── GAME ACTIONS ──
+    // ── GAME ACTIONS ──
 
-  const startGame = useCallback(() => {
-    setRound(0);
-    setScores([]);
-    setRoundStats([]);
-    setStreak(0);
-    setGodMode(false);
-    setScreen("countdown");
-  }, []);
+    // 1️⃣ játék indítás → pattern ELŐRE létrejön
+    const startGame = useCallback(() => {
+      const p = getRandomPattern();   // 👈 ELŐRE
+      setPattern(p);
 
-      const startPlaying = useCallback(() => {
-        const p = getRandomPattern();
-        setPattern(p);          // ← ELŐBB chart adat
-        setContProgress(0);
-        setChoice(null);
-        setScreen("playing");   // ← CSAK UTÁNA screen váltás
-        choiceTimeRef.current = null;
-      }, []);
-
-
-  const handleChoice = useCallback((ch) => {
-    if(choice !== null) return; // already chose
-    clearInterval(timerRef.current);
-    const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
-    choiceTimeRef.current = null;
-    setChoice(ch);
-
-    const correct = ch === pattern.signal;
-    haptic(correct ? [30,20,30] : [80]);
-
-    if(correct) {
-      SND.correct();
-      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-      const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
-      const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-      setScores(prev => [...prev, pts]);
-      setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-      setParticleBurst(true);
-      setTimeout(() => setParticleBurst(false), 600);
-      // god mode check
-      if(newStreak >= 6 && !godMode) { setGodMode(true); SND.godBurst(); haptic([50,30,50,30,50]); }
-    } else {
-      SND.wrong();
-      setScores(prev => [...prev, 0]);
-      setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
+      setRound(0);
+      setScores([]);
+      setRoundStats([]);
       setStreak(0);
-    }
-    // trigger continuation reveal
-    setScreen("revealing");
-  }, [choice, pattern, streak, godMode]);
+      setGodMode(false);
+      setChoice(null);
+      setContProgress(0);
 
-  // record start-of-playing timestamp
-  useEffect(() => { if(isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
+      setScreen("countdown");         // 👈 chart már alatta él
+    }, []);
 
+
+    // 2️⃣ countdown vége → csak screen váltás
+    const startPlaying = useCallback(() => {
+      setScreen("playing");
+      choiceTimeRef.current = Date.now();
+    }, []);
+
+
+    // 3️⃣ választás kezelése (változatlan logika)
+    const handleChoice = useCallback((ch) => {
+      if (choice !== null) return;
+
+      clearInterval(timerRef.current);
+
+      const speedMs =
+        choiceTimeRef.current
+          ? Date.now() - choiceTimeRef.current
+          : DECISION_MS;
+
+      choiceTimeRef.current = null;
+      setChoice(ch);
+
+      const correct = ch === pattern.signal;
+      haptic(correct ? [30, 20, 30] : [80]);
+
+      if (correct) {
+        SND.correct();
+
+        const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+        const speedBonus = Math.round(
+          (1 - speedMs / DECISION_MS) * BASE_SCORE * 0.5
+        );
+        const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+
+        setScores(p => [...p, pts]);
+        setRoundStats(p => [
+          ...p,
+          { correct: true, speedMs, choice: ch, signal: pattern.signal }
+        ]);
+
+        const newStreak = streak + 1;
+        setStreak(newStreak);
+
+        setParticleBurst(true);
+        setTimeout(() => setParticleBurst(false), 600);
+
+        if (newStreak >= 6 && !godMode) {
+          setGodMode(true);
+          SND.godBurst();
+          haptic([50, 30, 50, 30, 50]);
+        }
+      } else {
+        SND.wrong();
+        setScores(p => [...p, 0]);
+        setRoundStats(p => [
+          ...p,
+          { correct: false, speedMs, choice: ch, signal: pattern.signal }
+        ]);
+        setStreak(0);
+      }
+
+      setScreen("revealing");
+    }, [choice, pattern, streak, godMode]);
+
+
+    // 4️⃣ következő kör
     const advanceRound = useCallback(() => {
       const nextRound = round + 1;
-      if(nextRound >= ROUNDS) {
+
+      if (nextRound >= ROUNDS) {
         const stats = computeStats();
         addToLeaderboard(playerName, stats);
         setScreen("verdict");
       } else {
-        setRound(nextRound);
-        beginRound();                       // ← közvetlenül indítsa az új round-ot
-      }
-    }, [round, playerName, beginRound]);
+        const p = getRandomPattern();   // 👈 ÚJ PATTERN ELŐRE
+        setPattern(p);
 
-  function computeStats() {
-    const totalScore = scores.reduce((a,b)=>a+b, 0);
-    const correct    = roundStats.filter(r=>r.correct).length;
-    const buyCount   = roundStats.filter(r=>r.choice==="buy").length;
-    const sellCount  = roundStats.filter(r=>r.choice==="sell").length;
-    const holdCount  = roundStats.filter(r=>r.choice==="hold").length;
-    const speeds     = roundStats.map(r=>r.speedMs);
-    const avgSpeed   = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
-    // max streak
-    let maxStreak=0, cur=0;
-    roundStats.forEach(r=>{ if(r.correct){cur++;maxStreak=Math.max(maxStreak,cur);}else cur=0; });
-    return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
-  }
+        setRound(nextRound);
+        setChoice(null);
+        setContProgress(0);
+
+        setScreen("countdown");         // 👈 megint előrender
+      }
+    }, [round, playerName]);
+
+
+    // 5️⃣ statisztika (változatlan)
+    function computeStats() {
+      const totalScore = scores.reduce((a, b) => a + b, 0);
+      const correct = roundStats.filter(r => r.correct).length;
+      const buyCount = roundStats.filter(r => r.choice === "buy").length;
+      const sellCount = roundStats.filter(r => r.choice === "sell").length;
+      const holdCount = roundStats.filter(r => r.choice === "hold").length;
+
+      const speeds = roundStats.map(r => r.speedMs);
+      const avgSpeed = speeds.length
+        ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length)
+        : 0;
+
+      let maxStreak = 0, cur = 0;
+      roundStats.forEach(r => {
+        if (r.correct) {
+          cur++;
+          maxStreak = Math.max(maxStreak, cur);
+        } else {
+          cur = 0;
+        }
+      });
+
+      return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
+    }
 
   // ── RENDER ──
 
