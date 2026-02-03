@@ -524,25 +524,15 @@ function getArchetype(stats) {
 /* ═══════════════════════════════════════════════════════════════
     7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
    ═══════════════════════════════════════════════════════════════ */
-  function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
-    if (!canvas) return;
-
-      const ctx = canvas.getContext("2d");
-      const dpr = window.devicePixelRatio || 1;
-      const W   = canvas.clientWidth;
-      const H   = canvas.clientHeight;
-
-      canvas.width  = W * dpr;
-      canvas.height = H * dpr;
-
-      // 🔥 TELJES RESET
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // 🔥 EZUTÁN skálázunk
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-
+function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
+  if (!canvas) return;
+  const ctx    = canvas.getContext("2d");
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = canvas.clientWidth;
+  const H      = canvas.clientHeight;
+  canvas.width = W * dpr;
+  canvas.height= H * dpr;
+  ctx.scale(dpr, dpr);
 
   // ── background ──
   const grd = ctx.createLinearGradient(0,0,0,H);
@@ -1597,18 +1587,7 @@ export default function App() {
 
       {/* chart */}
       <div style={{ flex:1, minHeight:0, position:"relative" }}>
-          
-          <canvas
-            ref={chartRef}
-            style={{
-              width: "100%",
-              height: "100%",
-              borderRadius: 20,
-              display: "block"
-            }}
-          />
-
-
+        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
         {/* pattern name watermark */}
         {screen === "outcome" && pattern && (
           <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
