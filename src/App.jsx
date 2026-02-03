@@ -475,36 +475,6 @@ function getRandomPattern() {
   return ALL_PATTERNS[RI(0, ALL_PATTERNS.length - 1)]();
 }
 
-/* ═══════════════════════════════════════════════════════════════
-     LIVE TICKER  — DexScreener API  (top-10 trending on Base)
-       Static seed fallback when offline / rate-limited.
-   ═══════════════════════════════════════════════════════════════ */
-   
-      async function fetchDexTrendingBaseTop10() {
-        const res = await fetch(
-          "https://api.dexscreener.com/latest/dex/pairs/base",
-          { signal: AbortSignal.timeout(4000) }
-        );
-
-        if (!res.ok) throw new Error("DexScreener API error");
-
-        const data = await res.json();
-        if (!data?.pairs?.length) throw new Error("No pairs returned");
-
-        // rendezzük 24h volume alapján
-        const top10 = data.pairs
-          .filter(p => p.baseToken && p.priceUsd)
-          .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
-          .slice(0, 10);
-
-        return top10.map(p => ({
-          symbol: p.baseToken.symbol,
-          price: Number(p.priceUsd),
-          change24h: p.priceChange?.h24 ?? 0,
-          liquidity: p.liquidity?.usd ?? 0,
-          pairUrl: p.url
-        }));
-      }
 
 
 /* ═══════════════════════════════════════════════════════════════
@@ -804,148 +774,6 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
   );
 }
 
-    /* LIVE TICKER BAR — DexScreener (Base Top 10) */
-    function LiveTicker() {
-      const [tickers, setTickers] = useState([]);   // ✅ nincs seed
-      const [offset, setOffset] = useState(0);
-      const rafRef = useRef(null);
-      const lastT = useRef(Date.now());
-      const hasFetched = useRef(false);
-
-      // ── fetch loop: initial + every 28s ──
-      useEffect(() => {
-        let alive = true;
-
-        async function pull() {
-          try {
-            const data = await fetchDexTrendingBaseTop10();
-            if (!alive) return;
-            if (Array.isArray(data) && data.length > 0) {
-              setTickers(data);
-              if (hasFetched.current) SND?.tickerPing?.();
-              hasFetched.current = true;
-            }
-          } catch {
-            // szándékosan üres – nincs fallback
-          }
-        }
-
-        pull();
-        const iv = setInterval(pull, 28000);
-        return () => {
-          alive = false;
-          clearInterval(iv);
-        };
-      }, []);
-
-      // ── smooth scroll RAF ──
-      useEffect(() => {
-        let pos = 0;
-        const spd = 28;
-
-        function loop() {
-          const now = Date.now();
-          const dt = (now - lastT.current) / 1000;
-          lastT.current = now;
-
-          pos -= spd * dt;
-          if (pos < -window.innerWidth * 0.8) pos = 0;
-
-          setOffset(pos);
-          rafRef.current = requestAnimationFrame(loop);
-        }
-
-        loop();
-        return () => cancelAnimationFrame(rafRef.current);
-      }, []);
-
-      // ── format price ──
-      const fmtPrice = (p) => {
-        if (!p) return "0";
-        if (p >= 1) return p.toFixed(2);
-        if (p >= 0.01) return p.toFixed(4);
-        if (p >= 0.0001) return p.toFixed(6);
-        return Number(p.toPrecision(3)).toExponential(1);
-      };
-
-      // ✅ ha még nincs adat, nem renderelünk semmit
-      if (tickers.length === 0) return null;
-
-      return (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 34,
-          zIndex: 300,
-          background: "linear-gradient(90deg, rgba(6,6,12,0.88), rgba(15,15,26,0.92))",
-          backdropFilter: "blur(20px)",
-          borderBottom: `1px solid ${C.glassBr}`,
-          overflow: "hidden",
-          display: "flex",
-          alignItems: "center"
-        }}>
-          <div style={{
-            display: "flex",
-            gap: 32,
-            whiteSpace: "nowrap",
-            transform: `translateX(${offset}px)`,
-            willChange: "transform"
-          }}>
-            {[...tickers, ...tickers].map((t, i) => (
-              <span key={i} style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 11,
-                fontFamily: "'SF Mono','Fira Code',monospace"
-              }}>
-                <span style={{ color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>
-                  {t.symbol}
-                </span>
-                <span style={{ color: "rgba(255,255,255,0.72)", fontWeight: 700 }}>
-                  ${fmtPrice(t.price)}
-                </span>
-                <span style={{ color: t.change24h >= 0 ? C.bull : C.bear, fontWeight: 600 }}>
-                  {t.change24h >= 0 ? "+" : ""}{t.change24h}%
-                </span>
-                <span style={{ color: "rgba(255,255,255,0.15)" }}>│</span>
-              </span>
-            ))}
-          </div>
-
-          {/* LIVE dot */}
-          <div style={{
-            position: "absolute",
-            left: 8,
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "flex",
-            alignItems: "center",
-            gap: 5
-          }}>
-            <div style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: C.nPink,
-              boxShadow: `0 0 6px ${C.nPink}`,
-              animation: "pulse 1.4s infinite"
-            }} />
-            <span style={{
-              color: C.nPink,
-              fontSize: 9,
-              fontWeight: 700,
-              fontFamily: "monospace",
-              letterSpacing: "0.12em"
-            }}>
-              LIVE
-            </span>
-          </div>
-        </div>
-      );
-    }
 
 /* ═══════════════════════════════════════════════════════════════
    §11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
@@ -1796,8 +1624,6 @@ export default function App() {
         <div style={{ position:"absolute", bottom:"15%", left:"40%", width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPink}09 0%, transparent 70%)`, filter:"blur(30px)" }} />
       </div>
 
-      {/* live ticker */}
-      <LiveTicker />
 
       {/* particle layer */}
       <ParticleCanvas active={particleBurst} godMode={godMode} />
