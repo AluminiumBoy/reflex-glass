@@ -1406,15 +1406,15 @@ export default function App() {
     setScreen("countdown");
   }, []);
 
-      // ── új round / Play Again ──
-      const beginRound = useCallback(() => {
-        const p = getRandomPattern();       // azonnal új pattern
-        setPattern(p);                       // ← ne nullázd
-        setChoice(null);
+      const startPlaying = useCallback(() => {
+        const p = getRandomPattern();
+        setPattern(p);          // ← ELŐBB chart adat
         setContProgress(0);
-        setScreen("playing");                // RAF loop azonnal rajzol
+        setChoice(null);
+        setScreen("playing");   // ← CSAK UTÁNA screen váltás
         choiceTimeRef.current = null;
       }, []);
+
 
   const handleChoice = useCallback((ch) => {
     if(choice !== null) return; // already chose
@@ -1658,7 +1658,7 @@ export default function App() {
 
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
-        {screen === "countdown"   && <Countdown onDone={beginRound} />}
+        {screen === "countdown"   && <Countdown onDone={startPlaying} />}
         {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
