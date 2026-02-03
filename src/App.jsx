@@ -1297,228 +1297,184 @@ function TipPanel() {
         States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
    ═══════════════════════════════════════════════════════════════ */
       export default function App() {
-      // ── STATE ──
-      const [screen, setScreen] = useState(loadName() ? "home" : "name");
-      const [pattern, setPattern] = useState(null);
-      const [contProgress, setContProgress] = useState(0);
-      const [choice, setChoice] = useState(null);
-      const [decisionEnabled, setDecisionEnabled] = useState(false);
+        // ── STATE ──
+        const [screen, setScreen] = useState(loadName() ? "home" : "name");
+        const [playerName, setPlayerName] = useState(loadName());
+        const [round, setRound] = useState(0);
+        const [pattern, setPattern] = useState(null);
+        const [timeLeft, setTimeLeft] = useState(DECISION_MS);
+        const [choice, setChoice] = useState(null);
+        const [streak, setStreak] = useState(0);
+        const [scores, setScores] = useState([]);
+        const [roundStats, setRoundStats] = useState([]);
+        const [contProgress, setContProgress] = useState(0);
+        const [particleBurst, setParticleBurst] = useState(false);
+        const [godMode, setGodMode] = useState(false);
+        const [screenPulse, setScreenPulse] = useState(false);
 
-      // refs
-      const chartRef = useRef(null);
-      const contAnimRef = useRef(null);
-      const rafChartRef = useRef(null);
-      const choiceTimeRef = useRef(null);
+        // refs
+        const chartRef = useRef(null);
+        const timerRef = useRef(null);
+        const contAnimRef = useRef(null);
+        const rafChartRef = useRef(null);
+        const choiceTimeRef = useRef(null);
 
-      // ── CHART RAF LOOP ──
-      useEffect(() => {
-        if (!pattern) return;
-        let running = true;
+        // ── DERIVED ──
+        const isPlaying = screen === "playing";
 
-        function loop() {
-          if (!running) return;
-          drawChart(
-            chartRef.current,
-            pattern.candles,
-            22, // initial candles always fully visible
-            contProgress,
-            pattern.continuation,
-            godMode
-          );
-          rafChartRef.current = requestAnimationFrame(loop);
-        }
-
-        loop();
-        return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
-      }, [pattern, contProgress, godMode]);
-
-      // ── START NEW ROUND ──
-      const startPlaying = useCallback(() => {
-        const p = getRandomPattern();
-        setPattern(p);              // chart adat előbb
-        setContProgress(0);
-        setChoice(null);
-        setScreen("playing");       // screen váltás csak utána
-        choiceTimeRef.current = null;
-        setDecisionEnabled(false);  // decision gombok tiltva
-
-        // animáció időablak (pl. 1s), utána a user dönthet
-        const animDuration = 1000;
-        setTimeout(() => setDecisionEnabled(true), animDuration);
-      }, []);
-
-      // ── CONTINUATION ANIMATION ──
-      useEffect(() => {
-        if (screen !== "playing" || !pattern) return;
-        const startTime = Date.now();
-        const duration = 900; // ms az animációra
-        function animate() {
-          const elapsed = Date.now() - startTime;
-          const pct = Math.min(elapsed / duration, 1);
-          const eased = 1 - Math.pow(1 - pct, 3); // ease-out cubic
-          setContProgress(eased * 10);
-
-          if (pct < 1) {
-            contAnimRef.current = requestAnimationFrame(animate);
-          } else {
-            setContProgress(10);
+        // ── CHART RENDER LOOP ──
+        useEffect(() => {
+          if (!pattern) return;
+          let running = true;
+          function loop() {
+            if (!running) return;
+            drawChart(
+              chartRef.current,
+              pattern.candles,
+              22,
+              screen === "revealing" || screen === "outcome" ? contProgress : 0,
+              pattern.continuation,
+              godMode
+            );
+            rafChartRef.current = requestAnimationFrame(loop);
           }
-        }
-        contAnimRef.current = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(contAnimRef.current);
-      }, [screen, pattern]);
+          loop();
+          return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
+        }, [pattern, screen, contProgress, godMode]);
 
-      // ── HANDLE USER CHOICE ──
-      const handleChoice = useCallback((ch) => {
-        if (!decisionEnabled || choice !== null) return; // még nem engedélyezett vagy már választott
-        choiceTimeRef.current = choiceTimeRef.current || Date.now();
-        setChoice(ch);
+        // ── LOW-TIME HAPTIC ──
+        useEffect(() => {
+          if (isPlaying && timeLeft <= 1000 && timeLeft > 0) {
+            haptic([40, 30, 40]);
+            setScreenPulse(true);
+            const t = setTimeout(() => setScreenPulse(false), 200);
+            return () => clearTimeout(t);
+          }
+        }, [isPlaying, timeLeft]);
 
-        const speedMs = Date.now() - choiceTimeRef.current;
-        const correct = ch === pattern.signal;
-        haptic(correct ? [30,20,30] : [80]);
+        // ── TIMER ──
+        useEffect(() => {
+          if (!isPlaying) { clearInterval(timerRef.current); return; }
+          setTimeLeft(DECISION_MS);
+          const start = Date.now();
+          timerRef.current = setInterval(() => {
+            const rem = DECISION_MS - (Date.now() - start);
+            if (rem <= 0) {
+              clearInterval(timerRef.current);
+              setTimeLeft(0);
+              handleChoice(null);
+            } else {
+              setTimeLeft(rem);
+            }
+          }, 60);
+          return () => clearInterval(timerRef.current);
+        }, [isPlaying]);
 
-        if (correct) {
-          SND.correct();
-          const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-          const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
-          const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-          setScores(prev => [...prev, pts]);
-          setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
-          setStreak(streak + 1);
-          setParticleBurst(true);
-          setTimeout(() => setParticleBurst(false), 600);
-        } else {
-          SND.wrong();
-          setScores(prev => [...prev, 0]);
-          setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
+        // ── CONTINUATION ANIMATION ──
+        useEffect(() => {
+          if (screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
+          setContProgress(0);
+          const startTime = Date.now();
+          const duration = 900;
+          function animate() {
+            const elapsed = Date.now() - startTime;
+            const pct = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - pct, 3);
+            setContProgress(eased * 10);
+            if (pct < 1) {
+              contAnimRef.current = requestAnimationFrame(animate);
+            } else {
+              setContProgress(10);
+              setTimeout(() => setScreen("outcome"), 200);
+            }
+          }
+          contAnimRef.current = requestAnimationFrame(animate);
+          return () => cancelAnimationFrame(contAnimRef.current);
+        }, [screen]);
+
+        // ── GAME ACTIONS ──
+        const startGame = useCallback(() => {
+          setRound(0);
+          setScores([]);
+          setRoundStats([]);
           setStreak(0);
+          setGodMode(false);
+          setScreen("countdown"); // 3-2-1 overlay
+        }, []);
+
+        const startPlaying = useCallback(() => {
+          const p = getRandomPattern();
+          setPattern(p);       // chart előre renderelve
+          setContProgress(0);
+          setChoice(null);
+          setScreen("playing"); // chart azonnal látható
+          choiceTimeRef.current = null;
+        }, []);
+
+        const handleChoice = useCallback((ch) => {
+          if (choice !== null) return;
+          clearInterval(timerRef.current);
+          const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
+          choiceTimeRef.current = null;
+          setChoice(ch);
+
+          const correct = ch === pattern.signal;
+          haptic(correct ? [30,20,30] : [80]);
+
+          if (correct) {
+            SND.correct();
+            const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+            const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
+            const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+            setScores(prev => [...prev, pts]);
+            setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+            setParticleBurst(true);
+            setTimeout(() => setParticleBurst(false), 600);
+            if (newStreak >= 6 && !godMode) { 
+              setGodMode(true); 
+              SND.godBurst(); 
+              haptic([50,30,50,30,50]); 
+            }
+          } else {
+            SND.wrong();
+            setScores(prev => [...prev, 0]);
+            setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
+            setStreak(0);
+          }
+
+          setScreen("revealing");
+        }, [choice, pattern, streak, godMode]);
+
+        useEffect(() => { if (isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
+
+        const advanceRound = useCallback(() => {
+          const nextRound = round + 1;
+          if (nextRound >= ROUNDS) {
+            const stats = computeStats();
+            addToLeaderboard(playerName, stats);
+            setScreen("verdict");
+          } else {
+            setRound(nextRound);
+            startPlaying(); // új round azonnal
+          }
+        }, [round, playerName, startPlaying]);
+
+        function computeStats() {
+          const totalScore = scores.reduce((a,b)=>a+b,0);
+          const correct = roundStats.filter(r=>r.correct).length;
+          const buyCount = roundStats.filter(r=>r.choice==="buy").length;
+          const sellCount = roundStats.filter(r=>r.choice==="sell").length;
+          const holdCount = roundStats.filter(r=>r.choice==="hold").length;
+          const speeds = roundStats.map(r=>r.speedMs);
+          const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
+          let maxStreak=0, cur=0;
+          roundStats.forEach(r => { if(r.correct){ cur++; maxStreak=Math.max(maxStreak,cur); } else cur=0; });
+          return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
         }
-
-        // után outcome
-        setScreen("outcome");
-      }, [decisionEnabled, choice, pattern, streak]);
-
-
-    // ── GAME ACTIONS ──
-
-    // 1️⃣ játék indítás → pattern ELŐRE létrejön
-    const startGame = useCallback(() => {
-      const p = getRandomPattern();   // 👈 ELŐRE
-      setPattern(p);
-
-      setRound(0);
-      setScores([]);
-      setRoundStats([]);
-      setStreak(0);
-      setGodMode(false);
-      setChoice(null);
-      setContProgress(0);
-
-      setScreen("countdown");         // 👈 chart már alatta él
-    }, []);
-
-
-
-  
-
-      const speedMs =
-        choiceTimeRef.current
-          ? Date.now() - choiceTimeRef.current
-          : DECISION_MS;
-
-      choiceTimeRef.current = null;
-      setChoice(ch);
-
-      const correct = ch === pattern.signal;
-      haptic(correct ? [30, 20, 30] : [80]);
-
-      if (correct) {
-        SND.correct();
-
-        const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-        const speedBonus = Math.round(
-          (1 - speedMs / DECISION_MS) * BASE_SCORE * 0.5
-        );
-        const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-
-        setScores(p => [...p, pts]);
-        setRoundStats(p => [
-          ...p,
-          { correct: true, speedMs, choice: ch, signal: pattern.signal }
-        ]);
-
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-
-        setParticleBurst(true);
-        setTimeout(() => setParticleBurst(false), 600);
-
-        if (newStreak >= 6 && !godMode) {
-          setGodMode(true);
-          SND.godBurst();
-          haptic([50, 30, 50, 30, 50]);
-        }
-      } else {
-        SND.wrong();
-        setScores(p => [...p, 0]);
-        setRoundStats(p => [
-          ...p,
-          { correct: false, speedMs, choice: ch, signal: pattern.signal }
-        ]);
-        setStreak(0);
       }
 
-      setScreen("revealing");
-    } [choice, pattern, streak, godMode]
-
-
-    // 4️⃣ következő kör
-    const advanceRound = useCallback(() => {
-      const nextRound = round + 1;
-
-      if (nextRound >= ROUNDS) {
-        const stats = computeStats();
-        addToLeaderboard(playerName, stats);
-        setScreen("verdict");
-      } else {
-        const p = getRandomPattern();   // 👈 ÚJ PATTERN ELŐRE
-        setPattern(p);
-
-        setRound(nextRound);
-        setChoice(null);
-        setContProgress(0);
-
-        setScreen("countdown");         // 👈 megint előrender
-      }
-    }, [round, playerName]);
-
-
-    // 5️⃣ statisztika (változatlan)
-    function computeStats() {
-      const totalScore = scores.reduce((a, b) => a + b, 0);
-      const correct = roundStats.filter(r => r.correct).length;
-      const buyCount = roundStats.filter(r => r.choice === "buy").length;
-      const sellCount = roundStats.filter(r => r.choice === "sell").length;
-      const holdCount = roundStats.filter(r => r.choice === "hold").length;
-
-      const speeds = roundStats.map(r => r.speedMs);
-      const avgSpeed = speeds.length
-        ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length)
-        : 0;
-
-      let maxStreak = 0, cur = 0;
-      roundStats.forEach(r => {
-        if (r.correct) {
-          cur++;
-          maxStreak = Math.max(maxStreak, cur);
-        } else {
-          cur = 0;
-        }
-      });
-
-      return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
-    }
 
   // ── RENDER ──
 
