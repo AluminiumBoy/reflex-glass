@@ -1837,19 +1837,21 @@ export default function App() {
       }} />
       
       {/* The number - now also pulsing */}
-      <div style={{ 
-        fontSize: 200, 
-        fontWeight: 900, 
-        fontFamily: "'SF Mono','Fira Code',monospace",
-        background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        filter: "drop-shadow(0 0 60px rgba(0,255,170,0.6))",
-        animation: "ringPulse 1s ease-out infinite, numPop 0.3s ease-out",
-        position: "relative",
-        zIndex: 1,
-        lineHeight: 1
-      }}>
+      <div 
+        key={countdownNum}
+        style={{ 
+          fontSize: 200, 
+          fontWeight: 900, 
+          fontFamily: "'SF Mono','Fira Code',monospace",
+          background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          filter: "drop-shadow(0 0 60px rgba(0,255,170,0.6))",
+          animation: "ringPulse 1s ease-out infinite",
+          position: "relative",
+          zIndex: 1,
+          lineHeight: 1
+        }}>
         {countdownNum}
       </div>
       
