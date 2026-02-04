@@ -26,13 +26,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 /* ═══════════════════════════════════════════════════════════════
-   §1  CONSTANTS & COLOR TOKENS
+    1  CONSTANTS & COLOR TOKENS
    ═══════════════════════════════════════════════════════════════ */
 
 const ROUNDS       = 7;
 const DECISION_MS  = 4000;
 const BASE_SCORE   = 1000;
-const CHART_DRAW_MS = 1400;                     // initial 22-candle reveal animation duration
 // streak multiplier table, index = consecutive correct (0-based)
 const STREAK_MULT  = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
@@ -53,38 +52,57 @@ const C = {                         // colour palette
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   §2  HAPTIC HELPER
+    2  HAPTIC HELPER
    ═══════════════════════════════════════════════════════════════ */
 function haptic(pattern = [30]) {
   try { navigator?.vibrate?.(pattern); } catch(_) {}
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
+    3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
    ═══════════════════════════════════════════════════════════════ */
+  
+   /* =====================
+   SOUND ENGINE
+   (Web Audio API — lazy-inited on first user tap)
+   ===================== */
 class SoundEngine {
-  constructor() { this.ctx = null; this.on = true; }
+  constructor() { 
+    this.ctx = null; 
+    this.on = true; 
+  }
 
+  // ── init / resume audio context ──
   _ensure() {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
   }
 
+  // ── call this on user gesture to unlock audio
+  unlock() {
+    if (!this.on) return;
+    const ctx = this._ensure();
+    if (ctx.state === "suspended") ctx.resume();
+  }
+
+  // ── internal tone player ──
   _tone(freq, dur, type = "sine", vol = 0.13, startDelay = 0) {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime + startDelay;
     const osc = ctx.createOscillator();
     const g   = ctx.createGain();
-    osc.connect(g); g.connect(ctx.destination);
+    osc.connect(g); 
+    g.connect(ctx.destination);
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
     g.gain.setValueAtTime(vol, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    osc.start(now); osc.stop(now + dur);
+    osc.start(now); 
+    osc.stop(now + dur);
   }
 
+  // ── simple effects ──
   click()     { this._tone(420, 0.07, "sine", 0.11); }
   tick(n)     { n === 1 ? this._tone(1100, 0.11, "square", 0.18) : this._tone(680, 0.07, "triangle", 0.13); }
   correct()   { [523,659,784].forEach((f,i) => this._tone(f, 0.14, "sine", 0.16, i*0.09)); }
@@ -92,8 +110,8 @@ class SoundEngine {
   godBurst()  { [440,554,659,880,1046].forEach((f,i) => this._tone(f, 0.22, "sine", 0.2, i*0.08)); }
   reveal()    { this._tone(900, 0.06, "sine", 0.08); }
 
-  // ── verdict + tips ──────────────────────────────────────────
-  whoosh() {                                    // verdict-screen entrance sweep
+  // ── verdict + tips ──
+  whoosh() { 
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     const osc = ctx.createOscillator(), g = ctx.createGain();
@@ -105,7 +123,8 @@ class SoundEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
     osc.start(now); osc.stop(now + 0.34);
   }
-  tipTap() {                                    // metallic coin-clink on button press
+
+  tipTap() { 
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     [1900, 2600].forEach((f, i) => {
@@ -119,65 +138,16 @@ class SoundEngine {
       o.start(t); o.stop(t + 0.13);
     });
   }
-  tipSent() {                                   // celebratory arp when tx confirmed
-    [392, 523, 659, 784, 1047].forEach((f, i) =>
-      this._tone(f, 0.18, "sine", 0.17, i * 0.07)
-    );
-  }
-  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); } // subtle live-data refresh ping
 
-  // ── AMBIENT BACKGROUND TENSION LOOP ──────────────────────────
-  // 3-layer synth pad + subtle clock pulse every 2.5s → urgency.
-  // Runs continuously once started, until stop() is called.
-  ambient() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    let running = true;
-
-    // Continuous pad: 3 detuned oscillators for thick texture
-    const freqs = [110, 165, 220];                         // low bass + perfect fifth + octave
-    const oscs = freqs.map((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.type = "triangle";
-      o.frequency.value = f * (1 + (i - 1) * 0.002);       // slight detune for chorus
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.015, ctx.currentTime + 1.2); // slow fade-in
-      o.start();
-      return { osc: o, gain: g };
-    });
-
-    // Subtle clock tick every 2.5s (gentle reminder)
-    const tickLoop = () => {
-      if (!running) return;
-      this._tone(880, 0.04, "sine", 0.03);                 // very quiet high ping
-      setTimeout(tickLoop, 2500);
-    };
-    tickLoop();
-
-    // Store stop function
-    this.stopAmbient = () => {
-      running = false;
-      oscs.forEach(({ osc, gain }) => {
-        const now = ctx.currentTime;
-        gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(gain.gain.value, now);
-        gain.gain.linearRampToValueAtTime(0.0001, now + 0.8);
-        osc.stop(now + 1);
-      });
-    };
-  }
-
-  stop() {
-    if (this.stopAmbient) this.stopAmbient();
-  }
+  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); }
 }
 
+// ── singleton instance ──
 const SND = new SoundEngine();
 
+
 /* ═══════════════════════════════════════════════════════════════
-   §4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
+    4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
       Each factory returns:
         { candles: OHLC[22], continuation: OHLC[10],
           signal: 'buy'|'sell'|'hold', name: string, cat: string }
@@ -523,65 +493,10 @@ function getRandomPattern() {
   return ALL_PATTERNS[RI(0, ALL_PATTERNS.length - 1)]();
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   §5  LIVE TICKER  — DexScreener API  (top-10 trending on Base)
-       Static seed fallback when offline / rate-limited.
-   ═══════════════════════════════════════════════════════════════ */
 
-const TICKER_SEEDS = [
-  { sym:"PEPE",      price:0.000014,   chg:+12.4  },
-  { sym:"DOGE",      price:0.081,      chg:-3.7   },
-  { sym:"SHIB",      price:0.0000091,  chg:+5.2   },
-  { sym:"FLOKI",     price:0.000182,   chg:-1.1   },
-  { sym:"BASE",      price:1.32,       chg:+8.9   },
-  { sym:"AERO",      price:0.42,       chg:-2.4   },
-  { sym:"BRETT",     price:0.0021,     chg:+22.1  },
-  { sym:"BALD",      price:0.0000003,  chg:-9.8   },
-  { sym:"TOSHI",     price:0.00000078, chg:+4.1   },
-  { sym:"BASED",     price:0.00034,    chg:-0.6   },
-];
-
-async function fetchDexTrending() {
-  try {
-    // 1) grab top boosted tokens (free tier, no key needed)
-    const res = await fetch(
-      "https://api.dexscreener.com/token-boosts/top/v1",
-      { signal: AbortSignal.timeout(3800) }
-    );
-    if (!res.ok) return null;
-    const boosts = await res.json();                          // array of {chainId, tokenAddress, …}
-
-    // 2) keep only Base-chain boosts, take first 10
-    const baseBoosts = (boosts || [])
-      .filter(b => b.chainId === "base")
-      .slice(0, 10);
-    if (baseBoosts.length === 0) return null;
-
-    // 3) resolve token details in ONE request (multi-address endpoint)
-    const addrs = baseBoosts.map(b => b.tokenAddress).join(",");
-    const res2 = await fetch(
-      `https://api.dexscreener.com/simple/dex/tokens/base/${addrs}`,
-      { signal: AbortSignal.timeout(3800) }
-    );
-    if (!res2.ok) return null;
-    const tokens = (await res2.json()).tokens || [];
-
-    // 4) map → our ticker shape, drop zero-price ghosts
-    return tokens
-      .slice(0, 10)
-      .map(t => ({
-        sym:   (t.symbol || t.name || "???").toUpperCase().slice(0, 7),
-        price: +Number(t.priceUsd || 0).toPrecision(4),
-        chg:   +Number(t.priceChange?.h24 ?? 0).toFixed(2),
-      }))
-      .filter(t => t.price > 0);
-  } catch (_) {
-    return null;
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════
-   §6  TRADER ARCHETYPES  (final verdict engine)
+    6  TRADER ARCHETYPES  (final verdict engine)
    ═══════════════════════════════════════════════════════════════ */
 const ARCHETYPES = [
   { name:"Impulse Ape",        emoji:"🐒", cond: r => r.buyCount > 4,
@@ -607,18 +522,14 @@ function getArchetype(stats) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
+    7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
    ═══════════════════════════════════════════════════════════════ */
-function drawChart(canvas, candles, initialProgress, continuationCount, contCandles, godMode) {
+function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
   if (!canvas) return;
   const ctx    = canvas.getContext("2d");
   const dpr    = window.devicePixelRatio || 1;
   const W      = canvas.clientWidth;
   const H      = canvas.clientHeight;
-  
-  // Skip if canvas not yet laid out (W or H is 0)
-  if (W === 0 || H === 0) return;
-  
   canvas.width = W * dpr;
   canvas.height= H * dpr;
   ctx.scale(dpr, dpr);
@@ -647,22 +558,10 @@ function drawChart(canvas, candles, initialProgress, continuationCount, contCand
     ctx.restore();
   }
 
-  // Visible candles = initial (animated 0 → 22) + continuation (animated 0 → 10)
-  const revealCount = Math.floor(initialProgress);          // initial candles visible (0-22)
+  // Visible candles = initial reveal (animated in) + continuation (animated in)
   const totalVisible = revealCount + continuationCount;
   const allCandles   = [...candles.slice(0, revealCount), ...(contCandles||[]).slice(0, continuationCount)];
-  
-  // If no candles yet, draw loading state directly on canvas
-  if(allCandles.length === 0) {
-    ctx.save();
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
-    ctx.font = "14px 'SF Mono', monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("📊 Reading chart...", W/2, H/2);
-    ctx.restore();
-    return;
-  }
+  if(allCandles.length === 0) return;
 
   // ── price scale  ──
   let lo = Infinity, hi = -Infinity;
@@ -698,17 +597,12 @@ function drawChart(canvas, candles, initialProgress, continuationCount, contCand
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // Fade-in alpha for both initial AND continuation candles
+    // wave-reveal fade for continuation candles
     let alpha = 1;
-    if (i < revealCount) {
-      // Initial candles: fade in the last partial candle during draw animation
-      const frac = initialProgress - Math.floor(initialProgress);
-      if (i === revealCount - 1 && frac < 1) {
-        alpha = frac;  // smooth fade-in for the candle currently being drawn
-      }
-    } else {
-      // Continuation candles: wave-reveal fade
+    if (i >= revealCount) {
       const ci = i - revealCount;
+      // continuationCount is the *current* animated count (0 → 10)
+      // each candle fades in as continuationCount passes it
       alpha = CL(continuationCount - ci, 0, 1);
     }
 
@@ -747,13 +641,10 @@ function drawChart(canvas, candles, initialProgress, continuationCount, contCand
     ctx.restore();
     ctx.globalAlpha = 1;
   });
-  
-  // Final safety: ensure globalAlpha is always reset after drawing
-  ctx.globalAlpha = 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §8  PARTICLE BURST  (perfect round / god mode)
+    8  PARTICLE BURST  (perfect round / god mode)
    ═══════════════════════════════════════════════════════════════ */
 function ParticleCanvas({ active, godMode }) {
   const canvasRef = useRef(null);
@@ -830,7 +721,7 @@ function ParticleCanvas({ active, godMode }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §9  GLASS UI PRIMITIVES
+    9  GLASS UI PRIMITIVES
    ═══════════════════════════════════════════════════════════════ */
 
 // Specular highlight that follows pointer
@@ -901,177 +792,73 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   §10  LIVE TICKER BAR  (DexScreener-powered, seed fallback)
-   ═══════════════════════════════════════════════════════════════ */
-function LiveTicker() {
-  const [tickers, setTickers] = useState(TICKER_SEEDS);
-  const [offset, setOffset]   = useState(0);
-  const rafRef  = useRef(null);
-  const lastT   = useRef(Date.now());
-  const hasFetched = useRef(false);                // first successful fetch flag
-
-  // ── fetch loop: initial + every 28 s ──
-  useEffect(() => {
-    let alive = true;
-    async function pull() {
-      const data = await fetchDexTrending();
-      if (!alive) return;
-      if (data && data.length > 0) {
-        setTickers(data);
-        if (hasFetched.current) SND.tickerPing();  // ping only after first success (avoid autoplay block)
-        hasFetched.current = true;
-      }
-      // else keep previous / seeds — no stale flash
-    }
-    pull();                                        // immediate first fetch
-    const iv = setInterval(pull, 28000);           // then every 28 s (DexScreener is generous but be polite)
-    return () => { alive = false; clearInterval(iv); };
-  }, []);
-
-  // ── smooth scroll RAF ──
-  useEffect(() => {
-    let pos = 0;
-    const spd = 28;
-    function loop() {
-      const now = Date.now();
-      const dt  = (now - lastT.current) / 1000;
-      lastT.current = now;
-      pos -= spd * dt;
-      if (pos < -window.innerWidth * 0.8) pos = 0;
-      setOffset(pos);
-      rafRef.current = requestAnimationFrame(loop);
-    }
-    loop();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  // ── format price nicely (tiny prices → scientific-ish, big → normal) ──
-  const fmtPrice = (p) => {
-    if (p === 0) return "0";
-    if (p >= 1)     return p.toFixed(2);
-    if (p >= 0.01)  return p.toFixed(4);
-    if (p >= 0.0001) return p.toFixed(6);
-    // very small → use toPrecision
-    return Number(p.toPrecision(3)).toExponential(1);
-  };
-
-  return (
-    <div style={{ position:"fixed", top:0, left:0, right:0, height:34, zIndex:300,
-      background:"linear-gradient(90deg, rgba(6,6,12,0.88) 0%, rgba(15,15,26,0.92) 100%)",
-      backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.glassBr}`,
-      overflow:"hidden", display:"flex", alignItems:"center" }}>
-      <div style={{ display:"flex", gap:32, whiteSpace:"nowrap", transform:`translateX(${offset}px)`, willChange:"transform" }}>
-        {[...tickers,...tickers].map((t,i) => (
-          <span key={i} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, fontFamily:"'SF Mono','Fira Code',monospace" }}>
-            <span style={{ color:"rgba(255,255,255,0.45)", fontWeight:600 }}>{t.sym}</span>
-            <span style={{ color:"rgba(255,255,255,0.72)", fontWeight:700 }}>${fmtPrice(t.price)}</span>
-            <span style={{ color: t.chg>=0 ? C.bull : C.bear, fontWeight:600 }}>{t.chg>=0?"+":""}{t.chg}%</span>
-            <span style={{ color:"rgba(255,255,255,0.15)" }}>│</span>
-          </span>
-        ))}
-      </div>
-      {/* LIVE dot */}
-      <div style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", gap:5 }}>
-        <div style={{ width:6, height:6, borderRadius:"50%", background:C.nPink, boxShadow:`0 0 6px ${C.nPink}`, animation:"pulse 1.4s infinite" }} />
-        <span style={{ color:C.nPink, fontSize:9, fontWeight:700, fontFamily:"monospace", letterSpacing:"0.12em" }}>LIVE</span>
-      </div>
-    </div>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════
-   §11  LOADING SCREEN  (brief transition before chart appears)
+    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
    ═══════════════════════════════════════════════════════════════ */
-function LoadingScreen() {
-  return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", padding:24 }}>
-      <GlassPanel style={{ padding:40, textAlign:"center" }}>
-        <div style={{ fontSize:48, marginBottom:16, animation:"pulse 1.2s ease-in-out infinite" }}>📊</div>
-        <div style={{ fontSize:15, fontFamily:"monospace", color:"rgba(255,255,255,0.65)", fontWeight:600, letterSpacing:"0.08em" }}>
-          Preparing chart...
-        </div>
-        <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:8, fontFamily:"monospace" }}>
-          Get ready
-        </div>
-      </GlassPanel>
-    </div>
-  );
-}
+      /* ── COUNTDOWN OVERLAY ── */
+      function Countdown({ onDone }) {
+        const [num, setNum] = useState(3);
 
-/* ═══════════════════════════════════════════════════════════════
-   §12  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
-   ═══════════════════════════════════════════════════════════════ */
-function Countdown({ onDone }) {
-  const [num, setNum]       = useState(3);
-  const [shatter, setShatter] = useState(false);
-  const [exit, setExit]     = useState(false);
+        useEffect(() => {
+          SND.tick(3);
+          haptic([25]);
 
-  useEffect(() => {
-    SND.tick(3);
-    haptic([25]);
-    if(num > 1) {
-      const t = setTimeout(() => { SND.tick(num-1); haptic([25]); setNum(n=>n-1); }, 900);
-      return () => clearTimeout(t);
-    } else {
-      // after "1" show briefly then shatter
-      const t1 = setTimeout(() => setShatter(true), 600);
-      const t2 = setTimeout(() => { setExit(true); }, 900);
-      const t3 = setTimeout(onDone, 1050);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-    }
-  }, [num, onDone]);
+          if (num > 1) {
+            const t = setTimeout(() => {
+              SND.tick(num - 1);
+              haptic([25]);
+              setNum(n => n - 1);
+            }, 900);
+            return () => clearTimeout(t);
+          } else {
+            // "1" után rövid delay, majd eltűnés
+            const t = setTimeout(onDone, 900);
+            return () => clearTimeout(t);
+          }
+        }, [num, onDone]);
 
-  // shatter fragments (CSS)
-  const frags = useMemo(() => Array.from({length:12}, (_,i) => ({
-    id:i, angle: (i/12)*360, dist: R(40,160), delay: i*30
-  })), []);
-
-  return (
-    <div style={{ position:"fixed", inset:0, zIndex:250, display:"flex", alignItems:"center", justifyContent:"center",
-      background:"rgba(6,6,12,0.72)", backdropFilter:"blur(12px)" }}>
-      {!shatter ? (
-        <div style={{ position:"relative" }}>
-          {/* outer glass ring */}
-          <div style={{ width:140, height:140, borderRadius:"50%",
-            background:"linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
-            border:`2px solid ${C.nGreen}50`,
-            boxShadow:`0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
-            display:"flex", alignItems:"center", justifyContent:"center",
-            animation:"ringPulse 0.9s ease-out" }}>
-            <span style={{ fontSize: 72, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
-              color: num===1 ? C.nPink : C.nGreen,
-              textShadow: `0 0 30px ${num===1?C.nPink:C.nGreen}`,
-              animation:"numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}>
-              {num}
-            </span>
+        return (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 250,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(6,6,12,0.72)",
+            backdropFilter: "blur(12px)"
+          }}>
+            <div style={{
+              width: 140,
+              height: 140,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
+              border: `2px solid ${C.nGreen}50`,
+              boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              animation: "ringPulse 0.9s ease-out"
+            }}>
+              <span style={{
+                fontSize: 72,
+                fontWeight: 800,
+                fontFamily: "'SF Mono','Fira Code',monospace",
+                color: num === 1 ? C.nPink : C.nGreen,
+                textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
+                animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)"
+              }}>
+                {num}
+              </span>
+            </div>
           </div>
-        </div>
-      ) : (
-        // shatter fragments
-        <div style={{ position:"relative", width:140, height:140 }}>
-          {frags.map(f => (
-            <div key={f.id} style={{
-              position:"absolute", left:"50%", top:"50%",
-              width: R(15,40), height: R(10,28),
-              background:`linear-gradient(${f.angle}deg, ${C.nGreen}44, ${C.nPurple}22)`,
-              border: `1px solid ${C.nGreen}30`,
-              borderRadius: R(2,6),
-              transform: exit
-                ? `translate(${Math.cos(f.angle*Math.PI/180)*f.dist}px, ${Math.sin(f.angle*Math.PI/180)*f.dist}px) rotate(${f.angle}deg) scale(0)`
-                : "translate(-50%,-50%) scale(1)",
-              opacity: exit ? 0 : 1,
-              transition: `transform 0.35s cubic-bezier(0.55,0,1,1) ${f.delay}ms, opacity 0.3s ease ${f.delay+100}ms`,
-            }} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+        );
+      }
+
 
 /* ═══════════════════════════════════════════════════════════════
-   §12  TIMER BAR  (liquid progress, pulse when low)
+    12  TIMER BAR  (liquid progress, pulse when low)
    ═══════════════════════════════════════════════════════════════ */
 function TimerBar({ timeLeft, totalTime }) {
   const pct    = (timeLeft / totalTime) * 100;
@@ -1092,7 +879,7 @@ function TimerBar({ timeLeft, totalTime }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §13  DECISION BUTTONS
+    13  DECISION BUTTONS
    ═══════════════════════════════════════════════════════════════ */
 function DecisionButtons({ onChoose, disabled }) {
   return (
@@ -1114,7 +901,7 @@ function DecisionButtons({ onChoose, disabled }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §14  OUTCOME CARD  (shown after continuation animates in)
+    14  OUTCOME CARD  (shown after continuation animates in)
    ═══════════════════════════════════════════════════════════════ */
 function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
   return (
@@ -1158,7 +945,7 @@ function OutcomeCard({ correct, points, streak, patternName, choice, signal, onN
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §15  FINAL VERDICT SCREEN
+    15  FINAL VERDICT SCREEN
    ═══════════════════════════════════════════════════════════════ */
 function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
   const arch = getArchetype(stats);
@@ -1222,7 +1009,7 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §16  LEADERBOARD  (localStorage)
+    16  LEADERBOARD  (localStorage)
    ═══════════════════════════════════════════════════════════════ */
 const LB_KEY = "reflexglass_lb_v2";
 function loadLB() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch(_){ return []; } }
@@ -1284,7 +1071,7 @@ function Leaderboard({ onClose, currentName }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
+    17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
    ═══════════════════════════════════════════════════════════════ */
 function generateShareSVG(stats) {
   const arch = getArchetype(stats);
@@ -1343,7 +1130,7 @@ function triggerShare(stats, playerName) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §18  NAME INPUT (first-time / before leaderboard)
+    18  NAME INPUT (first-time / before leaderboard)
    ═══════════════════════════════════════════════════════════════ */
 const NAME_KEY = "reflexglass_name_v2";
 function loadName() { try { return localStorage.getItem(NAME_KEY) || ""; } catch(_){ return ""; } }
@@ -1369,14 +1156,14 @@ function NameInput({ onSubmit }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
+    20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
         Uses raw ERC-20 transfer calldata — no wagmi contract hooks needed.
         Caller must supply sendTransaction (wagmi useWriteContract or
         equivalent) via the global hook wired in main.jsx / provider.
    ═══════════════════════════════════════════════════════════════ */
 
 // ── config ──────────────────────────────────────────────────────
-const DONATION_ADDRESS = "0xYOUR_ADDRESS_HERE";           // ← replace with your Base address
+const DONATION_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";           // ← replace with your Base address
 const USDC_BASE        = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base mainnet USDC
 const TIPS = [
   { amount: 0.5, label: "☕ 0.5 USDC" },
@@ -1499,228 +1286,197 @@ function TipPanel() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   §19  ROOT APP  —  STATE MACHINE + GAME LOOP
-        States: "name" | "home" | "countdown" | "loading" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
+    19  ROOT APP  —  STATE MACHINE + GAME LOOP
+        States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
    ═══════════════════════════════════════════════════════════════ */
-export default function App() {
-  // ── state ──
-  const [screen, setScreen]               = useState(loadName() ? "home" : "name");
-  const [playerName, setPlayerName]       = useState(loadName());
-  const [round, setRound]                 = useState(0);        // 0-based
-  const [pattern, setPattern]             = useState(null);     // current pattern object
-  const [timeLeft, setTimeLeft]           = useState(DECISION_MS);
-  const [choice, setChoice]               = useState(null);
-  const [streak, setStreak]               = useState(0);
-  const [scores, setScores]               = useState([]);       // per-round score
-  const [roundStats, setRoundStats]       = useState([]);       // {correct, speedMs, choice, signal}
-  const [initialProgress, setInitialProgress] = useState(0);    // 0 → 22 (initial candle draw animation)
-  const [contProgress, setContProgress]   = useState(0);        // 0 → 10 (continuation candle reveal)
-  const [particleBurst, setParticleBurst] = useState(false);
-  const [godMode, setGodMode]             = useState(false);
-  const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
+      export default function App() {
+        // ── STATE ──
+        const [screen, setScreen] = useState(loadName() ? "home" : "name");
+        const [playerName, setPlayerName] = useState(loadName());
+        const [round, setRound] = useState(0);
+        const [pattern, setPattern] = useState(null);
+        const [timeLeft, setTimeLeft] = useState(DECISION_MS);
+        const [choice, setChoice] = useState(null);
+        const [streak, setStreak] = useState(0);
+        const [scores, setScores] = useState([]);
+        const [roundStats, setRoundStats] = useState([]);
+        const [contProgress, setContProgress] = useState(0);
+        const [particleBurst, setParticleBurst] = useState(false);
+        const [godMode, setGodMode] = useState(false);
+        const [screenPulse, setScreenPulse] = useState(false);
+        const [gameReady, setGameReady] = useState(false); // canvas render kész
 
-  // refs
-  const chartRef      = useRef(null);
-  const timerRef      = useRef(null);
-  const initialAnimRef = useRef(null);                          // initial chart draw animation
-  const contAnimRef   = useRef(null);
-  const rafChartRef   = useRef(null);
-  const choiceTimeRef = useRef(null);       // ms when choice was made
 
-  // ── derived ──
-  const isPlaying = screen === "playing";
+        // refs
+        const chartRef = useRef(null);
+        const timerRef = useRef(null);
+        const contAnimRef = useRef(null);
+        const rafChartRef = useRef(null);
+        const choiceTimeRef = useRef(null);
 
-  // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
-  useEffect(() => {
-    if(!pattern) return;
-    let running = true;
-    function loop() {
-      if(!running) return;
-      drawChart(
-        chartRef.current,
-        pattern.candles,
-        initialProgress,             // animated 0 → 22
-        (screen === "revealing" || screen === "outcome") && initialProgress >= 22 ? contProgress : 0,
-        pattern.continuation,
-        godMode
-      );
-      rafChartRef.current = requestAnimationFrame(loop);
-    }
-    loop();
-    return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
-  }, [pattern, screen, initialProgress, contProgress, godMode]);
+        // ── DERIVED ──
+        const isPlaying = screen === "playing";
 
-  // ── low-time haptic pulse ──
-  useEffect(() => {
-    if(isPlaying && timeLeft <= 1000 && timeLeft > 0) {
-      haptic([40, 30, 40]);
-      setScreenPulse(true);
-      const t = setTimeout(() => setScreenPulse(false), 200);
-      return () => clearTimeout(t);
-    }
-  }, [isPlaying, timeLeft]);
+        // ── CHART RENDER LOOP ──
+        useEffect(() => {
+          if (!pattern) return;
+          let running = true;
+          function loop() {
+            if (!running) return;
+            drawChart(
+              chartRef.current,
+              pattern.candles,
+              22,
+              screen === "revealing" || screen === "outcome" ? contProgress : 0,
+              pattern.continuation,
+              godMode
+            );
+            rafChartRef.current = requestAnimationFrame(loop);
+          }
+          loop();
+          return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
+        }, [pattern, screen, contProgress, godMode]);
 
-  // ── countdown timer (playing state, AFTER chart draws) ──
-  useEffect(() => {
-    // Only start timer once chart is fully drawn
-    if(!isPlaying || initialProgress < 22) { 
-      clearInterval(timerRef.current); 
-      return; 
-    }
-    setTimeLeft(DECISION_MS);
-    const start = Date.now();
-    timerRef.current = setInterval(() => {
-      const rem = DECISION_MS - (Date.now() - start);
-      if(rem <= 0) {
-        clearInterval(timerRef.current);
-        setTimeLeft(0);
-        // timeout = wrong answer
-        handleChoice(null);
-      } else {
-        setTimeLeft(rem);
+        // ── LOW-TIME HAPTIC ──
+        useEffect(() => {
+          if (isPlaying && timeLeft <= 1000 && timeLeft > 0) {
+            haptic([40, 30, 40]);
+            setScreenPulse(true);
+            const t = setTimeout(() => setScreenPulse(false), 200);
+            return () => clearTimeout(t);
+          }
+        }, [isPlaying, timeLeft]);
+
+        // ── TIMER ──
+        useEffect(() => {
+          if (!isPlaying) { clearInterval(timerRef.current); return; }
+          setTimeLeft(DECISION_MS);
+          const start = Date.now();
+          timerRef.current = setInterval(() => {
+            const rem = DECISION_MS - (Date.now() - start);
+            if (rem <= 0) {
+              clearInterval(timerRef.current);
+              setTimeLeft(0);
+              handleChoice(null);
+            } else {
+              setTimeLeft(rem);
+            }
+          }, 60);
+          return () => clearInterval(timerRef.current);
+        }, [isPlaying]);
+
+        // ── CONTINUATION ANIMATION ──
+        useEffect(() => {
+          if (screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
+          setContProgress(0);
+          const startTime = Date.now();
+          const duration = 900;
+          function animate() {
+            const elapsed = Date.now() - startTime;
+            const pct = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - pct, 3);
+            setContProgress(eased * 10);
+            if (pct < 1) {
+              contAnimRef.current = requestAnimationFrame(animate);
+            } else {
+              setContProgress(10);
+              setTimeout(() => setScreen("outcome"), 200);
+            }
+          }
+          contAnimRef.current = requestAnimationFrame(animate);
+          return () => cancelAnimationFrame(contAnimRef.current);
+        }, [screen]);
+
+        // ── GAME ACTIONS ──
+        const startGame = useCallback(() => {
+          setRound(0);
+          setScores([]);
+          setRoundStats([]);
+          setStreak(0);
+          setGodMode(false);
+          setScreen("countdown"); // 3-2-1 overlay
+        }, []);
+
+        const startPlaying = useCallback(() => {
+          const p = getRandomPattern();
+          setPattern(p);       
+          setContProgress(0);
+          setChoice(null);
+          setGameReady(false);   // most indul a canvas render
+          setScreen("playing");  // játék előkészítése
+
+          // Kis delay, amíg a canvas teljesen renderelődik
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => setGameReady(true)); // két frame delay
+          });
+
+          choiceTimeRef.current = null;
+        }, []);
+
+        const handleChoice = useCallback((ch) => {
+          if (choice !== null) return;
+          clearInterval(timerRef.current);
+          const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
+          choiceTimeRef.current = null;
+          setChoice(ch);
+
+          const correct = ch === pattern.signal;
+          haptic(correct ? [30,20,30] : [80]);
+
+          if (correct) {
+            SND.correct();
+            const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+            const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
+            const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+            setScores(prev => [...prev, pts]);
+            setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
+            const newStreak = streak + 1;
+            setStreak(newStreak);
+            setParticleBurst(true);
+            setTimeout(() => setParticleBurst(false), 600);
+            if (newStreak >= 6 && !godMode) { 
+              setGodMode(true); 
+              SND.godBurst(); 
+              haptic([50,30,50,30,50]); 
+            }
+          } else {
+            SND.wrong();
+            setScores(prev => [...prev, 0]);
+            setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
+            setStreak(0);
+          }
+
+          setScreen("revealing");
+        }, [choice, pattern, streak, godMode]);
+
+        useEffect(() => { if (isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
+
+        const advanceRound = useCallback(() => {
+          const nextRound = round + 1;
+          if (nextRound >= ROUNDS) {
+            const stats = computeStats();
+            addToLeaderboard(playerName, stats);
+            setScreen("verdict");
+          } else {
+            setRound(nextRound);
+            startPlaying(); // új round azonnal
+          }
+        }, [round, playerName, startPlaying]);
+
+        function computeStats() {
+          const totalScore = scores.reduce((a,b)=>a+b,0);
+          const correct = roundStats.filter(r=>r.correct).length;
+          const buyCount = roundStats.filter(r=>r.choice==="buy").length;
+          const sellCount = roundStats.filter(r=>r.choice==="sell").length;
+          const holdCount = roundStats.filter(r=>r.choice==="hold").length;
+          const speeds = roundStats.map(r=>r.speedMs);
+          const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
+          let maxStreak=0, cur=0;
+          roundStats.forEach(r => { if(r.correct){ cur++; maxStreak=Math.max(maxStreak,cur); } else cur=0; });
+          return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
+        }
       }
-    }, 60);
-    return () => clearInterval(timerRef.current);
-  }, [isPlaying, initialProgress]); // eslint-disable-line
 
-  // ── initial chart draw animation (auto-runs once on "playing" when initialProgress=0) ──
-  useEffect(() => {
-    // Only animate if: on playing screen, pattern loaded, and animation hasn't run yet
-    if(screen !== "playing" || !pattern || initialProgress > 0) { 
-      cancelAnimationFrame(initialAnimRef.current); 
-      return; 
-    }
-    const startTime = Date.now();
-    function animate() {
-      const elapsed = Date.now() - startTime;
-      const pct     = Math.min(elapsed / CHART_DRAW_MS, 1);
-      const eased   = 1 - Math.pow(1 - pct, 3);            // ease-out cubic
-      setInitialProgress(eased * 22);
-      if(pct < 1) {
-        initialAnimRef.current = requestAnimationFrame(animate);
-      } else {
-        setInitialProgress(22);
-        // chart fully drawn — stay on "playing", timer will start automatically
-      }
-    }
-    initialAnimRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(initialAnimRef.current);
-  }, [screen, pattern, initialProgress]); // eslint-disable-line
-
-  // ── continuation candle wave-reveal animation ──
-  useEffect(() => {
-    if(screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
-    setContProgress(0);
-    const startTime = Date.now();
-    const duration  = 900; // ms for all 10 candles
-    function animate() {
-      const elapsed = Date.now() - startTime;
-      const pct     = Math.min(elapsed / duration, 1);
-      // ease-out cubic
-      const eased   = 1 - Math.pow(1 - pct, 3);
-      setContProgress(eased * 10);
-      if(pct < 1) {
-        contAnimRef.current = requestAnimationFrame(animate);
-      } else {
-        setContProgress(10);
-        // after reveal completes → show outcome
-        setTimeout(() => setScreen("outcome"), 200);
-      }
-    }
-    contAnimRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(contAnimRef.current);
-  }, [screen]);
-
-  // ── GAME ACTIONS ──
-
-  const startGame = useCallback(() => {
-    setRound(0);
-    setScores([]);
-    setRoundStats([]);
-    setStreak(0);
-    setGodMode(false);
-    SND.ambient();                                        // start ambient tension loop
-    setScreen("countdown");
-  }, []);
-
-  const beginRound = useCallback(() => {
-    const p = getRandomPattern();
-    setPattern(p);
-    setChoice(null);
-    setInitialProgress(0);
-    setContProgress(0);
-    setScreen("loading");                                 // new: dedicated loading screen
-    choiceTimeRef.current = null;
-    
-    // After a brief moment (to ensure pattern is set), start the chart animation
-    setTimeout(() => {
-      setScreen("playing");
-    }, 50);
-  }, []);
-
-  const handleChoice = useCallback((ch) => {
-    if(choice !== null) return; // already chose
-    clearInterval(timerRef.current);
-    const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
-    choiceTimeRef.current = null;
-    setChoice(ch);
-
-    const correct = ch === pattern.signal;
-    haptic(correct ? [30,20,30] : [80]);
-
-    if(correct) {
-      SND.correct();
-      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-      const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
-      const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-      setScores(prev => [...prev, pts]);
-      setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-      setParticleBurst(true);
-      setTimeout(() => setParticleBurst(false), 600);
-      // god mode check
-      if(newStreak >= 6 && !godMode) { setGodMode(true); SND.godBurst(); haptic([50,30,50,30,50]); }
-    } else {
-      SND.wrong();
-      setScores(prev => [...prev, 0]);
-      setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
-      setStreak(0);
-    }
-    // trigger continuation reveal
-    setScreen("revealing");
-  }, [choice, pattern, streak, godMode]);
-
-  // record start-of-playing timestamp
-  useEffect(() => { if(isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
-
-  const advanceRound = useCallback(() => {
-    const nextRound = round + 1;
-    if(nextRound >= ROUNDS) {
-      // game over → stop ambient → save to leaderboard → verdict
-      SND.stop();
-      const stats = computeStats();
-      addToLeaderboard(playerName, stats);
-      setScreen("verdict");
-    } else {
-      setRound(nextRound);
-      setScreen("countdown");
-    }
-  }, [round, playerName]); // eslint-disable-line
-
-  function computeStats() {
-    const totalScore = scores.reduce((a,b)=>a+b, 0);
-    const correct    = roundStats.filter(r=>r.correct).length;
-    const buyCount   = roundStats.filter(r=>r.choice==="buy").length;
-    const sellCount  = roundStats.filter(r=>r.choice==="sell").length;
-    const holdCount  = roundStats.filter(r=>r.choice==="hold").length;
-    const speeds     = roundStats.map(r=>r.speedMs);
-    const avgSpeed   = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
-    // max streak
-    let maxStreak=0, cur=0;
-    roundStats.forEach(r=>{ if(r.correct){cur++;maxStreak=Math.max(maxStreak,cur);}else cur=0; });
-    return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
-  }
 
   // ── RENDER ──
 
@@ -1826,13 +1582,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* timer — only show when chart fully drawn */}
-      {screen === "playing" && initialProgress >= 22 && <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />}
+      {/* timer */}
+      <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
 
       {/* chart */}
       <div style={{ flex:1, minHeight:0, position:"relative" }}>
         <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
-
         {/* pattern name watermark */}
         {screen === "outcome" && pattern && (
           <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
@@ -1843,9 +1598,9 @@ export default function App() {
         )}
       </div>
 
-      {/* decision / outcome — only show buttons when chart fully drawn */}
+      {/* decision / outcome */}
       <div style={{ paddingBottom:8 }}>
-        {screen === "playing" && initialProgress >= 22 && <DecisionButtons onChoose={handleChoice} disabled={false} />}
+        {screen === "playing" && <DecisionButtons onChoose={handleChoice} disabled={false} />}
         {screen === "outcome" && (
           <OutcomeCard
             correct={roundStats[roundStats.length-1]?.correct}
@@ -1887,8 +1642,6 @@ export default function App() {
         <div style={{ position:"absolute", bottom:"15%", left:"40%", width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPink}09 0%, transparent 70%)`, filter:"blur(30px)" }} />
       </div>
 
-      {/* live ticker */}
-      <LiveTicker />
 
       {/* particle layer */}
       <ParticleCanvas active={particleBurst} godMode={godMode} />
@@ -1905,8 +1658,7 @@ export default function App() {
 
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
-        {screen === "countdown"   && <Countdown onDone={beginRound} />}
-        {screen === "loading"     && <LoadingScreen />}
+        {screen === "countdown"   && <Countdown onDone={startPlaying} />}
         {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
@@ -1917,4 +1669,3 @@ export default function App() {
       </div>
     </div>
   );
-}
