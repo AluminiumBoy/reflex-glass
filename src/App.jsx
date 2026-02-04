@@ -858,72 +858,8 @@ function GlassButton({ children, onClick, color = C.nGreen, disabled = false, st
 /* ═══════════════════════════════════════════════════════════════
    11  COUNTDOWN OVERLAY (3-2-1 glass shatter)
    ────────────────────────────────────────────────────────────── */
-import { useState, useEffect } from "react";
 
-export default function Countdown({ onDone }) {
-  const [num, setNum] = useState(3);
 
-  useEffect(() => {
-    // hang és haptik minden számhoz
-    SND.tick(num);
-    haptic([25]);
-
-    let timer;
-    if (num > 1) {
-      // Csökkentés 900ms után
-      timer = setTimeout(() => setNum(n => n - 1), 900);
-    } else {
-      // "1" után rövid delay, majd eltűnés
-      timer = setTimeout(onDone, 900);
-    }
-
-    return () => clearTimeout(timer);
-  }, [num, onDone]);
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 250,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(6,6,12,0.72)",
-        backdropFilter: "blur(12px)",
-        pointerEvents: "none", // ne blokkolja a canvas inputot
-      }}
-    >
-      <div
-        style={{
-          width: 140,
-          height: 140,
-          borderRadius: "50%",
-          background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
-          border: `2px solid ${C.nGreen}50`,
-          boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          animation: "ringPulse 0.9s ease-out",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 72,
-            fontWeight: 800,
-            fontFamily: "'SF Mono','Fira Code',monospace",
-            color: num === 1 ? C.nPink : C.nGreen,
-            textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
-            animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)",
-          }}
-        >
-          {num}
-        </span>
-      </div>
-    </div>
-  );
-}
 /* ═══════════════════════════════════════════════════════════════
    12  TIMER BAR  (liquid progress, pulse when low)
    ────────────────────────────────────────────────────────────── */
