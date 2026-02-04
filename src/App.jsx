@@ -536,27 +536,44 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   canvas.height= H * dpr;
   ctx.scale(dpr, dpr);
 
-  // ── background ──
-  const grd = ctx.createLinearGradient(0,0,0,H);
-  grd.addColorStop(0, "#0d0d1a");
-  grd.addColorStop(1, "#06060c");
-  ctx.fillStyle = grd;
+  // ═══════════════════════════════════════════════════════════════
+  // CLEAN DARK SPACE BACKGROUND
+  // ═══════════════════════════════════════════════════════════════
+  const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.6);
+  bg.addColorStop(0, "#0d0d1a");
+  bg.addColorStop(0.7, "#08080f");
+  bg.addColorStop(1, "#05050a");
+  ctx.fillStyle = bg; 
   ctx.fillRect(0,0,W,H);
 
-  // ── grid lines ──
-  ctx.strokeStyle = "rgba(255,255,255,0.045)";
-  ctx.lineWidth   = 1;
-  for(let y=0;y<H;y+=H/6){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  for(let x=0;x<W;x+=W/8){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  // Subtle grid lines (minimal distraction)
+  ctx.strokeStyle = "rgba(255,255,255,0.025)";
+  ctx.lineWidth = 0.5;
+  for(let y=0; y<H; y+=H/6){ 
+    ctx.beginPath(); 
+    ctx.moveTo(0,y); 
+    ctx.lineTo(W,y); 
+    ctx.stroke(); 
+  }
+  ctx.globalAlpha = 1;
 
-  // ── god-mode ambient glow ──
+  // Subtle volumetric lighting (very subtle)
+  const rayGrad = ctx.createLinearGradient(W*0.2, 0, W*0.8, H);
+  rayGrad.addColorStop(0, "rgba(0,255,170,0.015)");
+  rayGrad.addColorStop(0.5, "rgba(168,85,247,0.01)");
+  rayGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = rayGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── god-mode border glow ──
   if(godMode) {
     ctx.save();
-    const pulse = 0.15 + 0.08*Math.sin(Date.now()*0.006);
-    ctx.shadowColor = C.nGreen; ctx.shadowBlur = 40;
+    const pulse = 0.18 + 0.08*Math.sin(Date.now()*0.006);
+    ctx.shadowColor = C.nGreen; 
+    ctx.shadowBlur = 50;
     ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(4,4,W-8,H-8);
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(5,5,W-10,H-10);
     ctx.restore();
   }
 
@@ -570,7 +587,6 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
 
   // ── price scale  ──
   let lo = Infinity, hi = -Infinity;
-  // Use ALL candles (initial + full continuation) for a stable scale
   const scaleCandles = [...candles, ...(contCandles||[])];
   scaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
   const pad  = (hi - lo) * 0.12;
@@ -579,79 +595,138 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
 
   const totalSlots = candles.length + (contCandles?.length || 0);
   const slotW      = W / totalSlots;
-  const bodyW      = slotW * 0.55;
+  const bodyW      = slotW * 0.58;
   const offX       = (slotW - bodyW) / 2;
 
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── price label (right axis) for last visible candle ──
+  // ── price label with subtle glow ──
   const lastC = allCandles[allCandles.length - 1];
   const lblY  = toY(lastC.c);
   ctx.save();
   const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
-  ctx.fillStyle = lblColor + "33";
-  ctx.fillRect(W - 48, lblY - 9, 48, 18);
+  
+  ctx.shadowColor = lblColor;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = lblColor + "35";
+  ctx.fillRect(W - 50, lblY - 10, 50, 20);
+  
+  ctx.shadowBlur = 0;
   ctx.fillStyle = lblColor;
   ctx.font = "bold 10px monospace";
   ctx.textAlign = "right";
-  ctx.fillText(lastC.c.toFixed(2), W - 4, lblY + 3.5);
+  ctx.fillText(lastC.c.toFixed(2), W - 5, lblY + 3.5);
   ctx.restore();
 
-  // ── draw candles ──
+  // ═══════════════════════════════════════════════════════════════
+  // CLEAN 3D HOLOGRAPHIC CANDLES WITH SUBTLE DEPTH
+  // ═══════════════════════════════════════════════════════════════
   allCandles.forEach((c, i) => {
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // wave-reveal fade for initial candles AND continuation candles
+    // Wave-reveal fade
     let alpha = 1;
-    
-    // Initial candle reveal animation
     if (i < 22) {
-      // Fade in based on revealCount
       alpha = CL(revealCount - i, 0, 1);
     } else {
-      // Continuation candles
       const ci = i - 22;
       alpha = CL(continuationCount - ci, 0, 1);
     }
-
-    if (alpha <= 0) return; // Skip if not visible yet
+    if (alpha <= 0) return;
 
     const bodyColor = bull ? C.bull : C.bear;
-    const wickColor = bull ? "#00b85a" : "#e01030";
 
-    ctx.globalAlpha = alpha;
+    // ═══════════════════════════════════════════════════════════
+    // SUBTLE DEPTH - patterns stay recognizable
+    // ═══════════════════════════════════════════════════════════
+    const depthFactor = Math.pow((i+1)/allCandles.length, 1.5); // Reduced from 2.8
+    const currentBodyW = bodyW * (0.65 + depthFactor*0.5); // Less extreme scaling
+    const opacity = alpha * (0.5 + depthFactor*0.5); // Better visibility
+    const blur = (1-depthFactor)*2.5; // Much less blur
+    
+    // Minimal perspective shift
+    const perspectiveX = x - (1-depthFactor)*W*0.03; // Reduced from 0.18
+    const scale = 0.85 + depthFactor*0.25; // Minimal scaling
+
     ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.filter = `blur(${blur}px)`;
 
-    // wick
-    ctx.strokeStyle = wickColor;
-    ctx.lineWidth = 1.2;
+    // Subtle glow only on last 2 candles
+    if (i >= allCandles.length - 2) {
+      ctx.shadowColor = bodyColor;
+      ctx.shadowBlur = 15;
+    }
+
+    // ── WICK ──
+    const wickTop = toY(c.h);
+    const wickBot = toY(c.l);
+    
+    ctx.strokeStyle = bodyColor + Math.floor(opacity*200).toString(16).padStart(2,'0');
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x + slotW/2, toY(c.h));
-    ctx.lineTo(x + slotW/2, toY(c.l));
+    ctx.moveTo(perspectiveX + currentBodyW/2, wickTop);
+    ctx.lineTo(perspectiveX + currentBodyW/2, wickBot);
     ctx.stroke();
 
-    // body
+    // ── CLEAN GLASS CANDLE BODY ──
     const bodyTop    = toY(Math.max(c.o, c.c));
     const bodyBottom = toY(Math.min(c.o, c.c));
-    const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
+    const bodyHeight = Math.max(bodyBottom - bodyTop, 1.5);
 
-    // glass-style body gradient
-    const bg = ctx.createLinearGradient(x+offX, bodyTop, x+offX+bodyW, bodyTop);
-    bg.addColorStop(0, bodyColor);
-    bg.addColorStop(0.4, bull ? "#00ff9d" : "#ff4466");
-    bg.addColorStop(1, bodyColor);
-    ctx.fillStyle = bg;
-    ctx.fillRect(x + offX, bodyTop, bodyW, bodyHeight);
+    // Main body with subtle inner glow
+    const innerGlow = ctx.createRadialGradient(
+      perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, 0,
+      perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, currentBodyW*0.7
+    );
+    innerGlow.addColorStop(0, bodyColor + "f0");
+    innerGlow.addColorStop(0.7, bodyColor + "b0");
+    innerGlow.addColorStop(1, bodyColor + "70");
+    ctx.fillStyle = innerGlow;
+    ctx.fillRect(perspectiveX, bodyTop, currentBodyW, bodyHeight);
 
-    // subtle border
-    ctx.strokeStyle = bull ? "#00ff9d55" : "#ff446655";
-    ctx.lineWidth = 0.7;
-    ctx.strokeRect(x + offX, bodyTop, bodyW, bodyHeight);
+    // Subtle glass highlight (only on left edge)
+    const glassHighlight = ctx.createLinearGradient(
+      perspectiveX, bodyTop,
+      perspectiveX + currentBodyW*0.3, bodyTop
+    );
+    glassHighlight.addColorStop(0, "rgba(255,255,255,0.2)");
+    glassHighlight.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glassHighlight;
+    ctx.fillRect(perspectiveX, bodyTop, currentBodyW*0.25, bodyHeight);
+
+    // Clean border
+    ctx.strokeStyle = "rgba(255,255,255," + (opacity*0.35) + ")";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(perspectiveX, bodyTop, currentBodyW, bodyHeight);
+
+    // Minimal sparks only on last candle if bullish
+    if (bull && i === allCandles.length - 1 && depthFactor > 0.9) {
+      for(let p=0; p<3; p++) {
+        const px = perspectiveX + Math.random()*currentBodyW;
+        const py = bodyTop + Math.random()*bodyHeight;
+        
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = `rgba(0,255,170,${Math.random()*0.6})`;
+        ctx.fillRect(px-1, py-1, 2, 2);
+      }
+    }
 
     ctx.restore();
-    ctx.globalAlpha = 1;
   });
+
+  // Very subtle lens flare (barely noticeable)
+  const flareX = W * 0.75;
+  const flareY = H * 0.25;
+  const flareGrad = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, 100);
+  flareGrad.addColorStop(0, "rgba(255,255,255,0.08)");
+  flareGrad.addColorStop(0.5, "rgba(0,255,170,0.03)");
+  flareGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = flareGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.globalAlpha = 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════
