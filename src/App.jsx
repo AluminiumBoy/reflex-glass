@@ -1325,8 +1325,8 @@ export default function App() {
   // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
 // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
 useEffect(() => {
-  if (!pattern) return;
-
+  if (!pattern || !chartRef.current) return;
+  
   let running = true;
 
   function loop() {
@@ -1337,7 +1337,7 @@ useEffect(() => {
       drawChart(
         chartRef.current,
         pattern.candles,
-        22,                          // initial candles always fully visible
+        22,                          
         screen === "revealing" || screen === "outcome" ? contProgress : 0,
         pattern.continuation,
         godMode
@@ -1353,8 +1353,7 @@ useEffect(() => {
     running = false;
     cancelAnimationFrame(rafChartRef.current);
   };
-}, [pattern, screen, contProgress, godMode]);
-
+}, [pattern, screen, contProgress, godMode]);  // ✅ HOZZÁADVA: screen, contProgress
   // ── low-time haptic pulse ──
   useEffect(() => {
     if(isPlaying && timeLeft <= 1000 && timeLeft > 0) {
@@ -1430,12 +1429,9 @@ useEffect(() => {
     // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
     const startPlaying = useCallback(() => {
       setScreen("playing");
-      // Azonnal indítjuk a reveal fázist
-      revealRef.current = 0;
-      contRef.current = 0;
-      phaseRef.current = "reveal";
+      // Azonnal tiszta állapot a chart számára
+      setContProgress(0);
     }, []);
-
 
     // 3️⃣ választás kezelése (változatlan logika)
     const handleChoice = useCallback((ch) => {
