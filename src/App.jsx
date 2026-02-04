@@ -1825,7 +1825,7 @@ function TipPanel() {
    "name" | "home" | "countdown" | "playing" | "revealing"
    | "outcome" | "verdict" | "leaderboard"
 ────────────────────────────────────────────────────────────── */
-import { useState, useEffect, useRef, useCallback } from "react";
+
 
 export default function App() {
   // ── CORE STATE ───────────────────────────────────────────────
