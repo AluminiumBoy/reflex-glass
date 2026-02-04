@@ -361,9 +361,9 @@ function roundTop() {
 }
 function eveningStar() {
   const pre=TR(100,5,1.1,.9);
-  const star=[K(105,107.8,.7,1),K(107.7,108.2,.5,.7),K(108,105.2,.8,.4)];
-  return { candles:PAD([...pre,...star,...TR(105.2,6,-.7,.9),...CO(102,6,1.4)],22),
-           continuation:TR(102,10,-2.4,1.4), signal:'sell', name:'Evening Star', cat:'Reversal' };
+  const star=[K(105,107.8,.7,1),K(108,107.5,.7,.5),K(107.7,104.2,.4,.8)];
+  return { candles:PAD([...pre,...star,...TR(104.2,6,-.7,.9),...CO(101,6,1.4)],22),
+           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Evening Star', cat:'Reversal' };
 }
 function bearEngulf() {
   const pre=TR(100,11,0.9,1.1), last=pre[pre.length-1];
@@ -373,148 +373,129 @@ function bearEngulf() {
 }
 function liquiditySweepBear() {
   const pre=TR(104,6,0.6,1);
-  const sweep=[K(106.8,107.6,.7,.3),K(107.9,108.5,1.1,.4),K(108.8,104.8,.25,.15)];
+  const sweep=[K(106.8,107.6,.3,.7),K(107.8,108.5,1.1,.4),K(108.7,104.8,.25,.15)];
   return { candles:PAD([...pre,...sweep,...CO(104.8,13,1.8)],22),
-           continuation:TR(104,10,-2.8,1.3), signal:'sell', name:'Liquidity Sweep ↓', cat:'Reversal' };
+           continuation:TR(103,10,-2.8,1.3), signal:'sell', name:'Liquidity Sweep ↓', cat:'Reversal' };
 }
 function islandRevBear() {
   const pre=TR(100,5,1.3,1);
   const gapUp=TR(105,4,.4,.9);
   const gapDn=TR(102.5,4,-1.1,.9);
   return { candles:PAD([...pre,...gapUp,...gapDn,...CO(gapDn[gapDn.length-1].c,9,1.5)],22),
-           continuation:TR(101,10,-2.4,1.3), signal:'sell', name:'Island Reversal ↓', cat:'Reversal' };
+           continuation:TR(99,10,-2.4,1.3), signal:'sell', name:'Island Reversal ↓', cat:'Reversal' };
 }
 
-// Neutral / Hold (tricky patterns) ────────
+// Neutral / Breakout Either-Way ─────
 function symTriangle() {
-  const lead=TR(100,3,.4,1.2); let hi=108, lo=100; const tri=[];
-  for(let i=0;i<12;i++){ hi-=.35; lo+=.35; const m=(hi+lo)/2+R(-1,1);
-    tri.push(K(m+R(-.5,.5),m+R(-.5,.5),R(.2,hi-m),R(.2,m-lo))); }
-  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,7,1.2)],22),
-           continuation:CO(104,10,2.8), signal:'hold', name:'Symmetrical Triangle', cat:'Neutral' };
+  const lead=TR(100,4,1.2,1.4); let hi=108, lo=100;
+  const tri=[];
+  for(let i=0;i<10;i++){ hi-=.38; lo+=.38; const m=(hi+lo)/2+R(-1.5,1.5);
+    tri.push(K(m+R(-.6,.6),m+R(-.6,.6),CL(hi-m,.2,2),CL(m-lo,.2,2))); }
+  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.3)],22),
+           continuation:CO(tri[tri.length-1].c,10,2.8), signal:'hold', name:'Symmetrical Triangle', cat:'Neutral' };
 }
-function chopZone() {
-  const chop=CO(104,18,4.2);
-  return { candles:PAD([...chop,...CO(chop[chop.length-1].c,4,2.2)],22),
-           continuation:CO(104,10,3.8), signal:'hold', name:'Chop Zone', cat:'Neutral' };
+function wedgeNeutral() {
+  const lead=TR(100,4,1,1.2); let hi=108, lo=102;
+  const wedge=[];
+  for(let i=0;i<10;i++){ hi-=.28; lo+=.22; const m=(hi+lo)/2+R(-1,1);
+    wedge.push(K(m+R(-.4,.4),m+R(-.4,.4),CL(hi-m,.2,1.5),CL(m-lo,.2,1.5))); }
+  return { candles:PAD([...lead,...wedge,...CO(wedge[wedge.length-1].c,8,1.4)],22),
+           continuation:CO(wedge[wedge.length-1].c,10,3.1), signal:'hold', name:'Narrowing Wedge', cat:'Neutral' };
+}
+function flatConsolidation() {
+  const lead=TR(104,5,.3,1.3);
+  const flat=CO(lead[lead.length-1].c,12,3);
+  return { candles:PAD([...lead,...flat,...CO(flat[flat.length-1].c,5,1.2)],22),
+           continuation:CO(flat[flat.length-1].c,10,2.6), signal:'hold', name:'Flat Consolidation', cat:'Neutral' };
+}
+function dojiCluster() {
+  const lead=TR(104,8,0.3,1.6);
+  const cluster=[]; for(let i=0;i<6;i++){ const p=lead[lead.length-1].c+R(-.5,.5); cluster.push(K(p,p+R(-.25,.25),R(.4,1.2),R(.4,1.2))); }
+  return { candles:PAD([...lead,...cluster,...CO(cluster[cluster.length-1].c,8,1.4)],22),
+           continuation:CO(cluster[cluster.length-1].c,10,2.4), signal:'hold', name:'Doji Cluster', cat:'Neutral' };
 }
 function insideBar() {
-  const pre=TR(100,10,0.5,1.4), last=pre[pre.length-1];
-  const inside=[K(last.c,last.c+R(-.5,.5),R(.1,.4),R(.1,.4)),K(last.c+R(-.3,.3),last.c+R(-.3,.3),R(.1,.3),R(.1,.3))];
-  return { candles:PAD([...pre,...inside,...CO(inside[inside.length-1].c,10,1.5)],22),
-           continuation:CO(last.c,10,2.4), signal:'hold', name:'Inside Bar', cat:'Neutral' };
+  const lead=TR(104,9,0.5,1.4);
+  const mother=lead[lead.length-1];
+  const rng=mother.h-mother.l;
+  const inside=[]; for(let i=0;i<4;i++){
+    const mid=(mother.h+mother.l)/2+R(-rng*.2,rng*.2);
+    inside.push(K(mid+R(-.3,.3),mid+R(-.3,.3),R(.2,rng*.18),R(.2,rng*.18)));
+  }
+  return { candles:PAD([...lead,...inside,...CO(inside[inside.length-1].c,9,1.3)],22),
+           continuation:CO(inside[inside.length-1].c,10,2.5), signal:'hold', name:'Inside Bar Setup', cat:'Neutral' };
 }
-function doji() {
-  const pre=TR(100,14,0.45,1.1);
-  const d=K(pre[pre.length-1].c,pre[pre.length-1].c+R(-.1,.1),R(.5,1.4),R(.5,1.4));
-  return { candles:PAD([...pre,d,...CO(d.c,7,1.3)],22),
-           continuation:CO(d.c,10,2.6), signal:'hold', name:'Doji Candle', cat:'Neutral' };
+function priceChannel() {
+  const ch=[];
+  let lo=100, hi=108, p=(lo+hi)/2;
+  for(let i=0;i<18;i++){
+    const nextP = i%4<2 ? p+R(.5,1.4) : p+R(-1.4,-.5);
+    p = CL(nextP, lo+1, hi-1);
+    ch.push(K(p+R(-.5,.5),p+R(-.5,.5),R(.3,1),R(.3,1)));
+  }
+  return { candles:PAD([...ch,...CO(ch[ch.length-1].c,4,1.2)],22),
+           continuation:CO(ch[ch.length-1].c,10,2.8), signal:'hold', name:'Price Channel', cat:'Neutral' };
 }
-function lowVolConsolidation() {
-  const pre=TR(100,6,1,1.2);
-  const cons=CO(pre[pre.length-1].c,12,1.1);
-  return { candles:PAD([...pre,...cons,...CO(cons[cons.length-1].c,4,1.1)],22),
-           continuation:CO(cons[cons.length-1].c,10,1.6), signal:'hold', name:'Low-Vol Consolidation', cat:'Neutral' };
-}
-
-// Extra advanced patterns (for variety)
-function risingWedge() {
-  const lead=TR(96,3,1,1.1); let lo=100, hi=106; const wedge=[];
-  for(let i=0;i<12;i++){ lo+=.6; hi+=.35; const m=(hi+lo)/2+R(-.6,.6);
-    wedge.push(K(m+R(-.3,.3),m+R(-.3,.3),R(.2,hi-m),R(.2,m-lo))); }
-  return { candles:PAD([...lead,...wedge,...CO(wedge[wedge.length-1].c,7,1.4)],22),
-           continuation:TR(107,10,-2.2,1.5), signal:'sell', name:'Rising Wedge', cat:'Reversal' };
-}
-function fallingWedge() {
-  const lead=TR(112,3,-1,1.1); let hi=110, lo=104; const wedge=[];
-  for(let i=0;i<12;i++){ hi-=.6; lo-=.35; const m=(hi+lo)/2+R(-.6,.6);
-    wedge.push(K(m+R(-.3,.3),m+R(-.3,.3),R(.2,hi-m),R(.2,m-lo))); }
-  return { candles:PAD([...lead,...wedge,...CO(wedge[wedge.length-1].c,7,1.4)],22),
-           continuation:TR(101,10,2.2,1.5), signal:'buy', name:'Falling Wedge', cat:'Reversal' };
-}
-function pennant() {
-  const pole=TR(100,5,3.6,1), top=pole[pole.length-1].c;
-  const p=[]; let hi=top+2, lo=top-2;
-  for(let i=0;i<8;i++){ hi-=.25; lo+=.25; const m=(hi+lo)/2+R(-.35,.35); p.push(K(m,m+R(-.25,.25),R(.1,.4),R(.1,.4))); }
-  return { candles:PAD([...pole,...p,...CO(p[p.length-1].c,9,1.5)],22),
-           continuation:TR(top+.4,10,2.9,1.3), signal:'buy', name:'Bullish Pennant', cat:'Continuation' };
-}
-function diamondTop() {
-  const pre=TR(100,4,1.5,1); let lo=103, hi=110;
-  const d1=[]; for(let i=0;i<5;i++){ lo-=.4; hi+=.5; const m=(hi+lo)/2+R(-.4,.4); d1.push(K(m,m+R(-.3,.3),R(.2,.6),R(.2,.6))); }
-  const d2=[]; for(let i=0;i<5;i++){ lo+=.4; hi-=.5; const m=(hi+lo)/2+R(-.4,.4); d2.push(K(m,m+R(-.3,.3),R(.2,.6),R(.2,.6))); }
-  return { candles:PAD([...pre,...d1,...d2,...CO(d2[d2.length-1].c,8,1.6)],22),
-           continuation:TR(103,10,-2.4,1.4), signal:'sell', name:'Diamond Top', cat:'Reversal' };
-}
-function diamondBottom() {
-  const pre=TR(112,4,-1.5,1); let hi=109, lo=102;
-  const d1=[]; for(let i=0;i<5;i++){ hi+=.4; lo-=.5; const m=(hi+lo)/2+R(-.4,.4); d1.push(K(m,m+R(-.3,.3),R(.2,.6),R(.2,.6))); }
-  const d2=[]; for(let i=0;i<5;i++){ hi-=.4; lo+=.5; const m=(hi+lo)/2+R(-.4,.4); d2.push(K(m,m+R(-.3,.3),R(.2,.6),R(.2,.6))); }
-  return { candles:PAD([...pre,...d1,...d2,...CO(d2[d2.length-1].c,8,1.6)],22),
-           continuation:TR(105,10,2.4,1.4), signal:'buy', name:'Diamond Bottom', cat:'Reversal' };
+function rangeBreakFake() {
+  const rng=CO(104,12,3.4);
+  const spike=[K(rng[rng.length-1].c+1,108,.3,.5),K(108,109,.4,.3),K(108.8,104.5,.2,.6)];
+  return { candles:PAD([...rng,...spike,...CO(104.5,7,2.4)],22),
+           continuation:CO(104.5,10,3), signal:'hold', name:'Range Fakeout', cat:'Neutral' };
 }
 
-// ── registry + picker ───────────────────────────────────────────
-const PATTERNS = [
-  bullFlag, highTightFlag, ascTriangle, cupHandle, powerOf3, wyckoffSpring, bullRect, pennant, fallingWedge, diamondBottom,
-  bearFlag, descTriangle, bearRect, wyckoffUpthrust, risingWedge, diamondTop,
+// More advanced / uncommon patterns ─────
+function threeWhiteSoldiers() {
+  const pre=TR(100,8,-0.6,1.2);
+  const soldiers=[K(99,101.8,.3,.5),K(101.5,104,.35,.4),K(103.8,106.5,.3,.4)];
+  return { candles:PAD([...pre,...soldiers,...CO(106.5,11,1.6)],22),
+           continuation:TR(107,10,2.4,1.4), signal:'buy', name:'Three White Soldiers', cat:'Reversal' };
+}
+function threeBlackCrows() {
+  const pre=TR(108,8,0.6,1.2);
+  const crows=[K(109,106.2,.5,.3),K(106.5,104,.4,.35),K(104.2,101.5,.4,.3)];
+  return { candles:PAD([...pre,...crows,...CO(101.5,11,1.6)],22),
+           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Three Black Crows', cat:'Reversal' };
+}
+function fallingKnife() {
+  const drop=TR(112,7,-3.2,.9);
+  const bounce=TR(drop[drop.length-1].c,4,1.8,1.1);
+  return { candles:PAD([...drop,...bounce,...CO(bounce[bounce.length-1].c,11,2.1)],22),
+           continuation:TR(bounce[bounce.length-1].c-1,10,-2.5,1.5), signal:'sell', name:'Falling Knife Bounce', cat:'Reversal' };
+}
+function parabolicBlow() {
+  const run=TR(100,6,1.6,.9);
+  const para=[]; let v=1.2;
+  for(let i=0;i<6;i++){ const o=run[run.length-1].c+(i>0?para[i-1].c-para[i-1].o:0)+v; v*=1.35;
+    para.push(K(o,o+R(1.5,3.5),R(.3,.9),R(.2,.5))); }
+  return { candles:PAD([...run,...para,...CO(para[para.length-1].c,10,3)],22),
+           continuation:TR(para[para.length-1].c,10,-3.2,2), signal:'sell', name:'Parabolic Blowoff', cat:'Reversal' };
+}
+function gapFillBull() {
+  const pre=TR(104,6,-.8,1);
+  const gap=TR(100,4,-1,1.2);
+  const fill=TR(98,6,1.3,1);
+  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
+           continuation:TR(fill[fill.length-1].c,10,2.3,1.4), signal:'buy', name:'Gap Fill ↑', cat:'Continuation' };
+}
+function gapFillBear() {
+  const pre=TR(104,6,.8,1);
+  const gap=TR(108,4,1,1.2);
+  const fill=TR(110,6,-1.3,1);
+  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
+           continuation:TR(fill[fill.length-1].c,10,-2.3,1.4), signal:'sell', name:'Gap Fill ↓', cat:'Continuation' };
+}
+
+// ── PATTERN POOL ──────────────────────────────────────────────
+const PATTERN_POOL = [
+  bullFlag, highTightFlag, ascTriangle, cupHandle, powerOf3, wyckoffSpring, bullRect,
+  bearFlag, descTriangle, bearRect, wyckoffUpthrust,
   invHS, adamEve, dblBottom, tripleBottom, roundBottom, morningStar, bullEngulf, liquiditySweepBull, islandRevBull,
   hs, dblTop, tripleTop, roundTop, eveningStar, bearEngulf, liquiditySweepBear, islandRevBear,
-  symTriangle, chopZone, insideBar, doji, lowVolConsolidation,
+  symTriangle, wedgeNeutral, flatConsolidation, dojiCluster, insideBar, priceChannel, rangeBreakFake,
+  threeWhiteSoldiers, threeBlackCrows, fallingKnife, parabolicBlow, gapFillBull, gapFillBear,
 ];
 
-function getRandomPattern() {
-  const fn = PATTERNS[RI(0, PATTERNS.length-1)];
-  return fn();
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    5  TIPS ENGINE  (contextual pattern-learning tips)
-   ═══════════════════════════════════════════════════════════════ */
-const TIPS = {
-  'Bull Flag':            "Bull flags form after a sharp rise—look for a tight, downward-sloping channel before the breakout.",
-  'High Tight Flag':      "High Tight Flags are rare. A 100%+ move followed by a shallow pullback often leads to explosive continuation.",
-  'Ascending Triangle':   "Flat resistance + higher lows = pressure build. Breakout often matches the triangle's height.",
-  'Cup & Handle':         "The handle is your entry zone. A breakout above the rim with volume confirms the pattern.",
-  'Power of 3 Accum':     "Smart money accumulates in a range, sweeps lows (spring), then marks up aggressively.",
-  'Wyckoff Spring':       "A spring dips below support to shake out weak hands before the real rally begins.",
-  'Bullish Rectangle':    "Horizontal consolidation after an uptrend—breakout direction is usually with the prior trend.",
-  'Bear Flag':            "Mirror of bull flag: sharp drop, weak bounce, then continuation down.",
-  'Descending Triangle':  "Flat support + lower highs = weakening bulls. Breakdown often mirrors the triangle height.",
-  'Bearish Rectangle':    "Price coils before breakdown. Watch for volume surge on the break.",
-  'Wyckoff Upthrust':     "A false breakout above resistance traps late longs—then reverses hard.",
-  'Inv. Head & Shoulders':"The neckline break is the trigger. Measure from head to neckline for target.",
-  'Adam & Eve Double Bottom': "Adam = sharp V, Eve = rounded U. The combination signals strong reversal potential.",
-  'Double Bottom':        "Two tests of support with a rally in between. Break above the middle high confirms.",
-  'Triple Bottom':        "Three tests = strong floor. The more touches, the more significant the eventual breakout.",
-  'Rounding Bottom':      "A slow shift from selling to buying. Patience required—the move is often powerful.",
-  'Morning Star':         "Three-candle reversal: big red, indecision, big green. Best at key support.",
-  'Bullish Engulfing':    "The green candle completely engulfs the prior red—momentum shift signal.",
-  'Liquidity Sweep ↑':    "Price dips below obvious support to grab stops, then snaps back violently.",
-  'Island Reversal ↑':    "Gap down, isolation, gap up—trapped shorts fuel the rally.",
-  'Head & Shoulders':     "The classic top reversal. Neckline break with volume confirms the pattern.",
-  'Double Top':           "Two failed attempts at a high. Break below the valley triggers the move.",
-  'Triple Top':           "Resistance holds three times—exhaustion sets in. Breakdown often accelerates.",
-  'Rounding Top':         "Gradual shift from buying to selling. Often precedes sustained downtrends.",
-  'Evening Star':         "Opposite of morning star. Indecision candle at resistance is the warning.",
-  'Bearish Engulfing':    "Big red swallows prior green—sellers take control.",
-  'Liquidity Sweep ↓':    "Fake breakout above resistance hunts stops, then dumps.",
-  'Island Reversal ↓':    "Gap up, isolation, gap down—trapped longs panic sell.",
-  'Symmetrical Triangle': "Coiling price = indecision. Wait for clear breakout direction before acting.",
-  'Chop Zone':            "No edge here. Range-bound markets eat directional traders alive.",
-  'Inside Bar':           "Contraction before expansion. The breakout direction matters more than the pattern.",
-  'Doji Candle':          "Indecision. Context matters—at extremes it can signal reversal.",
-  'Low-Vol Consolidation':"Calm before the storm. Low volume often precedes explosive moves.",
-  'Rising Wedge':         "Higher highs + higher lows converging = weakening momentum. Usually breaks down.",
-  'Falling Wedge':        "Lower highs + lower lows converging = selling exhaustion. Usually breaks up.",
-  'Bullish Pennant':      "Mini consolidation after a strong move. Breakout continues the trend.",
-  'Diamond Top':          "Expanding then contracting range at highs. Breakdown is the signal.",
-  'Diamond Bottom':       "Same shape at lows. Breakout signals reversal.",
-};
-
-function getTip(patternName) {
-  return TIPS[patternName] || "Study patterns across multiple timeframes to build intuition.";
-}
+function getRandomPattern() { return PATTERN_POOL[RI(0, PATTERN_POOL.length - 1)](); }
 
 /* ═══════════════════════════════════════════════════════════════
     6  ARCHETYPE ENGINE  (personality reveal based on playstyle)
@@ -824,9 +805,9 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
 
 
 /* ═══════════════════════════════════════════════════════════════
-    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter) - FULLSCREEN
+    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter) - CHART ANIMATES BEHIND
    ═══════════════════════════════════════════════════════════════ */
-function Countdown({ onDone }) {
+function Countdown({ onDone, initialRevealProgress }) {
   const [num, setNum]       = useState(3);
   const [shatter, setShatter] = useState(false);
   const [exit, setExit]     = useState(false);
@@ -853,7 +834,7 @@ function Countdown({ onDone }) {
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:250, display:"flex", alignItems:"center", justifyContent:"center",
-      background:"rgba(6,6,12,0.92)", backdropFilter:"blur(20px)" }}>
+      background:"rgba(6,6,12,0.72)", backdropFilter:"blur(12px)" }}>
       {!shatter ? (
         <div style={{ position:"relative" }}>
           {/* outer glass ring */}
@@ -921,118 +902,102 @@ function TimerBar({ timeLeft, totalTime }) {
 function DecisionButtons({ onChoose, disabled }) {
   return (
     <div style={{ display:"flex", gap:12, width:"100%", maxWidth:380, margin:"0 auto" }}>
-      <GlassButton onClick={()=>onChoose("sell")}  color={C.bear} disabled={disabled} style={{ flex:1, justifyContent:"center" }}>
-        <span style={{ fontSize:18, marginRight:6 }}>📉</span> SELL
+      <GlassButton onClick={()=>onChoose("sell")} color={C.bear} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BEARISH</div>
+        <div style={{ fontSize:18 }}>📉 SELL</div>
       </GlassButton>
-      <GlassButton onClick={()=>onChoose("hold")}  color={C.neut} disabled={disabled} style={{ flex:1, justifyContent:"center" }}>
-        <span style={{ fontSize:18, marginRight:6 }}>⏸</span> HOLD
+      <GlassButton onClick={()=>onChoose("hold")} color={C.neut} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>NEUTRAL</div>
+        <div style={{ fontSize:18 }}>⏸️ HOLD</div>
       </GlassButton>
-      <GlassButton onClick={()=>onChoose("buy")}   color={C.bull} disabled={disabled} style={{ flex:1, justifyContent:"center" }}>
-        <span style={{ fontSize:18, marginRight:6 }}>📈</span> BUY
+      <GlassButton onClick={()=>onChoose("buy")} color={C.bull} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BULLISH</div>
+        <div style={{ fontSize:18 }}>📈 BUY</div>
       </GlassButton>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    14  OUTCOME CARD  (per-round result + tip)
+    14  OUTCOME CARD  (per-round feedback)
    ═══════════════════════════════════════════════════════════════ */
 function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
-  const tip = getTip(patternName);
-
-  useEffect(() => {
-    SND.whoosh();
-    haptic([20, 10, 20]);
-  }, []);
-
+  const labelMap = { buy:"📈 BUY", sell:"📉 SELL", hold:"⏸️ HOLD" };
   return (
-    <div style={{ textAlign:"center", maxWidth:380, margin:"0 auto" }}>
-      <GlassPanel style={{ padding:"18px 20px" }}>
-        {/* result header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:8 }}>
-          <span style={{ fontSize:32 }}>{correct ? "✅" : "❌"}</span>
-          <div>
-            <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color: correct ? C.nGreen : C.nPink }}>
-              {correct ? `+${points}` : "0"}
-            </div>
-            {streak > 1 && correct && (
-              <div style={{ fontSize:11, color:C.nPurple, fontFamily:"monospace" }}>🔥 {streak} streak</div>
-            )}
-          </div>
-          {godMode && correct && (
-            <span style={{ fontSize:18, animation:"pulse 0.6s infinite" }}>⚡</span>
-          )}
-        </div>
+    <GlassPanel style={{ padding:18, textAlign:"center", position:"relative", overflow:"hidden" }}>
+      {/* top accent bar */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
+        background: correct ? `linear-gradient(90deg, ${C.nGreen}, ${C.nBlue})` : `linear-gradient(90deg, ${C.nPink}, ${C.nPurple})` }} />
 
-        {/* pattern + choice */}
-        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:"monospace", marginBottom:6 }}>
-          <strong style={{ color:"rgba(255,255,255,0.75)" }}>{patternName}</strong> — correct: <span style={{ color: signal==="buy"?C.bull:signal==="sell"?C.bear:C.neut }}>{signal.toUpperCase()}</span>, you: <span style={{ color: choice==="buy"?C.bull:choice==="sell"?C.bear:C.neut }}>{(choice||"—").toUpperCase()}</span>
-        </div>
+      <div style={{ fontSize:36, marginBottom:4 }}>{correct ? "✅" : "❌"}</div>
+      <div style={{ fontSize:15, fontWeight:700, fontFamily:"monospace", color: correct ? C.nGreen : C.nPink }}>
+        {correct ? `+${points} pts` : "No points"}
+      </div>
 
-        {/* tip */}
-        <div style={{ fontSize:11, color:"rgba(255,255,255,0.38)", fontFamily:"monospace", lineHeight:1.5, marginBottom:14 }}>
-          💡 {tip}
-        </div>
+      {/* pattern + signals */}
+      <div style={{ marginTop:10, fontSize:12, color:"rgba(255,255,255,0.55)", fontFamily:"monospace" }}>
+        Pattern: <span style={{ color:"#fff" }}>{patternName}</span>
+      </div>
+      <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6, fontSize:12, fontFamily:"monospace" }}>
+        <span>You: <span style={{ color: choice==="buy" ? C.bull : choice==="sell" ? C.bear : C.neut }}>{labelMap[choice] || "⏱ Timeout"}</span></span>
+        <span>Correct: <span style={{ color: signal==="buy" ? C.bull : signal==="sell" ? C.bear : C.neut }}>{labelMap[signal]}</span></span>
+      </div>
 
-        <GlassButton onClick={onNext} color={C.nGreen} style={{ width:"100%", justifyContent:"center" }}>Next →</GlassButton>
-      </GlassPanel>
-    </div>
+      {streak > 1 && correct && (
+        <div style={{ marginTop:8, fontSize:13, color:C.nPurple, fontFamily:"monospace" }}>🔥 {streak} streak! ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length-1)].toFixed(1)}</div>
+      )}
+
+      {godMode && correct && (
+        <div style={{ marginTop:4, fontSize:11, color:C.nGreen, fontFamily:"monospace", animation:"pulse 0.8s infinite" }}>⚡ GOD MODE ACTIVE</div>
+      )}
+
+      <GlassButton onClick={onNext} color={C.nGreen} style={{ marginTop:14, width:"100%", justifyContent:"center" }}>
+        Next Round →
+      </GlassButton>
+    </GlassPanel>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    15  FINAL VERDICT PANEL  (archetype reveal + roast)
+    15  FINAL VERDICT  (end-of-game stats + archetype reveal)
    ═══════════════════════════════════════════════════════════════ */
 function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
   const arch = getArchetype(stats);
-
-  useEffect(() => {
-    SND.godBurst();
-    haptic([30, 20, 30, 20, 50]);
-  }, []);
-
   const stars = "⭐".repeat(Math.round((stats.correct/ROUNDS)*5)) + "☆".repeat(5 - Math.round((stats.correct/ROUNDS)*5));
 
   return (
-    <div style={{ textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 12px" }}>
-      <GlassPanel style={{ padding:24, position:"relative", overflow:"hidden" }}>
-        {/* top accent bar */}
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16, padding:"0 16px", maxWidth:420, margin:"0 auto" }}>
+      {/* archetype card */}
+      <GlassPanel style={{ padding:"28px 24px", width:"100%", textAlign:"center", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
           background:`linear-gradient(90deg, ${C.nGreen}, ${C.nPurple}, ${C.nPink})` }} />
-
-        <div style={{ fontSize:11, letterSpacing:"0.25em", color:C.nGreen, fontFamily:"monospace", marginBottom:8, textTransform:"uppercase" }}>
-          Your Trading Archetype
-        </div>
-
-        <div style={{ fontSize:38, marginBottom:4 }}>{arch.emoji}</div>
-        <div style={{ fontSize:22, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", color:"#fff", marginBottom:6 }}>
-          {arch.name}
-        </div>
-        <div style={{ fontSize:16, letterSpacing:"0.1em", marginBottom:12 }}>{stars}</div>
-
-        {/* stats row */}
-        <div style={{ display:"flex", justifyContent:"center", gap:20, marginBottom:14 }}>
-          {[
-            { label:"Score", val:stats.totalScore, color:C.nGreen },
-            { label:"Correct", val:`${stats.correct}/${ROUNDS}`, color:C.nBlue },
-            { label:"Avg", val:`${stats.avgSpeed}ms`, color:C.nPurple },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign:"center" }}>
-              <div style={{ fontSize:20, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.val}</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* roast */}
-        <div style={{ fontSize:12, color:"rgba(255,255,255,0.55)", fontFamily:"monospace", lineHeight:1.6, marginBottom:18, fontStyle:"italic" }}>
+        <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:"monospace", marginBottom:6 }}>Your Trading Archetype</div>
+        <div style={{ fontSize:48 }}>{arch.emoji}</div>
+        <div style={{ fontSize:22, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace", color:"#fff", marginTop:4 }}>{arch.name}</div>
+        <div style={{ fontSize:18, marginTop:6 }}>{stars}</div>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:"monospace", fontStyle:"italic", marginTop:10, lineHeight:1.5, maxWidth:300, margin:"10px auto 0" }}>
           "{arch.roast}"
         </div>
       </GlassPanel>
 
+      {/* stats row */}
+      <GlassPanel style={{ padding:"16px 20px", width:"100%", display:"flex", justifyContent:"space-around" }}>
+        {[
+          { value:stats.totalScore, label:"Score", color:C.nGreen },
+          { value:`${stats.correct}/${ROUNDS}`, label:"Correct", color:C.nBlue },
+          { value:`${stats.avgSpeed}ms`, label:"Avg Speed", color:C.nPurple },
+          { value:`×${stats.maxStreak}`, label:"Best Streak", color:C.nPink },
+        ].map(s => (
+          <div key={s.label} style={{ textAlign:"center" }}>
+            <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.value}</div>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.38)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
+          </div>
+        ))}
+      </GlassPanel>
+
       {/* action buttons */}
-      <div style={{ display:"flex", gap:10, marginTop:14, marginBottom:10 }}>
-        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex:1, justifyContent:"center" }}>🔁 Play Again</GlassButton>
+      <div style={{ display:"flex", gap:10, width:"100%", maxWidth:380 }}>
+        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex:2, justifyContent:"center" }}>🔄 Play Again</GlassButton>
         <GlassButton onClick={onShare}   color={C.nPurple} style={{ flex:1, justifyContent:"center" }}>📤 Share</GlassButton>
       </div>
       <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ width:"100%", maxWidth:380, justifyContent:"center" }}>
@@ -1199,7 +1164,7 @@ function NameInput({ onSubmit }) {
 // ── config ──────────────────────────────────────────────────────
 const DONATION_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";           // ← replace with your Base address
 const USDC_BASE        = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base mainnet USDC
-const tip_amounts = [
+const TIPS = [
   { amount: 0.5, label: "☕ 0.5 USDC" },
   { amount: 1,   label: "🍔 1 USDC"   },
   { amount: 5,   label: "🚀 5 USDC"   },
@@ -1274,7 +1239,7 @@ function TipPanel() {
       {/* tip buttons */}
       {status === "idle" && (
         <div style={{ display:"flex", gap:8 }}>
-          {tip_amounts.map(t => (
+          {TIPS.map(t => (
             <GlassButton key={t.amount} onClick={() => sendTip(t.amount)} color={C.nAmber}
               style={{ flex:1, justifyContent:"center", padding:"10px 6px", fontSize:13 }}>
               {t.label}
@@ -1351,28 +1316,58 @@ export default function App() {
   // ── derived ──
   const isPlaying = screen === "playing";
 
+  // ── Initial candles reveal animation during countdown ──
+  useEffect(() => {
+    if (screen !== "countdown" || !pattern) {
+      cancelAnimationFrame(initialAnimRef.current);
+      return;
+    }
+    
+    setInitialRevealProgress(0);
+    const startTime = Date.now();
+    const duration = 2700; // 2.7 seconds (during 3-2-1 countdown)
+    
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(elapsed / duration, 1);
+      // ease-out cubic for smooth animation
+      const eased = 1 - Math.pow(1 - pct, 3);
+      setInitialRevealProgress(eased * 22);
+      
+      if (pct < 1) {
+        initialAnimRef.current = requestAnimationFrame(animate);
+      } else {
+        setInitialRevealProgress(22);
+      }
+    }
+    
+    initialAnimRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(initialAnimRef.current);
+  }, [screen, pattern]);
+
   // ── chart RAF loop (redraws every frame for smooth candle reveal) ──
-  // Only runs during playing/revealing/outcome - NOT during countdown
   useEffect(() => {
     if (!pattern || !chartRef.current) return;
-    if (screen !== "playing" && screen !== "revealing" && screen !== "outcome") return;
     
     let running = true;
 
     function loop() {
       if (!running) return;
 
-      const revealCount = 22; // All candles visible after countdown
-      const contCount = screen === "revealing" || screen === "outcome" ? contProgress : 0;
-      
-      drawChart(
-        chartRef.current,
-        pattern.candles,
-        revealCount,
-        contCount,
-        pattern.continuation,
-        godMode
-      );
+      // Draw during countdown (with initial animation), playing, revealing, or outcome
+      if (screen === "countdown" || screen === "playing" || screen === "revealing" || screen === "outcome") {
+        const revealCount = screen === "countdown" ? initialRevealProgress : 22;
+        const contCount = screen === "revealing" || screen === "outcome" ? contProgress : 0;
+        
+        drawChart(
+          chartRef.current,
+          pattern.candles,
+          revealCount,
+          contCount,
+          pattern.continuation,
+          godMode
+        );
+      }
 
       rafChartRef.current = requestAnimationFrame(loop);
     }
@@ -1383,7 +1378,7 @@ export default function App() {
       running = false;
       cancelAnimationFrame(rafChartRef.current);
     };
-  }, [pattern, screen, contProgress, godMode]);
+  }, [pattern, screen, contProgress, initialRevealProgress, godMode]);
 
   // ── low-time haptic pulse ──
   useEffect(() => {
@@ -1460,13 +1455,12 @@ export default function App() {
 
 
   // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
-    const startPlaying = useCallback(() => {
-      setScreen("playing");
-      // Azonnal indítjuk a reveal fázist
-      revealRef.current = 0;
-      contRef.current = 0;
-      phaseRef.current = "reveal";
-    }, []);
+  const startPlaying = useCallback(() => {
+    setInitialRevealProgress(22); // Ensure all candles are visible
+    setScreen("playing");
+    setContProgress(0);
+  }, []);
+
   // 3️⃣ választás kezelése
   const handleChoice = useCallback((ch) => {
     if (choice !== null) return;
@@ -1653,9 +1647,45 @@ export default function App() {
     </div>
   );
 
-  // Countdown screen - ONLY shows the countdown overlay, nothing else
   const renderCountdown = () => (
-    <Countdown onDone={startPlaying} />
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
+      {/* header row */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:2 }}>
+        <GlassPanel style={{ padding:"6px 14px", borderRadius:16 }}>
+          <span style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.5)" }}>Round </span>
+          <span style={{ fontSize:14, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{round+1}<span style={{ color:"rgba(255,255,255,0.28)", fontWeight:400 }}>/{ROUNDS}</span></span>
+        </GlassPanel>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          {streak > 0 && (
+            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nPurple}35` }}>
+              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nPurple }}>🔥 ×{STREAK_MULT[Math.min(streak+1, STREAK_MULT.length-1)].toFixed(1)}</span>
+            </GlassPanel>
+          )}
+          {godMode && (
+            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nGreen}45`,
+              background:`linear-gradient(135deg, ${C.nGreen}15, ${C.nBlue}10)` }}>
+              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nGreen }}>⚡ GOD MODE</span>
+            </GlassPanel>
+          )}
+        </div>
+      </div>
+
+      {/* placeholder timer bar */}
+      <div style={{ width:"100%", height:5, background:"rgba(255,255,255,0.07)", borderRadius:3 }} />
+
+      {/* chart - shows candles animating in */}
+      <div style={{ flex:1, minHeight:0, position:"relative" }}>
+        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
+      </div>
+
+      {/* placeholder buttons */}
+      <div style={{ paddingBottom:8, opacity:0.3, pointerEvents:"none" }}>
+        <DecisionButtons onChoose={()=>{}} disabled={true} />
+      </div>
+
+      {/* Countdown overlay */}
+      <Countdown onDone={startPlaying} initialRevealProgress={initialRevealProgress} />
+    </div>
   );
 
   const renderPlaying = () => (
