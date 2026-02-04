@@ -1460,12 +1460,13 @@ export default function App() {
 
 
   // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
-  const startPlaying = useCallback(() => {
-    setInitialRevealProgress(22); // Ensure all candles are visible
-    setScreen("playing");
-    setContProgress(0);
-  }, []);
-
+    const startPlaying = useCallback(() => {
+      setScreen("playing");
+      // Azonnal indítjuk a reveal fázist
+      revealRef.current = 0;
+      contRef.current = 0;
+      phaseRef.current = "reveal";
+    }, []);
   // 3️⃣ választás kezelése
   const handleChoice = useCallback((ch) => {
     if (choice !== null) return;
