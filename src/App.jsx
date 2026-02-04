@@ -1753,28 +1753,68 @@ export default function App() {
   );
 
   const renderCountdown = () => (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100%", gap:24 }}>
+    <div style={{ 
+      position: "fixed",
+      inset: 0,
+      zIndex: 300,
+      background: `radial-gradient(ellipse at 50% 50%, ${C.bg2}dd 0%, ${C.bg1}f5 100%)`,
+      backdropFilter: "blur(20px)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center"
+    }}>
+      {/* Ambient glow behind number */}
+      <div style={{
+        position: "absolute",
+        width: 400,
+        height: 400,
+        borderRadius: "50%",
+        background: `radial-gradient(circle, ${C.nGreen}25 0%, transparent 70%)`,
+        filter: "blur(80px)",
+        animation: "pulse 1s ease-in-out infinite"
+      }} />
+      
+      {/* Pulsing ring */}
+      <div style={{
+        position: "absolute",
+        width: 280,
+        height: 280,
+        borderRadius: "50%",
+        border: `6px solid ${C.nGreen}50`,
+        animation: "ringPulse 1s ease-out infinite"
+      }} />
+      
+      {/* The number */}
       <div style={{ 
-        fontSize: 180, 
+        fontSize: 200, 
         fontWeight: 900, 
         fontFamily: "'SF Mono','Fira Code',monospace",
         background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
-        filter: "drop-shadow(0 0 40px rgba(0,255,170,0.5))",
+        filter: "drop-shadow(0 0 60px rgba(0,255,170,0.6))",
         animation: "numPop 0.3s ease-out",
-        position: "relative"
+        position: "relative",
+        zIndex: 1,
+        lineHeight: 1
       }}>
         {countdownNum}
       </div>
+      
+      {/* Small text below */}
       <div style={{
-        position: "absolute",
-        width: 240,
-        height: 240,
-        borderRadius: "50%",
-        border: `4px solid ${C.nGreen}40`,
-        animation: "ringPulse 1s ease-out infinite"
-      }} />
+        fontSize: 14,
+        color: "rgba(255,255,255,0.4)",
+        fontFamily: "monospace",
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        marginTop: 40,
+        position: "relative",
+        zIndex: 1
+      }}>
+        Get Ready...
+      </div>
     </div>
   );
 
@@ -1807,8 +1847,7 @@ export default function App() {
 
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
-        {showCountdown            && renderCountdown()}
-        {(screen==="playing" || screen==="revealing" || screen==="outcome") && !showCountdown && renderPlaying()}
+        {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
           <div style={{ paddingTop:20 }}>
@@ -1816,6 +1855,9 @@ export default function App() {
           </div>
         )}
       </div>
+      
+      {/* Countdown overlay - appears above everything */}
+      {showCountdown && renderCountdown()}
     </div>
   );
 }
