@@ -1427,10 +1427,13 @@ useEffect(() => {
     }, []);
 
 
-    // 2️⃣ countdown vége → csak screen váltás
+    // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
     const startPlaying = useCallback(() => {
       setScreen("playing");
-      choiceTimeRef.current = Date.now();
+      // Azonnal indítjuk a reveal fázist
+      revealRef.current = 0;
+      contRef.current = 0;
+      phaseRef.current = "reveal";
     }, []);
 
 
