@@ -360,143 +360,145 @@ function roundTop() {
            continuation:TR(101.5,10,-2.1,1.4), signal:'sell', name:'Rounding Top', cat:'Reversal' };
 }
 function eveningStar() {
-  const pre=TR(100,5,1,.9);
-  const star=[K(105.8,107.6,.4,.7),K(107.8,107.6,.5,.35),K(107.5,105,0.4,.8)];
-  return { candles:PAD([...pre,...star,...TR(105,6,-.7,.9),...CO(101.5,6,1.4)],22),
-           continuation:TR(101,10,-2.3,1.4), signal:'sell', name:'Evening Star', cat:'Reversal' };
-}
-function shootingStar() {
-  const pre=TR(100,13,.55,1), top=pre[pre.length-1].c;
-  const ss=K(top,top-.6,4.8,.25); // massive upper wick
-  return { candles:PAD([...pre,ss,...TR(top-.8,8,-.7,.9)],22),
-           continuation:TR(top-1,10,-2,1.7), signal:'sell', name:'Shooting Star', cat:'Reversal' };
-}
-function shootingStarCluster() {
-  const pre=TR(100,10,.6,1), top=pre[pre.length-1].c;
-  const cluster=[K(top,top-.5,4.2,.2),K(top-.4,top-.9,3.8,.3),K(top-.7,top-1.1,4,.2)];
-  return { candles:PAD([...pre,...cluster,...TR(top-1.5,9,-.8,.9)],22),
-           continuation:TR(top-2,10,-2.3,1.6), signal:'sell', name:'Shooting Star Cluster', cat:'Reversal' };
+  const pre=TR(100,5,1.1,.9);
+  const star=[K(105,107.8,.7,1),K(108,107.5,.7,.5),K(107.7,104.2,.4,.8)];
+  return { candles:PAD([...pre,...star,...TR(104.2,6,-.7,.9),...CO(101,6,1.4)],22),
+           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Evening Star', cat:'Reversal' };
 }
 function bearEngulf() {
-  const pre=TR(98,11,.85,1.1), last=pre[pre.length-1];
-  const eng=[K(last.c,last.c+1.8,.6,.5),K(last.c+2.1,last.c-1.3,.35,.2)];
+  const pre=TR(100,11,0.9,1.1), last=pre[pre.length-1];
+  const eng=[K(last.c,last.c+1.9,.4,.7),K(last.c+2.2,last.c-1.4,.2,.4)];
   return { candles:PAD([...pre,...eng,...CO(eng[eng.length-1].c,9,1.3)],22),
-           continuation:TR(eng[eng.length-1].c,10,-2,1.4), signal:'sell', name:'Bearish Engulfing', cat:'Reversal' };
+           continuation:TR(eng[eng.length-1].c,10,-2.1,1.4), signal:'sell', name:'Bearish Engulfing', cat:'Reversal' };
 }
 function liquiditySweepBear() {
-  const pre=TR(104,6,.55,1), res=107;
-  const sweep=[K(106.8,107.5,.6,.25),K(107.7,108.2,.3,.8),K(108.4,104.8,.2,.18)];
+  const pre=TR(104,6,0.6,1);
+  const sweep=[K(106.8,107.6,.3,.7),K(107.8,108.5,1.1,.4),K(108.7,104.8,.25,.15)];
   return { candles:PAD([...pre,...sweep,...CO(104.8,13,1.8)],22),
-           continuation:TR(103.5,10,-2.7,1.3), signal:'sell', name:'Liquidity Sweep ↓', cat:'Reversal' };
+           continuation:TR(103,10,-2.8,1.3), signal:'sell', name:'Liquidity Sweep ↓', cat:'Reversal' };
+}
+function islandRevBear() {
+  const pre=TR(100,5,1.3,1);
+  const gapUp=TR(105,4,.4,.9);
+  const gapDn=TR(102.5,4,-1.1,.9);
+  return { candles:PAD([...pre,...gapUp,...gapDn,...CO(gapDn[gapDn.length-1].c,9,1.5)],22),
+           continuation:TR(99,10,-2.4,1.3), signal:'sell', name:'Island Reversal ↓', cat:'Reversal' };
 }
 
-// Neutral / Ambiguous ──────
+// Neutral / Breakout Either-Way ─────
 function symTriangle() {
-  const a=[]; const bull=Math.random()>.5;
-  for(let i=0;i<16;i++){ const sq=1-i/19, mid=104, rng=5.5*sq;
-    a.push(K(mid+R(-rng,rng),mid+R(-rng,rng),R(.3,rng*.4),R(.3,rng*.4))); }
-  return { candles:PAD([...a,...CO(104,6,1.2)],22),
-           continuation:TR(104,10,bull?2.4:-2.4,1.7), signal:bull?'buy':'sell', name:'Symmetrical Triangle', cat:'Neutral' };
+  const lead=TR(100,4,1.2,1.4); let hi=108, lo=100;
+  const tri=[];
+  for(let i=0;i<10;i++){ hi-=.38; lo+=.38; const m=(hi+lo)/2+R(-1.5,1.5);
+    tri.push(K(m+R(-.6,.6),m+R(-.6,.6),CL(hi-m,.2,2),CL(m-lo,.2,2))); }
+  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.3)],22),
+           continuation:CO(tri[tri.length-1].c,10,2.8), signal:'hold', name:'Symmetrical Triangle', cat:'Neutral' };
 }
-function broadeningFmt() {
-  const a=[];
-  for(let i=0;i<16;i++){ const ex=1+i/9, mid=104, rng=2.4*ex;
-    a.push(K(mid+R(-rng,rng),mid+R(-rng,rng),R(.4,rng*.38),R(.4,rng*.38))); }
-  return { candles:PAD([...a,...CO(104,6,2.1)],22),
-           continuation:CO(104,10,3.2), signal:'hold', name:'Broadening Formation', cat:'Neutral' };
+function wedgeNeutral() {
+  const lead=TR(100,4,1,1.2); let hi=108, lo=102;
+  const wedge=[];
+  for(let i=0;i<10;i++){ hi-=.28; lo+=.22; const m=(hi+lo)/2+R(-1,1);
+    wedge.push(K(m+R(-.4,.4),m+R(-.4,.4),CL(hi-m,.2,1.5),CL(m-lo,.2,1.5))); }
+  return { candles:PAD([...lead,...wedge,...CO(wedge[wedge.length-1].c,8,1.4)],22),
+           continuation:CO(wedge[wedge.length-1].c,10,3.1), signal:'hold', name:'Narrowing Wedge', cat:'Neutral' };
 }
-function deadCatBounce() {
-  const crash=TR(116,5,-3.4,1), bounce=TR(98,4,2.1,.9), resume=TR(106,5,-1.4,.9);
-  return { candles:PAD([...crash,...bounce,...resume,...CO(resume[resume.length-1].c,8,1.7)],22),
-           continuation:TR(resume[resume.length-1].c,10,-2.6,1.4), signal:'sell', name:'Dead Cat Bounce', cat:'Neutral' };
+function flatConsolidation() {
+  const lead=TR(104,5,.3,1.3);
+  const flat=CO(lead[lead.length-1].c,12,3);
+  return { candles:PAD([...lead,...flat,...CO(flat[flat.length-1].c,5,1.2)],22),
+           continuation:CO(flat[flat.length-1].c,10,2.6), signal:'hold', name:'Flat Consolidation', cat:'Neutral' };
 }
-function fakeoutTrap() {
-  const consol=CO(104,10,2.8);
-  // fake breakout up, violent rejection
-  const fake=[K(106,108.5,.3,.6),K(108.3,107.8,.4,.25),K(107.6,104.2,.2,.4)];
-  return { candles:PAD([...consol,...fake,...TR(104,9,-.7,.9)],22),
-           continuation:TR(103,10,-2.2,1.6), signal:'sell', name:'Fakeout + Trap', cat:'Neutral' };
+function dojiCluster() {
+  const lead=TR(104,8,0.3,1.6);
+  const cluster=[]; for(let i=0;i<6;i++){ const p=lead[lead.length-1].c+R(-.5,.5); cluster.push(K(p,p+R(-.25,.25),R(.4,1.2),R(.4,1.2))); }
+  return { candles:PAD([...lead,...cluster,...CO(cluster[cluster.length-1].c,8,1.4)],22),
+           continuation:CO(cluster[cluster.length-1].c,10,2.4), signal:'hold', name:'Doji Cluster', cat:'Neutral' };
 }
-function wickRejection() {
-  const pre=TR(100,11,.5,1), top=pre[pre.length-1].c;
-  const wick=K(top,top-.7,4.6,.22); // enormous upper wick doji
-  return { candles:PAD([...pre,wick,...TR(top-.9,10,-.65,.9)],22),
-           continuation:TR(top-1.2,10,-1.9,1.6), signal:'sell', name:'Strong Wick Rejection', cat:'Neutral' };
+function insideBar() {
+  const lead=TR(104,9,0.5,1.4);
+  const mother=lead[lead.length-1];
+  const rng=mother.h-mother.l;
+  const inside=[]; for(let i=0;i<4;i++){
+    const mid=(mother.h+mother.l)/2+R(-rng*.2,rng*.2);
+    inside.push(K(mid+R(-.3,.3),mid+R(-.3,.3),R(.2,rng*.18),R(.2,rng*.18)));
+  }
+  return { candles:PAD([...lead,...inside,...CO(inside[inside.length-1].c,9,1.3)],22),
+           continuation:CO(inside[inside.length-1].c,10,2.5), signal:'hold', name:'Inside Bar Setup', cat:'Neutral' };
 }
-function dojiSandwich() {
-  const pre=TR(100,9,.9,1.1), last=pre[pre.length-1];
-  const sand=[K(last.c,last.c+1.4,.4,.4),K(last.c+1.4,last.c+1.4,1.8,1.8),K(last.c+1.4,last.c+2.8,.3,.35)];
-  return { candles:PAD([...pre,...sand,...CO(sand[sand.length-1].c,10,1.4)],22),
-           continuation:TR(sand[sand.length-1].c,10,2,1.4), signal:'buy', name:'Doji Sandwich', cat:'Neutral' };
+function priceChannel() {
+  const ch=[];
+  let lo=100, hi=108, p=(lo+hi)/2;
+  for(let i=0;i<18;i++){
+    const nextP = i%4<2 ? p+R(.5,1.4) : p+R(-1.4,-.5);
+    p = CL(nextP, lo+1, hi-1);
+    ch.push(K(p+R(-.5,.5),p+R(-.5,.5),R(.3,1),R(.3,1)));
+  }
+  return { candles:PAD([...ch,...CO(ch[ch.length-1].c,4,1.2)],22),
+           continuation:CO(ch[ch.length-1].c,10,2.8), signal:'hold', name:'Price Channel', cat:'Neutral' };
 }
-function channelUp() {
-  const a=[]; for(let i=0;i<16;i++){ const m=100+i*.72; a.push(K(m+R(-1.8,1.8),m+R(-1.8,1.8),R(.4,1.3),R(.4,1.3))); }
-  return { candles:PAD([...a,...CO(a[a.length-1].c,6,1.4)],22),
-           continuation:TR(a[a.length-1].c,10,1.6,1.3), signal:'buy', name:'Channel Up', cat:'Neutral' };
-}
-function channelDown() {
-  const a=[]; for(let i=0;i<16;i++){ const m=114-i*.72; a.push(K(m+R(-1.8,1.8),m+R(-1.8,1.8),R(.4,1.3),R(.4,1.3))); }
-  return { candles:PAD([...a,...CO(a[a.length-1].c,6,1.4)],22),
-           continuation:TR(a[a.length-1].c,10,-1.6,1.3), signal:'sell', name:'Channel Down', cat:'Neutral' };
-}
-function haramiBullish() {
-  const pre=TR(108,10,-.75,1.1), last=pre[pre.length-1];
-  const har=[K(last.c+1.6,last.c-.8,.6,.4),K(last.c-.6,last.c+.6,.25,.25)]; // small body inside big bearish
-  return { candles:PAD([...pre,...har,...CO(har[har.length-1].c,10,1.5)],22),
-           continuation:TR(har[har.length-1].c,10,2,1.3), signal:'buy', name:'Bullish Harami', cat:'Reversal' };
-}
-function haramiBearish() {
-  const pre=TR(100,10,.75,1.1), last=pre[pre.length-1];
-  const har=[K(last.c-1.6,last.c+.8,.4,.5),K(last.c+.5,last.c-.5,.22,.22)];
-  return { candles:PAD([...pre,...har,...CO(har[har.length-1].c,10,1.5)],22),
-           continuation:TR(har[har.length-1].c,10,-2,1.3), signal:'sell', name:'Bearish Harami', cat:'Reversal' };
-}
-function piercingLine() {
-  const pre=TR(108,10,-.8,1.1), last=pre[pre.length-1];
-  const pierce=[K(last.c-.4,last.c-2.2,.3,.6),K(last.c-2.6,last.c+.8,.2,.35)];
-  return { candles:PAD([...pre,...pierce,...CO(pierce[pierce.length-1].c,10,1.5)],22),
-           continuation:TR(pierce[pierce.length-1].c,10,2.1,1.3), signal:'buy', name:'Piercing Line', cat:'Reversal' };
-}
-function darkCloudCover() {
-  const pre=TR(100,10,.8,1.1), last=pre[pre.length-1];
-  const dcc=[K(last.c+.3,last.c+2.1,.5,.55),K(last.c+2.5,last.c-.7,.3,.2)];
-  return { candles:PAD([...pre,...dcc,...CO(dcc[dcc.length-1].c,10,1.5)],22),
-           continuation:TR(dcc[dcc.length-1].c,10,-2.1,1.3), signal:'sell', name:'Dark Cloud Cover', cat:'Reversal' };
-}
-function risingWedge() {
-  // rising wedge = bearish reversal when price breaks below
-  const a=[]; for(let i=0;i<14;i++){ const sup=100+i*.85, res=112-i*.55, mid=(sup+res)/2, rng=(res-sup)*.38;
-    a.push(K(mid+R(-rng,rng),mid+R(-rng,rng),R(.4,1.8),R(.4,1.8))); }
-  return { candles:PAD([...a,...CO(a[a.length-1].c,8,1.5)],22),
-           continuation:TR(a[a.length-1].c,10,-2.4,1.6), signal:'sell', name:'Rising Wedge', cat:'Reversal' };
-}
-function fallingWedge() {
-  // falling wedge = bullish reversal
-  const a=[]; for(let i=0;i<14;i++){ const res=112-i*.72, sup=100+i*.22, mid=(sup+res)/2, rng=(res-sup)*.36;
-    a.push(K(mid+R(-rng,rng),mid+R(-rng,rng),R(.4,1.8),R(.4,1.8))); }
-  return { candles:PAD([...a,...CO(a[a.length-1].c,8,1.4)],22),
-           continuation:TR(a[a.length-1].c,10,2.5,1.5), signal:'buy', name:'Falling Wedge', cat:'Reversal' };
+function rangeBreakFake() {
+  const rng=CO(104,12,3.4);
+  const spike=[K(rng[rng.length-1].c+1,108,.3,.5),K(108,109,.4,.3),K(108.8,104.5,.2,.6)];
+  return { candles:PAD([...rng,...spike,...CO(104.5,7,2.4)],22),
+           continuation:CO(104.5,10,3), signal:'hold', name:'Range Fakeout', cat:'Neutral' };
 }
 
-// ── MASTER REGISTRY ──────────────────────────────────────────
-const ALL_PATTERNS = [
+// More advanced / uncommon patterns ─────
+function threeWhiteSoldiers() {
+  const pre=TR(100,8,-0.6,1.2);
+  const soldiers=[K(99,101.8,.3,.5),K(101.5,104,.35,.4),K(103.8,106.5,.3,.4)];
+  return { candles:PAD([...pre,...soldiers,...CO(106.5,11,1.6)],22),
+           continuation:TR(107,10,2.4,1.4), signal:'buy', name:'Three White Soldiers', cat:'Reversal' };
+}
+function threeBlackCrows() {
+  const pre=TR(108,8,0.6,1.2);
+  const crows=[K(109,106.2,.5,.3),K(106.5,104,.4,.35),K(104.2,101.5,.4,.3)];
+  return { candles:PAD([...pre,...crows,...CO(101.5,11,1.6)],22),
+           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Three Black Crows', cat:'Reversal' };
+}
+function fallingKnife() {
+  const drop=TR(112,7,-3.2,.9);
+  const bounce=TR(drop[drop.length-1].c,4,1.8,1.1);
+  return { candles:PAD([...drop,...bounce,...CO(bounce[bounce.length-1].c,11,2.1)],22),
+           continuation:TR(bounce[bounce.length-1].c-1,10,-2.5,1.5), signal:'sell', name:'Falling Knife Bounce', cat:'Reversal' };
+}
+function parabolicBlow() {
+  const run=TR(100,6,1.6,.9);
+  const para=[]; let v=1.2;
+  for(let i=0;i<6;i++){ const o=run[run.length-1].c+(i>0?para[i-1].c-para[i-1].o:0)+v; v*=1.35;
+    para.push(K(o,o+R(1.5,3.5),R(.3,.9),R(.2,.5))); }
+  return { candles:PAD([...run,...para,...CO(para[para.length-1].c,10,3)],22),
+           continuation:TR(para[para.length-1].c,10,-3.2,2), signal:'sell', name:'Parabolic Blowoff', cat:'Reversal' };
+}
+function gapFillBull() {
+  const pre=TR(104,6,-.8,1);
+  const gap=TR(100,4,-1,1.2);
+  const fill=TR(98,6,1.3,1);
+  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
+           continuation:TR(fill[fill.length-1].c,10,2.3,1.4), signal:'buy', name:'Gap Fill ↑', cat:'Continuation' };
+}
+function gapFillBear() {
+  const pre=TR(104,6,.8,1);
+  const gap=TR(108,4,1,1.2);
+  const fill=TR(110,6,-1.3,1);
+  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
+           continuation:TR(fill[fill.length-1].c,10,-2.3,1.4), signal:'sell', name:'Gap Fill ↓', cat:'Continuation' };
+}
+
+// ── PATTERN POOL ──────────────────────────────────────────────
+const PATTERN_POOL = [
   bullFlag, highTightFlag, ascTriangle, cupHandle, powerOf3, wyckoffSpring, bullRect,
   bearFlag, descTriangle, bearRect, wyckoffUpthrust,
   invHS, adamEve, dblBottom, tripleBottom, roundBottom, morningStar, bullEngulf, liquiditySweepBull, islandRevBull,
-  hs, dblTop, tripleTop, roundTop, eveningStar, shootingStar, shootingStarCluster, bearEngulf, liquiditySweepBear,
-  symTriangle, broadeningFmt, deadCatBounce, fakeoutTrap, wickRejection, dojiSandwich,
-  channelUp, channelDown, haramiBullish, haramiBearish, piercingLine, darkCloudCover,
-  risingWedge, fallingWedge,
+  hs, dblTop, tripleTop, roundTop, eveningStar, bearEngulf, liquiditySweepBear, islandRevBear,
+  symTriangle, wedgeNeutral, flatConsolidation, dojiCluster, insideBar, priceChannel, rangeBreakFake,
+  threeWhiteSoldiers, threeBlackCrows, fallingKnife, parabolicBlow, gapFillBull, gapFillBear,
 ];
 
-function getRandomPattern() {
-  return ALL_PATTERNS[RI(0, ALL_PATTERNS.length - 1)]();
-}
-
-
+function getRandomPattern() { return PATTERN_POOL[RI(0, PATTERN_POOL.length - 1)](); }
 
 /* ═══════════════════════════════════════════════════════════════
-    6  TRADER ARCHETYPES  (final verdict engine)
+    6  ARCHETYPE ENGINE  (personality reveal based on playstyle)
    ═══════════════════════════════════════════════════════════════ */
 const ARCHETYPES = [
   { name:"Impulse Ape",        emoji:"🐒", cond: r => r.buyCount > 4,
@@ -558,9 +560,12 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.restore();
   }
 
+  // Ha nincs még candle, csak háttér
+  if (!candles || candles.length === 0 || revealCount === 0) return;
+
   // Visible candles = initial reveal (animated in) + continuation (animated in)
   const totalVisible = revealCount + continuationCount;
-  const allCandles   = [...candles.slice(0, revealCount), ...(contCandles||[]).slice(0, continuationCount)];
+  const allCandles   = [...candles.slice(0, Math.ceil(revealCount)), ...(contCandles||[]).slice(0, Math.ceil(continuationCount))];
   if(allCandles.length === 0) return;
 
   // ── price scale  ──
@@ -597,14 +602,20 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // wave-reveal fade for continuation candles
+    // wave-reveal fade for initial candles AND continuation candles
     let alpha = 1;
-    if (i >= revealCount) {
-      const ci = i - revealCount;
-      // continuationCount is the *current* animated count (0 → 10)
-      // each candle fades in as continuationCount passes it
+    
+    // Initial candle reveal animation
+    if (i < 22) {
+      // Fade in based on revealCount
+      alpha = CL(revealCount - i, 0, 1);
+    } else {
+      // Continuation candles
+      const ci = i - 22;
       alpha = CL(continuationCount - ci, 0, 1);
     }
+
+    if (alpha <= 0) return; // Skip if not visible yet
 
     const bodyColor = bull ? C.bull : C.bear;
     const wickColor = bull ? "#00b85a" : "#e01030";
@@ -794,9 +805,9 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
 
 
 /* ═══════════════════════════════════════════════════════════════
-    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
+    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter) - CHART ANIMATES BEHIND
    ═══════════════════════════════════════════════════════════════ */
-function Countdown({ onDone }) {
+function Countdown({ onDone, initialRevealProgress }) {
   const [num, setNum]       = useState(3);
   const [shatter, setShatter] = useState(false);
   const [exit, setExit]     = useState(false);
@@ -895,9 +906,9 @@ function DecisionButtons({ onChoose, disabled }) {
         <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BEARISH</div>
         <div style={{ fontSize:18 }}>📉 SELL</div>
       </GlassButton>
-      <GlassButton onClick={()=>onChoose("hold")} color={C.nAmber} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+      <GlassButton onClick={()=>onChoose("hold")} color={C.neut} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
         <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>NEUTRAL</div>
-        <div style={{ fontSize:18 }}>⏸ HOLD</div>
+        <div style={{ fontSize:18 }}>⏸️ HOLD</div>
       </GlassButton>
       <GlassButton onClick={()=>onChoose("buy")} color={C.bull} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
         <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BULLISH</div>
@@ -908,43 +919,39 @@ function DecisionButtons({ onChoose, disabled }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    14  OUTCOME CARD  (shown after continuation animates in)
+    14  OUTCOME CARD  (per-round feedback)
    ═══════════════════════════════════════════════════════════════ */
 function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
+  const labelMap = { buy:"📈 BUY", sell:"📉 SELL", hold:"⏸️ HOLD" };
   return (
-    <GlassPanel style={{ padding:28, textAlign:"center", maxWidth:360, margin:"0 auto", position:"relative", overflow:"hidden" }}>
-      {/* glow accent */}
-      <div style={{ position:"absolute", top:-30, left:"50%", transform:"translateX(-50%)",
-        width:160, height:160, borderRadius:"50%",
-        background: correct ? `radial-gradient(circle, ${C.nGreen}22 0%, transparent 70%)` : `radial-gradient(circle, ${C.nPink}22 0%, transparent 70%)`,
-        pointerEvents:"none" }} />
+    <GlassPanel style={{ padding:18, textAlign:"center", position:"relative", overflow:"hidden" }}>
+      {/* top accent bar */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
+        background: correct ? `linear-gradient(90deg, ${C.nGreen}, ${C.nBlue})` : `linear-gradient(90deg, ${C.nPink}, ${C.nPurple})` }} />
 
-      <div style={{ fontSize:44, marginBottom:4 }}>{correct ? (godMode ? "🌟" : "✅") : "❌"}</div>
-      <div style={{ fontSize:20, fontWeight:800, color: correct ? C.nGreen : C.nPink,
-        fontFamily:"'SF Mono','Fira Code',monospace", textShadow:`0 0 16px ${correct?C.nGreen:C.nPink}` }}>
-        {correct ? "CORRECT" : "WRONG"}
-      </div>
-      <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:4, fontFamily:"monospace" }}>
-        Pattern: <span style={{ color:"rgba(255,255,255,0.72)", fontWeight:600 }}>{patternName}</span>
-      </div>
-      <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:2, fontFamily:"monospace" }}>
-        Signal: <span style={{ color: signal==="buy"?C.bull:signal==="sell"?C.bear:C.nAmber, fontWeight:700 }}>{signal.toUpperCase()}</span>
-        {"  ·  "}You chose: <span style={{ color: choice==="buy"?C.bull:choice==="sell"?C.bear:C.nAmber, fontWeight:700 }}>{choice.toUpperCase()}</span>
+      <div style={{ fontSize:36, marginBottom:4 }}>{correct ? "✅" : "❌"}</div>
+      <div style={{ fontSize:15, fontWeight:700, fontFamily:"monospace", color: correct ? C.nGreen : C.nPink }}>
+        {correct ? `+${points} pts` : "No points"}
       </div>
 
-      {/* points */}
-      <div style={{ margin:"18px 0 4px", display:"flex", alignItems:"baseline", justifyContent:"center", gap:8 }}>
-        <span style={{ fontSize:32, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace", color:correct?C.nGreen:"rgba(255,255,255,0.35)" }}>
-          {correct ? `+${points}` : "+0"}
-        </span>
-        {streak > 1 && correct && (
-          <span style={{ fontSize:13, color:C.nPurple, fontWeight:700, background:`${C.nPurple}18`, padding:"2px 8px", borderRadius:10, border:`1px solid ${C.nPurple}30` }}>
-            🔥 ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length-1)].toFixed(1)}
-          </span>
-        )}
+      {/* pattern + signals */}
+      <div style={{ marginTop:10, fontSize:12, color:"rgba(255,255,255,0.55)", fontFamily:"monospace" }}>
+        Pattern: <span style={{ color:"#fff" }}>{patternName}</span>
+      </div>
+      <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6, fontSize:12, fontFamily:"monospace" }}>
+        <span>You: <span style={{ color: choice==="buy" ? C.bull : choice==="sell" ? C.bear : C.neut }}>{labelMap[choice] || "⏱ Timeout"}</span></span>
+        <span>Correct: <span style={{ color: signal==="buy" ? C.bull : signal==="sell" ? C.bear : C.neut }}>{labelMap[signal]}</span></span>
       </div>
 
-      <GlassButton onClick={onNext} color={C.nGreen} style={{ marginTop:16, width:"100%", justifyContent:"center" }}>
+      {streak > 1 && correct && (
+        <div style={{ marginTop:8, fontSize:13, color:C.nPurple, fontFamily:"monospace" }}>🔥 {streak} streak! ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length-1)].toFixed(1)}</div>
+      )}
+
+      {godMode && correct && (
+        <div style={{ marginTop:4, fontSize:11, color:C.nGreen, fontFamily:"monospace", animation:"pulse 0.8s infinite" }}>⚡ GOD MODE ACTIVE</div>
+      )}
+
+      <GlassButton onClick={onNext} color={C.nGreen} style={{ marginTop:14, width:"100%", justifyContent:"center" }}>
         Next Round →
       </GlassButton>
     </GlassPanel>
@@ -952,55 +959,40 @@ function OutcomeCard({ correct, points, streak, patternName, choice, signal, onN
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    15  FINAL VERDICT SCREEN
+    15  FINAL VERDICT  (end-of-game stats + archetype reveal)
    ═══════════════════════════════════════════════════════════════ */
 function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
   const arch = getArchetype(stats);
-  const stars = Math.round((stats.correct / ROUNDS) * 5);
-
-  // dramatic whoosh on verdict entrance
-  useEffect(() => { SND.whoosh(); }, []);
+  const stars = "⭐".repeat(Math.round((stats.correct/ROUNDS)*5)) + "☆".repeat(5 - Math.round((stats.correct/ROUNDS)*5));
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:18, padding:"20px 16px", maxWidth:420, margin:"0 auto" }}>
-      <GlassPanel style={{ padding:30, textAlign:"center", width:"100%", position:"relative", overflow:"hidden" }}>
-        {/* animated top accent */}
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16, padding:"0 16px", maxWidth:420, margin:"0 auto" }}>
+      {/* archetype card */}
+      <GlassPanel style={{ padding:"28px 24px", width:"100%", textAlign:"center", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
-          background:`linear-gradient(90deg, transparent, ${C.nGreen}, ${C.nPurple}, ${C.nPink}, transparent)` }} />
-
-        <div style={{ fontSize:56, marginBottom:2 }}>{arch.emoji}</div>
-        <div style={{ fontSize:22, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
-          background:`linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
-          {arch.name}
-        </div>
-        <div style={{ fontSize:12, color:"rgba(255,255,255,0.42)", marginTop:6, lineHeight:1.5, maxWidth:300, margin:"8px auto 0", fontFamily:"monospace" }}>
+          background:`linear-gradient(90deg, ${C.nGreen}, ${C.nPurple}, ${C.nPink})` }} />
+        <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:"monospace", marginBottom:6 }}>Your Trading Archetype</div>
+        <div style={{ fontSize:48 }}>{arch.emoji}</div>
+        <div style={{ fontSize:22, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace", color:"#fff", marginTop:4 }}>{arch.name}</div>
+        <div style={{ fontSize:18, marginTop:6 }}>{stars}</div>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:"monospace", fontStyle:"italic", marginTop:10, lineHeight:1.5, maxWidth:300, margin:"10px auto 0" }}>
           "{arch.roast}"
         </div>
+      </GlassPanel>
 
-        {/* stars */}
-        <div style={{ display:"flex", justifyContent:"center", gap:4, margin:"16px 0 4px" }}>
-          {Array.from({length:5}, (_,i) => (
-            <span key={i} style={{ fontSize:22, filter: i<stars ? `drop-shadow(0 0 6px ${C.nAmber})` : "none" }}>
-              {i < stars ? "⭐" : "☆"}
-            </span>
-          ))}
-        </div>
-
-        {/* stats row */}
-        <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:12 }}>
-          {[
-            { label:"Score", val: stats.totalScore, color:C.nGreen },
-            { label:"Correct", val:`${stats.correct}/${ROUNDS}`, color:C.nBlue },
-            { label:"Streak", val:`${stats.maxStreak}`, color:C.nPurple },
-            { label:"Avg ms", val:`${stats.avgSpeed}`, color:C.nAmber },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign:"center" }}>
-              <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.val}</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,0.38)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
+      {/* stats row */}
+      <GlassPanel style={{ padding:"16px 20px", width:"100%", display:"flex", justifyContent:"space-around" }}>
+        {[
+          { value:stats.totalScore, label:"Score", color:C.nGreen },
+          { value:`${stats.correct}/${ROUNDS}`, label:"Correct", color:C.nBlue },
+          { value:`${stats.avgSpeed}ms`, label:"Avg Speed", color:C.nPurple },
+          { value:`×${stats.maxStreak}`, label:"Best Streak", color:C.nPink },
+        ].map(s => (
+          <div key={s.label} style={{ textAlign:"center" }}>
+            <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.value}</div>
+            <div style={{ fontSize:9, color:"rgba(255,255,255,0.38)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
+          </div>
+        ))}
       </GlassPanel>
 
       {/* action buttons */}
@@ -1219,7 +1211,7 @@ function TipPanel() {
         throw new Error("No wallet connected");
       }
       setStatus("success");
-      SND.tipSent();
+      SND.tipTap();
       haptic([40, 20, 60]);
       setTimeout(() => setStatus("idle"), 3200);
     } catch (e) {
@@ -1308,6 +1300,7 @@ export default function App() {
   const [scores, setScores]               = useState([]);       // per-round score
   const [roundStats, setRoundStats]       = useState([]);       // {correct, speedMs, choice, signal}
   const [contProgress, setContProgress]   = useState(0);        // 0 → 10 (animated candle count)
+  const [initialRevealProgress, setInitialRevealProgress] = useState(0); // 0 → 22 (initial candles animation)
   const [particleBurst, setParticleBurst] = useState(false);
   const [godMode, setGodMode]             = useState(false);
   const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
@@ -1316,44 +1309,77 @@ export default function App() {
   const chartRef      = useRef(null);
   const timerRef      = useRef(null);
   const contAnimRef   = useRef(null);
+  const initialAnimRef = useRef(null);
   const rafChartRef   = useRef(null);
   const choiceTimeRef = useRef(null);       // ms when choice was made
 
   // ── derived ──
   const isPlaying = screen === "playing";
 
-  // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
-// ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
-useEffect(() => {
-  if (!pattern || !chartRef.current) return;
-  
-  let running = true;
+  // ── Initial candles reveal animation during countdown ──
+  useEffect(() => {
+    if (screen !== "countdown" || !pattern) {
+      cancelAnimationFrame(initialAnimRef.current);
+      return;
+    }
+    
+    setInitialRevealProgress(0);
+    const startTime = Date.now();
+    const duration = 2700; // 2.7 seconds (during 3-2-1 countdown)
+    
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(elapsed / duration, 1);
+      // ease-out cubic for smooth animation
+      const eased = 1 - Math.pow(1 - pct, 3);
+      setInitialRevealProgress(eased * 22);
+      
+      if (pct < 1) {
+        initialAnimRef.current = requestAnimationFrame(animate);
+      } else {
+        setInitialRevealProgress(22);
+      }
+    }
+    
+    initialAnimRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(initialAnimRef.current);
+  }, [screen, pattern]);
 
-  function loop() {
-    if (!running) return;
+  // ── chart RAF loop (redraws every frame for smooth candle reveal) ──
+  useEffect(() => {
+    if (!pattern || !chartRef.current) return;
+    
+    let running = true;
 
-    // Csak akkor rajzolunk, ha a screen "playing", "revealing" vagy "outcome"
-    if (screen === "playing" || screen === "revealing" || screen === "outcome") {
-      drawChart(
-        chartRef.current,
-        pattern.candles,
-        22,                          
-        screen === "revealing" || screen === "outcome" ? contProgress : 0,
-        pattern.continuation,
-        godMode
-      );
+    function loop() {
+      if (!running) return;
+
+      // Draw during countdown (with initial animation), playing, revealing, or outcome
+      if (screen === "countdown" || screen === "playing" || screen === "revealing" || screen === "outcome") {
+        const revealCount = screen === "countdown" ? initialRevealProgress : 22;
+        const contCount = screen === "revealing" || screen === "outcome" ? contProgress : 0;
+        
+        drawChart(
+          chartRef.current,
+          pattern.candles,
+          revealCount,
+          contCount,
+          pattern.continuation,
+          godMode
+        );
+      }
+
+      rafChartRef.current = requestAnimationFrame(loop);
     }
 
-    rafChartRef.current = requestAnimationFrame(loop);
-  }
+    loop();
 
-  loop();
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafChartRef.current);
+    };
+  }, [pattern, screen, contProgress, initialRevealProgress, godMode]);
 
-  return () => {
-    running = false;
-    cancelAnimationFrame(rafChartRef.current);
-  };
-}, [pattern, screen, contProgress, godMode]);  // ✅ HOZZÁADVA: screen, contProgress
   // ── low-time haptic pulse ──
   useEffect(() => {
     if(isPlaying && timeLeft <= 1000 && timeLeft > 0) {
@@ -1368,6 +1394,7 @@ useEffect(() => {
   useEffect(() => {
     if(!isPlaying) { clearInterval(timerRef.current); return; }
     setTimeLeft(DECISION_MS);
+    choiceTimeRef.current = Date.now();
     const start = Date.now();
     timerRef.current = setInterval(() => {
       const rem = DECISION_MS - (Date.now() - start);
@@ -1407,135 +1434,137 @@ useEffect(() => {
     return () => cancelAnimationFrame(contAnimRef.current);
   }, [screen]);
 
-    // ── GAME ACTIONS ──
+  // ── GAME ACTIONS ──
 
-    // 1️⃣ játék indítás → pattern ELŐRE létrejön
-    const startGame = useCallback(() => {
-      const p = getRandomPattern();   // 👈 ELŐRE
+  // 1️⃣ játék indítás → pattern ELŐRE létrejön
+  const startGame = useCallback(() => {
+    const p = getRandomPattern();
+    setPattern(p);
+
+    setRound(0);
+    setScores([]);
+    setRoundStats([]);
+    setStreak(0);
+    setGodMode(false);
+    setChoice(null);
+    setContProgress(0);
+    setInitialRevealProgress(0);
+
+    setScreen("countdown");
+  }, []);
+
+
+  // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
+  const startPlaying = useCallback(() => {
+    setInitialRevealProgress(22); // Ensure all candles are visible
+    setScreen("playing");
+    setContProgress(0);
+  }, []);
+
+  // 3️⃣ választás kezelése
+  const handleChoice = useCallback((ch) => {
+    if (choice !== null) return;
+
+    clearInterval(timerRef.current);
+
+    const speedMs =
+      choiceTimeRef.current
+        ? Date.now() - choiceTimeRef.current
+        : DECISION_MS;
+
+    choiceTimeRef.current = null;
+    setChoice(ch);
+
+    const correct = ch === pattern.signal;
+    haptic(correct ? [30, 20, 30] : [80]);
+
+    if (correct) {
+      SND.correct();
+
+      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+      const speedBonus = Math.round(
+        (1 - speedMs / DECISION_MS) * BASE_SCORE * 0.5
+      );
+      const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+
+      setScores(p => [...p, pts]);
+      setRoundStats(p => [
+        ...p,
+        { correct: true, speedMs, choice: ch, signal: pattern.signal }
+      ]);
+
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+
+      setParticleBurst(true);
+      setTimeout(() => setParticleBurst(false), 600);
+
+      if (newStreak >= 6 && !godMode) {
+        setGodMode(true);
+        SND.godBurst();
+        haptic([50, 30, 50, 30, 50]);
+      }
+    } else {
+      SND.wrong();
+      setScores(p => [...p, 0]);
+      setRoundStats(p => [
+        ...p,
+        { correct: false, speedMs, choice: ch, signal: pattern.signal }
+      ]);
+      setStreak(0);
+    }
+
+    setScreen("revealing");
+  }, [choice, pattern, streak, godMode]);
+
+
+  // 4️⃣ következő kör
+  const advanceRound = useCallback(() => {
+    const nextRound = round + 1;
+
+    if (nextRound >= ROUNDS) {
+      const stats = computeStats();
+      addToLeaderboard(playerName, stats);
+      setScreen("verdict");
+    } else {
+      const p = getRandomPattern();
       setPattern(p);
 
-      setRound(0);
-      setScores([]);
-      setRoundStats([]);
-      setStreak(0);
-      setGodMode(false);
+      setRound(nextRound);
       setChoice(null);
       setContProgress(0);
+      setInitialRevealProgress(0);
 
-      setScreen("countdown");         // 👈 chart már alatta él
-    }, []);
-
-
-    // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
-    const startPlaying = useCallback(() => {
-      setScreen("playing");
-      // Azonnal tiszta állapot a chart számára
-      setContProgress(0);
-    }, []);
-
-    // 3️⃣ választás kezelése (változatlan logika)
-    const handleChoice = useCallback((ch) => {
-      if (choice !== null) return;
-
-      clearInterval(timerRef.current);
-
-      const speedMs =
-        choiceTimeRef.current
-          ? Date.now() - choiceTimeRef.current
-          : DECISION_MS;
-
-      choiceTimeRef.current = null;
-      setChoice(ch);
-
-      const correct = ch === pattern.signal;
-      haptic(correct ? [30, 20, 30] : [80]);
-
-      if (correct) {
-        SND.correct();
-
-        const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-        const speedBonus = Math.round(
-          (1 - speedMs / DECISION_MS) * BASE_SCORE * 0.5
-        );
-        const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-
-        setScores(p => [...p, pts]);
-        setRoundStats(p => [
-          ...p,
-          { correct: true, speedMs, choice: ch, signal: pattern.signal }
-        ]);
-
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-
-        setParticleBurst(true);
-        setTimeout(() => setParticleBurst(false), 600);
-
-        if (newStreak >= 6 && !godMode) {
-          setGodMode(true);
-          SND.godBurst();
-          haptic([50, 30, 50, 30, 50]);
-        }
-      } else {
-        SND.wrong();
-        setScores(p => [...p, 0]);
-        setRoundStats(p => [
-          ...p,
-          { correct: false, speedMs, choice: ch, signal: pattern.signal }
-        ]);
-        setStreak(0);
-      }
-
-      setScreen("revealing");
-    }, [choice, pattern, streak, godMode]);
-
-
-    // 4️⃣ következő kör
-    const advanceRound = useCallback(() => {
-      const nextRound = round + 1;
-
-      if (nextRound >= ROUNDS) {
-        const stats = computeStats();
-        addToLeaderboard(playerName, stats);
-        setScreen("verdict");
-      } else {
-        const p = getRandomPattern();   // 👈 ÚJ PATTERN ELŐRE
-        setPattern(p);
-
-        setRound(nextRound);
-        setChoice(null);
-        setContProgress(0);
-
-        setScreen("countdown");         // 👈 megint előrender
-      }
-    }, [round, playerName]);
-
-
-    // 5️⃣ statisztika (változatlan)
-    function computeStats() {
-      const totalScore = scores.reduce((a, b) => a + b, 0);
-      const correct = roundStats.filter(r => r.correct).length;
-      const buyCount = roundStats.filter(r => r.choice === "buy").length;
-      const sellCount = roundStats.filter(r => r.choice === "sell").length;
-      const holdCount = roundStats.filter(r => r.choice === "hold").length;
-
-      const speeds = roundStats.map(r => r.speedMs);
-      const avgSpeed = speeds.length
-        ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length)
-        : 0;
-
-      let maxStreak = 0, cur = 0;
-      roundStats.forEach(r => {
-        if (r.correct) {
-          cur++;
-          maxStreak = Math.max(maxStreak, cur);
-        } else {
-          cur = 0;
-        }
-      });
-
-      return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
+      setScreen("countdown");
     }
+  }, [round, playerName]);
+
+
+  // 5️⃣ statisztika
+  function computeStats() {
+    const totalScore = scores.reduce((a, b) => a + b, 0);
+    const correct = roundStats.filter(r => r.correct).length;
+    const buyCount = roundStats.filter(r => r.choice === "buy").length;
+    const sellCount = roundStats.filter(r => r.choice === "sell").length;
+    const holdCount = roundStats.filter(r => r.choice === "hold").length;
+
+    const speeds = roundStats.map(r => r.speedMs);
+    const avgSpeed = speeds.length
+      ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length)
+      : 0;
+
+    let maxStreak = 0, cur = 0;
+    roundStats.forEach(r => {
+      if (r.correct) {
+        cur++;
+        maxStreak = Math.max(maxStreak, cur);
+      } else {
+        cur = 0;
+      }
+    });
+
+    return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
+  }
 
   // ── RENDER ──
 
@@ -1615,6 +1644,47 @@ useEffect(() => {
       <div style={{ fontSize:10, color:"rgba(255,255,255,0.22)", fontFamily:"monospace", textAlign:"center", maxWidth:300 }}>
         Base Mini App · Works in Warpcast · {playerName && `Playing as ${playerName}`}
       </div>
+    </div>
+  );
+
+  const renderCountdown = () => (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
+      {/* header row */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:2 }}>
+        <GlassPanel style={{ padding:"6px 14px", borderRadius:16 }}>
+          <span style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.5)" }}>Round </span>
+          <span style={{ fontSize:14, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{round+1}<span style={{ color:"rgba(255,255,255,0.28)", fontWeight:400 }}>/{ROUNDS}</span></span>
+        </GlassPanel>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          {streak > 0 && (
+            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nPurple}35` }}>
+              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nPurple }}>🔥 ×{STREAK_MULT[Math.min(streak+1, STREAK_MULT.length-1)].toFixed(1)}</span>
+            </GlassPanel>
+          )}
+          {godMode && (
+            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nGreen}45`,
+              background:`linear-gradient(135deg, ${C.nGreen}15, ${C.nBlue}10)` }}>
+              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nGreen }}>⚡ GOD MODE</span>
+            </GlassPanel>
+          )}
+        </div>
+      </div>
+
+      {/* placeholder timer bar */}
+      <div style={{ width:"100%", height:5, background:"rgba(255,255,255,0.07)", borderRadius:3 }} />
+
+      {/* chart - shows candles animating in */}
+      <div style={{ flex:1, minHeight:0, position:"relative" }}>
+        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
+      </div>
+
+      {/* placeholder buttons */}
+      <div style={{ paddingBottom:8, opacity:0.3, pointerEvents:"none" }}>
+        <DecisionButtons onChoose={()=>{}} disabled={true} />
+      </div>
+
+      {/* Countdown overlay */}
+      <Countdown onDone={startPlaying} initialRevealProgress={initialRevealProgress} />
     </div>
   );
 
@@ -1717,7 +1787,7 @@ useEffect(() => {
 
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
-        {screen === "countdown"   && <Countdown onDone={startPlaying} />}
+        {screen === "countdown"   && renderCountdown()}
         {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
