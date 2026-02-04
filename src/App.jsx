@@ -796,66 +796,73 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
 /* ═══════════════════════════════════════════════════════════════
     11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
    ═══════════════════════════════════════════════════════════════ */
-      /* ── COUNTDOWN OVERLAY ── */
-      function Countdown({ onDone }) {
-        const [num, setNum] = useState(3);
+function Countdown({ onDone }) {
+  const [num, setNum]       = useState(3);
+  const [shatter, setShatter] = useState(false);
+  const [exit, setExit]     = useState(false);
 
-        useEffect(() => {
-          SND.tick(3);
-          haptic([25]);
+  useEffect(() => {
+    SND.tick(3);
+    haptic([25]);
+    if(num > 1) {
+      const t = setTimeout(() => { SND.tick(num-1); haptic([25]); setNum(n=>n-1); }, 900);
+      return () => clearTimeout(t);
+    } else {
+      // after "1" show briefly then shatter
+      const t1 = setTimeout(() => setShatter(true), 600);
+      const t2 = setTimeout(() => { setExit(true); }, 900);
+      const t3 = setTimeout(onDone, 1050);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [num, onDone]);
 
-          if (num > 1) {
-            const t = setTimeout(() => {
-              SND.tick(num - 1);
-              haptic([25]);
-              setNum(n => n - 1);
-            }, 900);
-            return () => clearTimeout(t);
-          } else {
-            // "1" után rövid delay, majd eltűnés
-            const t = setTimeout(onDone, 900);
-            return () => clearTimeout(t);
-          }
-        }, [num, onDone]);
+  // shatter fragments (CSS)
+  const frags = useMemo(() => Array.from({length:12}, (_,i) => ({
+    id:i, angle: (i/12)*360, dist: R(40,160), delay: i*30
+  })), []);
 
-        return (
-          <div style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 250,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(6,6,12,0.72)",
-            backdropFilter: "blur(12px)"
-          }}>
-            <div style={{
-              width: 140,
-              height: 140,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
-              border: `2px solid ${C.nGreen}50`,
-              boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              animation: "ringPulse 0.9s ease-out"
-            }}>
-              <span style={{
-                fontSize: 72,
-                fontWeight: 800,
-                fontFamily: "'SF Mono','Fira Code',monospace",
-                color: num === 1 ? C.nPink : C.nGreen,
-                textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
-                animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)"
-              }}>
-                {num}
-              </span>
-            </div>
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:250, display:"flex", alignItems:"center", justifyContent:"center",
+      background:"rgba(6,6,12,0.72)", backdropFilter:"blur(12px)" }}>
+      {!shatter ? (
+        <div style={{ position:"relative" }}>
+          {/* outer glass ring */}
+          <div style={{ width:140, height:140, borderRadius:"50%",
+            background:"linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
+            border:`2px solid ${C.nGreen}50`,
+            boxShadow:`0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            animation:"ringPulse 0.9s ease-out" }}>
+            <span style={{ fontSize: 72, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
+              color: num===1 ? C.nPink : C.nGreen,
+              textShadow: `0 0 30px ${num===1?C.nPink:C.nGreen}`,
+              animation:"numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}>
+              {num}
+            </span>
           </div>
-        );
-      }
-
+        </div>
+      ) : (
+        // shatter fragments
+        <div style={{ position:"relative", width:140, height:140 }}>
+          {frags.map(f => (
+            <div key={f.id} style={{
+              position:"absolute", left:"50%", top:"50%",
+              width: R(15,40), height: R(10,28),
+              background:`linear-gradient(${f.angle}deg, ${C.nGreen}44, ${C.nPurple}22)`,
+              border: `1px solid ${C.nGreen}30`,
+              borderRadius: R(2,6),
+              transform: exit
+                ? `translate(${Math.cos(f.angle*Math.PI/180)*f.dist}px, ${Math.sin(f.angle*Math.PI/180)*f.dist}px) rotate(${f.angle}deg) scale(0)`
+                : "translate(-50%,-50%) scale(1)",
+              opacity: exit ? 0 : 1,
+              transition: `transform 0.35s cubic-bezier(0.55,0,1,1) ${f.delay}ms, opacity 0.3s ease ${f.delay+100}ms`,
+            }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ═══════════════════════════════════════════════════════════════
     12  TIMER BAR  (liquid progress, pulse when low)
@@ -1289,194 +1296,187 @@ function TipPanel() {
     19  ROOT APP  —  STATE MACHINE + GAME LOOP
         States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
    ═══════════════════════════════════════════════════════════════ */
-      export default function App() {
-        // ── STATE ──
-        const [screen, setScreen] = useState(loadName() ? "home" : "name");
-        const [playerName, setPlayerName] = useState(loadName());
-        const [round, setRound] = useState(0);
-        const [pattern, setPattern] = useState(null);
-        const [timeLeft, setTimeLeft] = useState(DECISION_MS);
-        const [choice, setChoice] = useState(null);
-        const [streak, setStreak] = useState(0);
-        const [scores, setScores] = useState([]);
-        const [roundStats, setRoundStats] = useState([]);
-        const [contProgress, setContProgress] = useState(0);
-        const [particleBurst, setParticleBurst] = useState(false);
-        const [godMode, setGodMode] = useState(false);
-        const [screenPulse, setScreenPulse] = useState(false);
-        const [gameReady, setGameReady] = useState(false); // canvas render kész
+export default function App() {
+  // ── state ──
+  const [screen, setScreen]               = useState(loadName() ? "home" : "name");
+  const [playerName, setPlayerName]       = useState(loadName());
+  const [round, setRound]                 = useState(0);        // 0-based
+  const [pattern, setPattern]             = useState(null);     // current pattern object
+  const [timeLeft, setTimeLeft]           = useState(DECISION_MS);
+  const [choice, setChoice]               = useState(null);
+  const [streak, setStreak]               = useState(0);
+  const [scores, setScores]               = useState([]);       // per-round score
+  const [roundStats, setRoundStats]       = useState([]);       // {correct, speedMs, choice, signal}
+  const [contProgress, setContProgress]   = useState(0);        // 0 → 10 (animated candle count)
+  const [particleBurst, setParticleBurst] = useState(false);
+  const [godMode, setGodMode]             = useState(false);
+  const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
 
+  // refs
+  const chartRef      = useRef(null);
+  const timerRef      = useRef(null);
+  const contAnimRef   = useRef(null);
+  const rafChartRef   = useRef(null);
+  const choiceTimeRef = useRef(null);       // ms when choice was made
 
-        // refs
-        const chartRef = useRef(null);
-        const timerRef = useRef(null);
-        const contAnimRef = useRef(null);
-        const rafChartRef = useRef(null);
-        const choiceTimeRef = useRef(null);
+  // ── derived ──
+  const isPlaying = screen === "playing";
 
-        // ── DERIVED ──
-        const isPlaying = screen === "playing";
+  // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
+  useEffect(() => {
+    if(!pattern) return;
+    let running = true;
+    function loop() {
+      if(!running) return;
+      drawChart(
+        chartRef.current,
+        pattern.candles,
+        22,                          // initial candles always fully visible
+        screen === "revealing" || screen === "outcome" ? contProgress : 0,
+        pattern.continuation,
+        godMode
+      );
+      rafChartRef.current = requestAnimationFrame(loop);
+    }
+    loop();
+    return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
+  }, [pattern, screen, contProgress, godMode]);
 
-        // ── CHART RENDER LOOP ──
-        useEffect(() => {
-          if (!pattern) return;
-          let running = true;
-          function loop() {
-            if (!running) return;
-            drawChart(
-              chartRef.current,
-              pattern.candles,
-              22,
-              screen === "revealing" || screen === "outcome" ? contProgress : 0,
-              pattern.continuation,
-              godMode
-            );
-            rafChartRef.current = requestAnimationFrame(loop);
-          }
-          loop();
-          return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
-        }, [pattern, screen, contProgress, godMode]);
+  // ── low-time haptic pulse ──
+  useEffect(() => {
+    if(isPlaying && timeLeft <= 1000 && timeLeft > 0) {
+      haptic([40, 30, 40]);
+      setScreenPulse(true);
+      const t = setTimeout(() => setScreenPulse(false), 200);
+      return () => clearTimeout(t);
+    }
+  }, [isPlaying, timeLeft]);
 
-        // ── LOW-TIME HAPTIC ──
-        useEffect(() => {
-          if (isPlaying && timeLeft <= 1000 && timeLeft > 0) {
-            haptic([40, 30, 40]);
-            setScreenPulse(true);
-            const t = setTimeout(() => setScreenPulse(false), 200);
-            return () => clearTimeout(t);
-          }
-        }, [isPlaying, timeLeft]);
-
-        // ── TIMER ──
-        useEffect(() => {
-          if (!isPlaying) { clearInterval(timerRef.current); return; }
-          setTimeLeft(DECISION_MS);
-          const start = Date.now();
-          timerRef.current = setInterval(() => {
-            const rem = DECISION_MS - (Date.now() - start);
-            if (rem <= 0) {
-              clearInterval(timerRef.current);
-              setTimeLeft(0);
-              handleChoice(null);
-            } else {
-              setTimeLeft(rem);
-            }
-          }, 60);
-          return () => clearInterval(timerRef.current);
-        }, [isPlaying]);
-
-        // ── CONTINUATION ANIMATION ──
-        useEffect(() => {
-          if (screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
-          setContProgress(0);
-          const startTime = Date.now();
-          const duration = 900;
-          function animate() {
-            const elapsed = Date.now() - startTime;
-            const pct = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - pct, 3);
-            setContProgress(eased * 10);
-            if (pct < 1) {
-              contAnimRef.current = requestAnimationFrame(animate);
-            } else {
-              setContProgress(10);
-              setTimeout(() => setScreen("outcome"), 200);
-            }
-          }
-          contAnimRef.current = requestAnimationFrame(animate);
-          return () => cancelAnimationFrame(contAnimRef.current);
-        }, [screen]);
-
-        // ── GAME ACTIONS ──
-        const startGame = useCallback(() => {
-          setRound(0);
-          setScores([]);
-          setRoundStats([]);
-          setStreak(0);
-          setGodMode(false);
-          setScreen("countdown"); // 3-2-1 overlay
-        }, []);
-
-        const startPlaying = useCallback(() => {
-          const p = getRandomPattern();
-          setPattern(p);       
-          setContProgress(0);
-          setChoice(null);
-          setGameReady(false);   // most indul a canvas render
-          setScreen("playing");  // játék előkészítése
-
-          // Kis delay, amíg a canvas teljesen renderelődik
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => setGameReady(true)); // két frame delay
-          });
-
-          choiceTimeRef.current = null;
-        }, []);
-
-        const handleChoice = useCallback((ch) => {
-          if (choice !== null) return;
-          clearInterval(timerRef.current);
-          const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
-          choiceTimeRef.current = null;
-          setChoice(ch);
-
-          const correct = ch === pattern.signal;
-          haptic(correct ? [30,20,30] : [80]);
-
-          if (correct) {
-            SND.correct();
-            const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-            const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
-            const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-            setScores(prev => [...prev, pts]);
-            setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            setParticleBurst(true);
-            setTimeout(() => setParticleBurst(false), 600);
-            if (newStreak >= 6 && !godMode) { 
-              setGodMode(true); 
-              SND.godBurst(); 
-              haptic([50,30,50,30,50]); 
-            }
-          } else {
-            SND.wrong();
-            setScores(prev => [...prev, 0]);
-            setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
-            setStreak(0);
-          }
-
-          setScreen("revealing");
-        }, [choice, pattern, streak, godMode]);
-
-        useEffect(() => { if (isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
-
-        const advanceRound = useCallback(() => {
-          const nextRound = round + 1;
-          if (nextRound >= ROUNDS) {
-            const stats = computeStats();
-            addToLeaderboard(playerName, stats);
-            setScreen("verdict");
-          } else {
-            setRound(nextRound);
-            startPlaying(); // új round azonnal
-          }
-        }, [round, playerName, startPlaying]);
-
-        function computeStats() {
-          const totalScore = scores.reduce((a,b)=>a+b,0);
-          const correct = roundStats.filter(r=>r.correct).length;
-          const buyCount = roundStats.filter(r=>r.choice==="buy").length;
-          const sellCount = roundStats.filter(r=>r.choice==="sell").length;
-          const holdCount = roundStats.filter(r=>r.choice==="hold").length;
-          const speeds = roundStats.map(r=>r.speedMs);
-          const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
-          let maxStreak=0, cur=0;
-          roundStats.forEach(r => { if(r.correct){ cur++; maxStreak=Math.max(maxStreak,cur); } else cur=0; });
-          return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
-        }
+  // ── countdown timer (playing state) ──
+  useEffect(() => {
+    if(!isPlaying) { clearInterval(timerRef.current); return; }
+    setTimeLeft(DECISION_MS);
+    const start = Date.now();
+    timerRef.current = setInterval(() => {
+      const rem = DECISION_MS - (Date.now() - start);
+      if(rem <= 0) {
+        clearInterval(timerRef.current);
+        setTimeLeft(0);
+        // timeout = wrong answer
+        handleChoice(null);
+      } else {
+        setTimeLeft(rem);
       }
+    }, 60);
+    return () => clearInterval(timerRef.current);
+  }, [isPlaying]); // eslint-disable-line
 
+  // ── continuation candle wave-reveal animation ──
+  useEffect(() => {
+    if(screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
+    setContProgress(0);
+    const startTime = Date.now();
+    const duration  = 900; // ms for all 10 candles
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const pct     = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased   = 1 - Math.pow(1 - pct, 3);
+      setContProgress(eased * 10);
+      if(pct < 1) {
+        contAnimRef.current = requestAnimationFrame(animate);
+      } else {
+        setContProgress(10);
+        // after reveal completes → show outcome
+        setTimeout(() => setScreen("outcome"), 200);
+      }
+    }
+    contAnimRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(contAnimRef.current);
+  }, [screen]);
+
+  // ── GAME ACTIONS ──
+
+  const startGame = useCallback(() => {
+    setRound(0);
+    setScores([]);
+    setRoundStats([]);
+    setStreak(0);
+    setGodMode(false);
+    setScreen("countdown");
+  }, []);
+
+      const startPlaying = useCallback(() => {
+        const p = getRandomPattern();
+        setPattern(p);          // ← ELŐBB chart adat
+        setContProgress(0);
+        setChoice(null);
+        setScreen("playing");   // ← CSAK UTÁNA screen váltás
+        choiceTimeRef.current = null;
+      }, []);
+
+
+  const handleChoice = useCallback((ch) => {
+    if(choice !== null) return; // already chose
+    clearInterval(timerRef.current);
+    const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
+    choiceTimeRef.current = null;
+    setChoice(ch);
+
+    const correct = ch === pattern.signal;
+    haptic(correct ? [30,20,30] : [80]);
+
+    if(correct) {
+      SND.correct();
+      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+      const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
+      const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+      setScores(prev => [...prev, pts]);
+      setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      setParticleBurst(true);
+      setTimeout(() => setParticleBurst(false), 600);
+      // god mode check
+      if(newStreak >= 6 && !godMode) { setGodMode(true); SND.godBurst(); haptic([50,30,50,30,50]); }
+    } else {
+      SND.wrong();
+      setScores(prev => [...prev, 0]);
+      setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
+      setStreak(0);
+    }
+    // trigger continuation reveal
+    setScreen("revealing");
+  }, [choice, pattern, streak, godMode]);
+
+  // record start-of-playing timestamp
+  useEffect(() => { if(isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
+
+    const advanceRound = useCallback(() => {
+      const nextRound = round + 1;
+      if(nextRound >= ROUNDS) {
+        const stats = computeStats();
+        addToLeaderboard(playerName, stats);
+        setScreen("verdict");
+      } else {
+        setRound(nextRound);
+        beginRound();                       // ← közvetlenül indítsa az új round-ot
+      }
+    }, [round, playerName, beginRound]);
+
+  function computeStats() {
+    const totalScore = scores.reduce((a,b)=>a+b, 0);
+    const correct    = roundStats.filter(r=>r.correct).length;
+    const buyCount   = roundStats.filter(r=>r.choice==="buy").length;
+    const sellCount  = roundStats.filter(r=>r.choice==="sell").length;
+    const holdCount  = roundStats.filter(r=>r.choice==="hold").length;
+    const speeds     = roundStats.map(r=>r.speedMs);
+    const avgSpeed   = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
+    // max streak
+    let maxStreak=0, cur=0;
+    roundStats.forEach(r=>{ if(r.correct){cur++;maxStreak=Math.max(maxStreak,cur);}else cur=0; });
+    return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
+  }
 
   // ── RENDER ──
 
@@ -1669,3 +1669,4 @@ function TipPanel() {
       </div>
     </div>
   );
+}
