@@ -1530,7 +1530,7 @@ export default function App() {
       setContProgress(0);
       setInitialRevealProgress(0);
 
-      setScreen("countdown");
+      setScreen("playing");
     }
   }, [round, playerName]);
 
