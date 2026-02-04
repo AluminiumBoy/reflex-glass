@@ -1318,7 +1318,7 @@ export default function App() {
 
   // ── Initial candles reveal animation during countdown ──
   useEffect(() => {
-    if (screen !== "countdown" || !pattern) {
+    if (screen !== "playing" || !pattern) {
       cancelAnimationFrame(initialAnimRef.current);
       return;
     }
@@ -1355,8 +1355,8 @@ export default function App() {
       if (!running) return;
 
       // Draw during countdown (with initial animation), playing, revealing, or outcome
-      if (screen === "countdown" || screen === "playing" || screen === "revealing" || screen === "outcome") {
-        const revealCount = screen === "countdown" ? initialRevealProgress : 22;
+      if (screen === "playing" || screen === "revealing" || screen === "outcome") {
+        const revealCount = initialRevealProgress ;
         const contCount = screen === "revealing" || screen === "outcome" ? contProgress : 0;
         
         drawChart(
@@ -1450,16 +1450,11 @@ export default function App() {
     setContProgress(0);
     setInitialRevealProgress(0);
 
-    setScreen("countdown");
-  }, []);
-
-
-  // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
-  const startPlaying = useCallback(() => {
-    setInitialRevealProgress(22); // Ensure all candles are visible
     setScreen("playing");
-    setContProgress(0);
   }, []);
+
+
+
 
   // 3️⃣ választás kezelése
   const handleChoice = useCallback((ch) => {
@@ -1647,46 +1642,9 @@ export default function App() {
     </div>
   );
 
-  const renderCountdown = () => (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
-      {/* header row */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:2 }}>
-        <GlassPanel style={{ padding:"6px 14px", borderRadius:16 }}>
-          <span style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.5)" }}>Round </span>
-          <span style={{ fontSize:14, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{round+1}<span style={{ color:"rgba(255,255,255,0.28)", fontWeight:400 }}>/{ROUNDS}</span></span>
-        </GlassPanel>
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          {streak > 0 && (
-            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nPurple}35` }}>
-              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nPurple }}>🔥 ×{STREAK_MULT[Math.min(streak+1, STREAK_MULT.length-1)].toFixed(1)}</span>
-            </GlassPanel>
-          )}
-          {godMode && (
-            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nGreen}45`,
-              background:`linear-gradient(135deg, ${C.nGreen}15, ${C.nBlue}10)` }}>
-              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nGreen }}>⚡ GOD MODE</span>
-            </GlassPanel>
-          )}
-        </div>
-      </div>
 
-      {/* placeholder timer bar */}
-      <div style={{ width:"100%", height:5, background:"rgba(255,255,255,0.07)", borderRadius:3 }} />
 
-      {/* chart - shows candles animating in */}
-      <div style={{ flex:1, minHeight:0, position:"relative" }}>
-        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
-      </div>
 
-      {/* placeholder buttons */}
-      <div style={{ paddingBottom:8, opacity:0.3, pointerEvents:"none" }}>
-        <DecisionButtons onChoose={()=>{}} disabled={true} />
-      </div>
-
-      {/* Countdown overlay */}
-      <Countdown onDone={startPlaying} initialRevealProgress={initialRevealProgress} />
-    </div>
-  );
 
   const renderPlaying = () => (
     <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
@@ -1787,7 +1745,6 @@ export default function App() {
 
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
-        {screen === "countdown"   && renderCountdown()}
         {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
