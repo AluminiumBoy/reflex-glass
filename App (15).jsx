@@ -1077,142 +1077,141 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   // REFINED 5D DEPTH - PATTERNS STAY CLEAR
   // Moderate depth for 3D effect without losing pattern visibility
   // ═══════════════════════════════════════════════════════════════
-  allCandles.forEach((c, i) => {
-    const x = i * slotW;
+/* ═══════════════════════════════════════════════════════════════
+    7  CANVAS CHART RENDERER — 2067 HOLOGRAPHIC STYLE
+   ═══════════════════════════════════════════════════════════════ */
+function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+
+  // ── 2067 deep void background ──
+  ctx.fillStyle = "#0b0b18";
+  ctx.fillRect(0, 0, W, H);
+
+  // Holographic grid + faint scanlines
+  ctx.strokeStyle = "rgba(0, 255, 200, 0.045)";
+  ctx.lineWidth = 1;
+  for (let x = W * 0.08; x < W; x += W * 0.12) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = H * 0.12; y < H; y += H * 0.14) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Scanlines
+  ctx.fillStyle = "rgba(255,255,255,0.018)";
+  for (let y = 2; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+
+  if (!candles || candles.length === 0) return;
+
+  // Price scale
+  let lo = Infinity, hi = -Infinity;
+  [...candles, ...(contCandles || [])].forEach(c => { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); });
+  const pad = (hi - lo) * 0.12;
+  lo -= pad; hi += pad;
+  const range = hi - lo || 1;
+  const toY = p => H - ((p - lo) / range) * H;
+
+  const total = candles.length + (contCandles?.length || 0);
+  const barW = W / total;
+  const bodyW = barW * 0.62;
+  const wickW = Math.max(2.8, barW * 0.24);
+
+  const visibleCandles = [
+    ...candles.slice(0, Math.floor(revealCount)),
+    ...(contCandles || []).slice(0, Math.floor(continuationCount))
+  ];
+
+  visibleCandles.forEach((c, i) => {
+    const x = i * barW + barW / 2;
     const bull = c.c >= c.o;
 
-    // Calculate alpha - SMOOTH ANIMATION
-    let alpha = 0;
-    if (i < candles.length) {
-      alpha = Math.max(0, Math.min(1, revealCount - i));
-    } else {
-      const ci = i - candles.length;
-      alpha = Math.max(0, Math.min(1, continuationCount - ci));
-    }
-    
-    if (alpha <= 0.01) return;
+    // Progress (smooth reveal)
+    let prog = 1;
+    if (i < candles.length) prog = Math.min(1, (revealCount - i) * 1.1);
+    else prog = Math.min(1, (continuationCount - (i - candles.length)) * 1.4);
 
-    const bodyColor = bull ? C.bull : C.bear;
+    if (prog <= 0.02) return;
 
-    // REFINED 5D DEPTH - readable but with dimension
-    const depthFactor = Math.pow((i+1)/allCandles.length, 2.0); // Moderate curve
-    
-    // Scale: 0.5x (back) → 1.8x (front) - clear visibility
-    const sizeScale = 0.5 + depthFactor*1.3;
-    const currentBodyW = bodyW * sizeScale;
-    
-    // Opacity: 50% (back) → 100% (front) - all candles visible
-    const baseOpacity = 0.5 + depthFactor*0.5;
-    const opacity = alpha * baseOpacity;
-    
-    // Blur: 4px (back soft) → 0px (front sharp) - patterns clear
-    const blur = (1-depthFactor)*4;
-    
-    // Perspective: 8% shift - subtle depth without distortion
-    const perspectiveShift = (1-depthFactor)*W*0.08;
-    const perspectiveX = x - perspectiveShift;
+    const top = toY(Math.max(c.o, c.c));
+    const bot = toY(Math.min(c.o, c.c));
+    const h = Math.max(bot - top, 3);
+
+    const col = bull ? "#00ffcc" : "#ff2a6d";
+    const glow = bull ? "#00ffdd" : "#ff5599";
 
     ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.filter = `blur(${blur}px)`;
+    ctx.globalAlpha = prog;
 
-    // Selective glow on front candles only
-    if (i >= allCandles.length - 4 && depthFactor > 0.75) {
-      ctx.shadowColor = bodyColor;
-      ctx.shadowBlur = 25 * depthFactor;
-    }
-
-    // ── REFINED WICK with subtle chromatic ──
-    const wickTop = toY(c.h);
-    const wickBot = toY(c.l);
-    
-    // Subtle chromatic (only on front candles)
-    if(depthFactor > 0.7) {
-      ctx.strokeStyle = `rgba(0,255,255,${opacity*0.15})`;
-      ctx.lineWidth = 1.8 * sizeScale;
-      ctx.beginPath();
-      ctx.moveTo(perspectiveX + currentBodyW/2 + 0.5, wickTop);
-      ctx.lineTo(perspectiveX + currentBodyW/2 + 0.5, wickBot);
-      ctx.stroke();
-    }
-    
-    // Main wick
-    ctx.strokeStyle = bodyColor + Math.floor(opacity*230).toString(16).padStart(2,'0');
-    ctx.lineWidth = 2 * sizeScale;
+    // ── Wick with volumetric glow ──
+    ctx.shadowBlur = godMode ? 48 : 32;
+    ctx.shadowColor = glow;
+    ctx.strokeStyle = bull ? "#ccffee" : "#ff99bb";
+    ctx.lineWidth = wickW;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(perspectiveX + currentBodyW/2, wickTop);
-    ctx.lineTo(perspectiveX + currentBodyW/2, wickBot);
+    ctx.moveTo(x, toY(c.h));
+    ctx.lineTo(x, toY(c.l));
     ctx.stroke();
 
-    // ── CRYSTAL-GLASS 3D BODY ──
-    const bodyTop    = toY(Math.max(c.o, c.c));
-    const bodyBottom = toY(Math.min(c.o, c.c));
-    const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+    // ── Liquid glass body ──
+    const grad = ctx.createLinearGradient(x - bodyW/2, top, x + bodyW/2, bot);
+    grad.addColorStop(0, col);
+    grad.addColorStop(0.45, bull ? "#aaffff" : "#ff88aa");
+    grad.addColorStop(1, col);
 
-    // Subtle depth shadow
-    ctx.fillStyle = bodyColor + "15";
-    ctx.fillRect(perspectiveX + 2, bodyTop + 2, currentBodyW, bodyHeight);
+    ctx.shadowBlur = 42;
+    ctx.shadowColor = glow;
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x - bodyW/2, top, bodyW, h, 6);
+    ctx.fill();
 
-    // Volumetric inner glow
-    const innerGlow = ctx.createRadialGradient(
-      perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, 0,
-      perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, currentBodyW*0.8
-    );
-    innerGlow.addColorStop(0, bodyColor + "f8");
-    innerGlow.addColorStop(0.5, bodyColor + "d8");
-    innerGlow.addColorStop(1, bodyColor + "70");
-    ctx.fillStyle = innerGlow;
-    ctx.fillRect(perspectiveX, bodyTop, currentBodyW, bodyHeight);
+    // Inner glass reflection
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.roundRect(x - bodyW/2 + 4, top + 5, bodyW * 0.38, 9, 4);
+    ctx.fill();
 
-    // Left glass reflection
-    const leftHighlight = ctx.createLinearGradient(
-      perspectiveX, bodyTop,
-      perspectiveX + currentBodyW*0.3, bodyTop
-    );
-    leftHighlight.addColorStop(0, "rgba(255,255,255,0.4)");
-    leftHighlight.addColorStop(0.5, "rgba(255,255,255,0.25)");
-    leftHighlight.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = leftHighlight;
-    ctx.fillRect(perspectiveX, bodyTop, currentBodyW*0.25, bodyHeight);
-
-    // Right edge highlight
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
-    ctx.fillRect(perspectiveX + currentBodyW*0.88, bodyTop, currentBodyW*0.12, bodyHeight);
-
-    // Prismatic border
-    ctx.strokeStyle = `rgba(255,255,255,${opacity*0.5})`;
-    ctx.lineWidth = 1.5 * sizeScale;
-    ctx.strokeRect(perspectiveX, bodyTop, currentBodyW, bodyHeight);
-
-    // Selective motion blur (only strong front bullish)
-    if (bull && i >= allCandles.length - 2 && depthFactor > 0.9) {
-      const blurLength = 5 * sizeScale;
-      const blurGrad = ctx.createLinearGradient(
-        perspectiveX - blurLength, bodyTop,
-        perspectiveX, bodyTop
-      );
-      blurGrad.addColorStop(0, bodyColor + "00");
-      blurGrad.addColorStop(1, bodyColor + "30");
-      ctx.fillStyle = blurGrad;
-      ctx.fillRect(perspectiveX - blurLength, bodyTop, blurLength, bodyHeight);
-    }
-
-    // Selective particle sparks (only last candle if breakout)
-    if (bull && i === allCandles.length - 1 && depthFactor > 0.92 && opacity > 0.95) {
-      ctx.shadowBlur = 12;
-      for(let p=0; p<4; p++) {
-        const px = perspectiveX + currentBodyW*0.25 + Math.random()*currentBodyW*0.5;
-        const py = bodyTop + Math.random()*bodyHeight;
-        const sparkSize = (2.5 + Math.random()*2) * sizeScale;
-        
-        ctx.fillStyle = `rgba(0,255,170,${0.6 + Math.random()*0.4})`;
-        ctx.fillRect(px-sparkSize/2, py-sparkSize/2, sparkSize, sparkSize);
-      }
-    }
+    // Border
+    ctx.strokeStyle = bull ? "#ddffee99" : "#ffbbcc88";
+    ctx.lineWidth = 2.2;
+    ctx.strokeRect(x - bodyW/2, top, bodyW, h);
 
     ctx.restore();
   });
 
+  // ── Last price holographic label ──
+  const last = visibleCandles[visibleCandles.length - 1];
+  const ly = toY(last.c);
+  ctx.shadowBlur = 55;
+  ctx.shadowColor = last.c >= last.o ? "#00ffdd" : "#ff4488";
+  ctx.fillStyle = last.c >= last.o ? "#00ffcc" : "#ff2266";
+  ctx.beginPath();
+  ctx.roundRect(W - 92, ly - 17, 88, 34, 17);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#000";
+  ctx.font = "700 14px 'SF Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(last.c.toFixed(2), W - 48, ly + 6);
+
+  // God mode overdrive flare
+  if (godMode && continuationCount > 3) {
+    ctx.shadowBlur = 90;
+    ctx.shadowColor = "#00ffdd";
+    ctx.strokeStyle = "rgba(0,255,220,0.75)";
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.65, ly - 70);
+    ctx.quadraticCurveTo(W * 0.8, ly - 25, W * 0.96, ly + 60);
+    ctx.stroke();
+  }
+}
   // ═══════════════════════════════════════════════════════════════
   // REFINED LENS FLARES (subtle, cinematic)
   // ═══════════════════════════════════════════════════════════════
