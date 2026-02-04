@@ -61,88 +61,57 @@ function haptic(pattern = [30]) {
 /* ═══════════════════════════════════════════════════════════════
     3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
    ═══════════════════════════════════════════════════════════════ */
-
+  
+   /* =====================
+   SOUND ENGINE
+   (Web Audio API — lazy-inited on first user tap)
+   ===================== */
 class SoundEngine {
-  constructor() {
-    this.ctx = null;
-    this.on = true;
+  constructor() { 
+    this.ctx = null; 
+    this.on = true; 
   }
 
-  // ── Initialize or resume AudioContext ──
+  // ── init / resume audio context ──
   _ensure() {
-    if (!this.ctx) {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     return this.ctx;
   }
 
-  // ── Call this on user gesture (click/touch) to unlock audio ──
+  // ── call this on user gesture to unlock audio
   unlock() {
     if (!this.on) return;
     const ctx = this._ensure();
-    if (ctx.state === "suspended") {
-      ctx.resume();
-    }
+    if (ctx.state === "suspended") ctx.resume();
   }
 
-  // ── Internal tone generator ──
+  // ── internal tone player ──
   _tone(freq, dur, type = "sine", vol = 0.13, startDelay = 0) {
     if (!this.on) return;
-
     const ctx = this._ensure();
     const now = ctx.currentTime + startDelay;
-
     const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
+    const g   = ctx.createGain();
+    osc.connect(g); 
+    g.connect(ctx.destination);
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
-
-    gain.gain.setValueAtTime(vol, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-
-    osc.start(now);
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.start(now); 
     osc.stop(now + dur);
   }
 
-  // ── Simple sound effects ──
-  click() {
-    this._tone(420, 0.07, "sine", 0.11);
-  }
+  // ── simple effects ──
+  click()     { this._tone(420, 0.07, "sine", 0.11); }
+  tick(n)     { n === 1 ? this._tone(1100, 0.11, "square", 0.18) : this._tone(680, 0.07, "triangle", 0.13); }
+  correct()   { [523,659,784].forEach((f,i) => this._tone(f, 0.14, "sine", 0.16, i*0.09)); }
+  wrong()     { this._tone(280, 0.18, "sawtooth", 0.16); this._tone(220, 0.22, "sawtooth", 0.12, 0.1); }
+  godBurst()  { [440,554,659,880,1046].forEach((f,i) => this._tone(f, 0.22, "sine", 0.2, i*0.08)); }
+  reveal()    { this._tone(900, 0.06, "sine", 0.08); }
 
-  tick(n) {
-    if (n === 1) {
-      this._tone(1100, 0.11, "square", 0.18);
-    } else {
-      this._tone(680, 0.07, "triangle", 0.13);
-    }
-  }
-
-  correct() {
-    [523, 659, 784].forEach((f, i) => {
-      this._tone(f, 0.14, "sine", 0.16, i * 0.09);
-    });
-  }
-
-  wrong() {
-    this._tone(280, 0.18, "sawtooth", 0.16);
-    this._tone(220, 0.22, "sawtooth", 0.12, 0.1);
-  }
-
-  godBurst() {
-    [440, 554, 659, 880, 1046].forEach((f, i) => {
-      this._tone(f, 0.22, "sine", 0.2, i * 0.08);
-    });
-  }
-
-  reveal() {
-    this._tone(900, 0.06, "sine", 0.08);
-  }
-
-  whoosh() {
+  // ── verdict + tips ──
+  whoosh() { 
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     const osc = ctx.createOscillator(), g = ctx.createGain();
@@ -155,7 +124,7 @@ class SoundEngine {
     osc.start(now); osc.stop(now + 0.34);
   }
 
-  tipTap() {
+  tipTap() { 
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     [1900, 2600].forEach((f, i) => {
@@ -170,37 +139,12 @@ class SoundEngine {
     });
   }
 
-  tickerPing() {
-    this._tone(1500, 0.035, "sine", 0.035);
-  }
-
-  // ÚJ: Finom gyertya kirajzolódás hang – minden új gyertyához
-  candleDrawTick() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(880, now);                    // tiszta, fém-szerű kezdő frekvencia
-    osc.frequency.exponentialRampToValueAtTime(660, now + 0.06); // kis glide lefelé
-
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.18, now + 0.008);      // gyors attack
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.10); // rövid decay
-
-    osc.start(now);
-    osc.stop(now + 0.12);
-  }
+  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); }
 }
 
-// ── Singleton instance ──
+// ── singleton instance ──
 const SND = new SoundEngine();
+
 
 /* ═══════════════════════════════════════════════════════════════
     4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
@@ -591,7 +535,6 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   canvas.width = W * dpr;
   canvas.height= H * dpr;
   ctx.scale(dpr, dpr);
-  SND.candleDrawTick();
 
   // ═══════════════════════════════════════════════════════════════
   // CLEAN DARK SPACE BACKGROUND
