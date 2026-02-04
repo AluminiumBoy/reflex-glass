@@ -1304,6 +1304,8 @@ export default function App() {
   const [particleBurst, setParticleBurst] = useState(false);
   const [godMode, setGodMode]             = useState(false);
   const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
+  const [showCountdown, setShowCountdown] = useState(false);    // countdown 3-2-1 indítása előtt
+  const [countdownNum, setCountdownNum]   = useState(3);        // countdown szám
 
   // refs
   const chartRef      = useRef(null);
@@ -1318,7 +1320,7 @@ export default function App() {
 
   // ── Initial candles reveal animation during countdown ──
   useEffect(() => {
-    if (screen !== "playing" || !pattern) {
+    if (screen !== "playing" || !pattern || showCountdown) {
       cancelAnimationFrame(initialAnimRef.current);
       return;
     }
@@ -1343,7 +1345,7 @@ export default function App() {
     
     initialAnimRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(initialAnimRef.current);
-  }, [screen, pattern]);
+  }, [screen, pattern, showCountdown]);
 
   // ── chart RAF loop (redraws every frame for smooth candle reveal) ──
   useEffect(() => {
@@ -1389,6 +1391,38 @@ export default function App() {
       return () => clearTimeout(t);
     }
   }, [isPlaying, timeLeft]);
+
+  // ── countdown timer (3-2-1 before playing state) ──
+  useEffect(() => {
+    if(!showCountdown) return;
+    
+    setCountdownNum(3);
+    SND.tick(3);
+    haptic([30]);
+    
+    const timer1 = setTimeout(() => {
+      setCountdownNum(2);
+      SND.tick(2);
+      haptic([30]);
+    }, 1000);
+    
+    const timer2 = setTimeout(() => {
+      setCountdownNum(1);
+      SND.tick(1);
+      haptic([30]);
+    }, 2000);
+    
+    const timer3 = setTimeout(() => {
+      setShowCountdown(false);
+      setScreen("playing");
+    }, 3000);
+    
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+    };
+  }, [showCountdown]);
 
   // ── countdown timer (playing state) ──
   useEffect(() => {
@@ -1450,7 +1484,8 @@ export default function App() {
     setContProgress(0);
     setInitialRevealProgress(0);
 
-    setScreen("playing");
+    // Countdown indítása
+    setShowCountdown(true);
   }, []);
 
 
@@ -1530,6 +1565,7 @@ export default function App() {
       setContProgress(0);
       setInitialRevealProgress(0);
 
+      // Következő körnél NEM mutatunk countdownt
       setScreen("playing");
     }
   }, [round, playerName]);
@@ -1716,6 +1752,32 @@ export default function App() {
     </div>
   );
 
+  const renderCountdown = () => (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100%", gap:24 }}>
+      <div style={{ 
+        fontSize: 180, 
+        fontWeight: 900, 
+        fontFamily: "'SF Mono','Fira Code',monospace",
+        background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        filter: "drop-shadow(0 0 40px rgba(0,255,170,0.5))",
+        animation: "numPop 0.3s ease-out",
+        position: "relative"
+      }}>
+        {countdownNum}
+      </div>
+      <div style={{
+        position: "absolute",
+        width: 240,
+        height: 240,
+        borderRadius: "50%",
+        border: `4px solid ${C.nGreen}40`,
+        animation: "ringPulse 1s ease-out infinite"
+      }} />
+    </div>
+  );
+
   // ── MAIN RETURN ──
   return (
     <div style={{ width:"100vw", height:"100dvh", overflowY:"auto", overflowX:"hidden",
@@ -1745,7 +1807,8 @@ export default function App() {
 
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
-        {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
+        {showCountdown            && renderCountdown()}
+        {(screen==="playing" || screen==="revealing" || screen==="outcome") && !showCountdown && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
           <div style={{ paddingTop:20 }}>
