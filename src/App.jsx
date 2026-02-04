@@ -1747,7 +1747,8 @@ function TipPanel() {
       setErrMsg(e.message || "Transaction failed");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2800);
-    }
+    
+    } [pattern, screen]; // volt: }, [pattern]);
   };
 
   return (
@@ -1868,11 +1869,15 @@ export default function App() {
     setScreen("countdown");
   }, []);
 
-  // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
-  const startPlaying = useCallback(() => {
-    setScreen("playing");
-  }, []);
-
+  
+// ── COUNTDOWN DONE → PLAYING ────────────────────────────────
+const startPlaying = useCallback(() => {
+  setScreen("playing");
+  // Azonnal indítjuk a reveal fázist
+  revealRef.current = 0;
+  contRef.current = 0;
+  phaseRef.current = "reveal";
+}, []);
   // ── USER DECISION ───────────────────────────────────────────
   const handleChoice = useCallback((ch) => {
     if (!decisionOpen || choice) return;
