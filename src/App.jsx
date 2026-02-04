@@ -62,39 +62,19 @@ function haptic(pattern = [30]) {
     3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
    ═══════════════════════════════════════════════════════════════ */
   
-   /* ═══════════════════════════════════════════════════════════════
-   PREMIUM SOUND ENGINE - Professional Audio Design
-   Web Audio API with advanced synthesis, filters, and reverb
-   ═══════════════════════════════════════════════════════════════ */
+   /* =====================
+   SOUND ENGINE
+   (Web Audio API — lazy-inited on first user tap)
+   ===================== */
 class SoundEngine {
   constructor() { 
     this.ctx = null; 
-    this.on = true;
-    this.masterGain = null;
-    this.compressor = null;
+    this.on = true; 
   }
 
-  // ── init / resume audio context with master chain ──
+  // ── init / resume audio context ──
   _ensure() {
-    if (!this.ctx) {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Master gain for volume control
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.7;
-      
-      // Compressor for professional sound (prevents clipping)
-      this.compressor = this.ctx.createDynamicsCompressor();
-      this.compressor.threshold.value = -20;
-      this.compressor.knee.value = 10;
-      this.compressor.ratio.value = 4;
-      this.compressor.attack.value = 0.003;
-      this.compressor.release.value = 0.25;
-      
-      // Chain: masterGain → compressor → destination
-      this.masterGain.connect(this.compressor);
-      this.compressor.connect(this.ctx.destination);
-    }
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     return this.ctx;
   }
 
@@ -105,385 +85,61 @@ class SoundEngine {
     if (ctx.state === "suspended") ctx.resume();
   }
 
-  // ── Advanced tone with filter and envelope ──
-  _advancedTone(freq, dur, type = "sine", vol = 0.15, startDelay = 0, filterFreq = null, detune = 0) {
+  // ── internal tone player ──
+  _tone(freq, dur, type = "sine", vol = 0.13, startDelay = 0) {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime + startDelay;
-    
     const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    
-    // Optional filter for richer sound
-    if (filterFreq) {
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = filterFreq;
-      filter.Q.value = 1;
-      osc.connect(filter);
-      filter.connect(gainNode);
-    } else {
-      osc.connect(gainNode);
-    }
-    
-    gainNode.connect(this.masterGain);
-    
+    const g   = ctx.createGain();
+    osc.connect(g); 
+    g.connect(ctx.destination);
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
-    osc.detune.value = detune;
-    
-    // ADSR envelope
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(vol, now + 0.01); // Attack
-    gainNode.gain.exponentialRampToValueAtTime(vol * 0.7, now + dur * 0.3); // Decay
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + dur); // Release
-    
-    osc.start(now);
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.start(now); 
     osc.stop(now + dur);
   }
 
-  // ── Premium UI click (glass tap sound) ──
-  click() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // High frequency tap
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.connect(gain1);
-    gain1.connect(this.masterGain);
-    
-    osc1.frequency.setValueAtTime(2800, now);
-    osc1.frequency.exponentialRampToValueAtTime(1200, now + 0.02);
-    osc1.type = 'sine';
-    
-    gain1.gain.setValueAtTime(0.12, now);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-    
-    osc1.start(now);
-    osc1.stop(now + 0.06);
-    
-    // Low body thump
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.frequency.setValueAtTime(180, now);
-    osc2.type = 'sine';
-    
-    gain2.gain.setValueAtTime(0.08, now);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-    
-    osc2.start(now);
-    osc2.stop(now + 0.1);
-  }
+  // ── simple effects ──
+  click()     { this._tone(420, 0.07, "sine", 0.11); }
+  tick(n)     { n === 1 ? this._tone(1100, 0.11, "square", 0.18) : this._tone(680, 0.07, "triangle", 0.13); }
+  correct()   { [523,659,784].forEach((f,i) => this._tone(f, 0.14, "sine", 0.16, i*0.09)); }
+  wrong()     { this._tone(280, 0.18, "sawtooth", 0.16); this._tone(220, 0.22, "sawtooth", 0.12, 0.1); }
+  godBurst()  { [440,554,659,880,1046].forEach((f,i) => this._tone(f, 0.22, "sine", 0.2, i*0.08)); }
+  reveal()    { this._tone(900, 0.06, "sine", 0.08); }
 
-  // ── Countdown tick (3, 2, 1) ──
-  tick(n) {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    const freq = n === 1 ? 1400 : 880;
-    const vol = n === 1 ? 0.25 : 0.18;
-    
-    // Bright metallic hit
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, now);
-    
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(freq * 1.5, now);
-    filter.Q.value = 8;
-    
-    gain.gain.setValueAtTime(vol, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-    
-    osc.start(now);
-    osc.stop(now + 0.16);
-    
-    // Harmonic overtone for richness
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 2, now);
-    gain2.gain.setValueAtTime(vol * 0.3, now);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
-    
-    osc2.start(now);
-    osc2.stop(now + 0.11);
-  }
-
-  // ── Correct answer (uplifting chord progression) ──
-  correct() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // Major chord: C-E-G with rich harmonics
-    const chord = [
-      { freq: 523.25, delay: 0,    vol: 0.15 },  // C5
-      { freq: 659.25, delay: 0.04, vol: 0.13 },  // E5
-      { freq: 783.99, delay: 0.08, vol: 0.12 },  // G5
-      { freq: 1046.5, delay: 0.12, vol: 0.10 }   // C6 (octave)
-    ];
-    
-    chord.forEach(note => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.masterGain);
-      
-      const t = now + note.delay;
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(note.freq, t);
-      
-      // Warm lowpass filter
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(note.freq * 3, t);
-      filter.Q.value = 1;
-      
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(note.vol, t + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
-      
-      osc.start(t);
-      osc.stop(t + 0.42);
-    });
-  }
-
-  // ── Wrong answer (dissonant descending) ──
-  wrong() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // Dissonant descending notes
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    const filter1 = ctx.createBiquadFilter();
-    
-    osc1.connect(filter1);
-    filter1.connect(gain1);
-    gain1.connect(this.masterGain);
-    
-    osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(330, now);
-    osc1.frequency.exponentialRampToValueAtTime(220, now + 0.2);
-    
-    filter1.type = 'lowpass';
-    filter1.frequency.setValueAtTime(800, now);
-    filter1.Q.value = 2;
-    
-    gain1.gain.setValueAtTime(0.18, now);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
-    
-    osc1.start(now);
-    osc1.stop(now + 0.32);
-    
-    // Dissonant harmony
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.type = 'sawtooth';
-    osc2.frequency.setValueAtTime(315, now + 0.05); // Slightly detuned
-    osc2.frequency.exponentialRampToValueAtTime(210, now + 0.25);
-    
-    gain2.gain.setValueAtTime(0.14, now + 0.05);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    
-    osc2.start(now + 0.05);
-    osc2.stop(now + 0.37);
-  }
-
-  // ── God mode burst (epic ascending arpeggio) ──
-  godBurst() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // Epic ascending arpeggio with harmonics
-    const notes = [
-      { freq: 523.25, delay: 0     },  // C5
-      { freq: 659.25, delay: 0.05  },  // E5
-      { freq: 783.99, delay: 0.10  },  // G5
-      { freq: 987.77, delay: 0.15  },  // B5
-      { freq: 1046.5, delay: 0.20  },  // C6
-      { freq: 1318.5, delay: 0.25  },  // E6
-      { freq: 1568,   delay: 0.30  }   // G6
-    ];
-    
-    notes.forEach((note, i) => {
-      const vol = 0.15 - (i * 0.015);
-      
-      // Main note
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.masterGain);
-      
-      const t = now + note.delay;
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(note.freq, t);
-      
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(note.freq * 4, t);
-      filter.frequency.exponentialRampToValueAtTime(note.freq * 2, t + 0.3);
-      filter.Q.value = 1.5;
-      
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(vol, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      
-      osc.start(t);
-      osc.stop(t + 0.36);
-      
-      // Harmonic shimmer
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(this.masterGain);
-      
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(note.freq * 2, t);
-      gain2.gain.setValueAtTime(vol * 0.3, t);
-      gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-      
-      osc2.start(t);
-      osc2.stop(t + 0.26);
-    });
-  }
-
-  // ── Reveal candle (subtle pop) ──
-  reveal() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(900, now + 0.03);
-    
-    filter.type = 'highpass';
-    filter.frequency.setValueAtTime(400, now);
-    filter.Q.value = 0.5;
-    
-    gain.gain.setValueAtTime(0.09, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
-    
-    osc.start(now);
-    osc.stop(now + 0.07);
-  }
-
-  // ── Whoosh (screen transition) ──
+  // ── verdict + tips ──
   whoosh() { 
     if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(80, now);
-    osc.frequency.exponentialRampToValueAtTime(1800, now + 0.28);
-    
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(300, now);
-    filter.frequency.exponentialRampToValueAtTime(2000, now + 0.28);
-    filter.Q.value = 3;
-    
-    gain.gain.setValueAtTime(0.16, now);
-    gain.gain.linearRampToValueAtTime(0.20, now + 0.1);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    
-    osc.start(now);
-    osc.stop(now + 0.37);
+    const ctx = this._ensure(), now = ctx.currentTime;
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(55, now);
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.24);
+    g.gain.setValueAtTime(0.15, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    osc.start(now); osc.stop(now + 0.34);
   }
 
-  // ── Tip tap (UI interaction) ──
   tipTap() { 
     if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    [2200, 2900].forEach((f, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(this.masterGain);
-      
-      const t = now + i * 0.04;
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, t);
-      
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.18, t + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-      
-      osc.start(t);
-      osc.stop(t + 0.13);
+    const ctx = this._ensure(), now = ctx.currentTime;
+    [1900, 2600].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "sine";
+      const t = now + i * 0.045;
+      o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(0.2, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+      o.start(t); o.stop(t + 0.13);
     });
   }
 
-  // ── Ticker ping (subtle notification) ──
-  tickerPing() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1800, now);
-    
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
-    
-    osc.start(now);
-    osc.stop(now + 0.05);
-  }
+  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); }
 }
 
 // ── singleton instance ──
@@ -881,241 +537,193 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   ctx.scale(dpr, dpr);
 
   // ═══════════════════════════════════════════════════════════════
-  // PREMIUM GLASS MONOLITH BACKGROUND
+  // CLEAN DARK SPACE BACKGROUND
   // ═══════════════════════════════════════════════════════════════
-  
-  // Deep space foundation
-  const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.55);
-  bg.addColorStop(0, "#0f0f1e");
-  bg.addColorStop(0.6, "#08080f");
-  bg.addColorStop(1, "#030308");
+  const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.6);
+  bg.addColorStop(0, "#0d0d1a");
+  bg.addColorStop(0.7, "#08080f");
+  bg.addColorStop(1, "#05050a");
   ctx.fillStyle = bg; 
   ctx.fillRect(0,0,W,H);
 
-  // Ultra-subtle neon grid (barely visible structure)
-  ctx.strokeStyle = "rgba(0,255,170,0.018)";
+  // Subtle grid lines (minimal distraction)
+  ctx.strokeStyle = "rgba(255,255,255,0.025)";
   ctx.lineWidth = 0.5;
-  for(let y=0; y<H; y+=H/5){ 
+  for(let y=0; y<H; y+=H/6){ 
     ctx.beginPath(); 
     ctx.moveTo(0,y); 
     ctx.lineTo(W,y); 
     ctx.stroke(); 
   }
-  
-  // Single diagonal volumetric ray (premium subtle lighting)
-  const diagonal = ctx.createLinearGradient(0, 0, W, H);
-  diagonal.addColorStop(0, "rgba(0,255,170,0.025)");
-  diagonal.addColorStop(0.5, "rgba(168,85,247,0.015)");
-  diagonal.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = diagonal;
+  ctx.globalAlpha = 1;
+
+  // Subtle volumetric lighting (very subtle)
+  const rayGrad = ctx.createLinearGradient(W*0.2, 0, W*0.8, H);
+  rayGrad.addColorStop(0, "rgba(0,255,170,0.015)");
+  rayGrad.addColorStop(0.5, "rgba(168,85,247,0.01)");
+  rayGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = rayGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // God-mode premium glow
+  // ── god-mode border glow ──
   if(godMode) {
     ctx.save();
-    const pulse = 0.22 + 0.1*Math.sin(Date.now()*0.005);
-    
-    // Outer glow
+    const pulse = 0.18 + 0.08*Math.sin(Date.now()*0.006);
     ctx.shadowColor = C.nGreen; 
-    ctx.shadowBlur = 70;
-    ctx.strokeStyle = `rgba(0,255,170,${pulse * 0.6})`;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(8,8,W-16,H-16);
-    
-    // Inner glow
-    ctx.shadowBlur = 35;
+    ctx.shadowBlur = 50;
     ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(12,12,W-24,H-24);
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(5,5,W-10,H-10);
     ctx.restore();
   }
 
   // Ha nincs még candle, csak háttér
   if (!candles || candles.length === 0 || revealCount === 0) return;
 
-  // ═══════════════════════════════════════════════════════════════
-  // ALL CANDLES - SMOOTH FADE BASED ON REVEAL PROGRESS
-  // ═══════════════════════════════════════════════════════════════
-  
-  // Render ALL candles, but control visibility with alpha
-  const allCandles = [...candles, ...(contCandles||[])];
+  // Visible candles = initial reveal (animated in) + continuation (animated in)
+  const totalVisible = revealCount + continuationCount;
+  const allCandles   = [...candles.slice(0, Math.ceil(revealCount)), ...(contCandles||[]).slice(0, Math.ceil(continuationCount))];
   if(allCandles.length === 0) return;
 
-  // ── price scale ──
+  // ── price scale  ──
   let lo = Infinity, hi = -Infinity;
-  allCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
-  const pad  = (hi - lo) * 0.1;
+  const scaleCandles = [...candles, ...(contCandles||[])];
+  scaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
+  const pad  = (hi - lo) * 0.12;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
 
-  const totalSlots = allCandles.length;
+  const totalSlots = candles.length + (contCandles?.length || 0);
   const slotW      = W / totalSlots;
-  const bodyW      = slotW * 0.62;
+  const bodyW      = slotW * 0.58;
   const offX       = (slotW - bodyW) / 2;
 
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── Premium price label ──
-  // Find last visible candle for price label
-  let lastVisibleIdx = -1;
-  for(let i = allCandles.length - 1; i >= 0; i--) {
-    let alpha = 0;
-    if (i < candles.length) {
-      // Initial candles
-      alpha = Math.max(0, Math.min(1, revealCount - i));
-    } else {
-      // Continuation candles
-      const ci = i - candles.length;
-      alpha = Math.max(0, Math.min(1, continuationCount - ci));
-    }
-    if (alpha > 0.01) {
-      lastVisibleIdx = i;
-      break;
-    }
-  }
+  // ── price label with subtle glow ──
+  const lastC = allCandles[allCandles.length - 1];
+  const lblY  = toY(lastC.c);
+  ctx.save();
+  const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
   
-  if (lastVisibleIdx >= 0) {
-    const lastC = allCandles[lastVisibleIdx];
-    const lblY  = toY(lastC.c);
-    ctx.save();
-    const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
-    
-    // Glowing label background
-    ctx.shadowColor = lblColor;
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = lblColor + "38";
-    const lblW = 54, lblH = 22;
-    ctx.fillRect(W - lblW, lblY - lblH/2, lblW, lblH);
-    
-    // Inner highlight
-    const labelGrad = ctx.createLinearGradient(W-lblW, lblY-lblH/2, W-lblW+15, lblY-lblH/2);
-    labelGrad.addColorStop(0, "rgba(255,255,255,0.15)");
-    labelGrad.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = labelGrad;
-    ctx.fillRect(W - lblW, lblY - lblH/2, 15, lblH);
-    
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = lblColor;
-    ctx.font = "bold 11px monospace";
-    ctx.textAlign = "right";
-    ctx.fillText(lastC.c.toFixed(2), W - 6, lblY + 4);
-    ctx.restore();
-  }
+  ctx.shadowColor = lblColor;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = lblColor + "35";
+  ctx.fillRect(W - 50, lblY - 10, 50, 20);
+  
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = lblColor;
+  ctx.font = "bold 10px monospace";
+  ctx.textAlign = "right";
+  ctx.fillText(lastC.c.toFixed(2), W - 5, lblY + 3.5);
+  ctx.restore();
 
   // ═══════════════════════════════════════════════════════════════
-  // PREMIUM 3D GLASS CANDLES - SMOOTH ANIMATION, NO SKIPPING
+  // CLEAN 3D HOLOGRAPHIC CANDLES WITH SUBTLE DEPTH
   // ═══════════════════════════════════════════════════════════════
   allCandles.forEach((c, i) => {
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // Calculate alpha based on reveal progress - SMOOTH, NO GAPS
-    let alpha = 0;
-    
-    if (i < candles.length) {
-      // Initial candles (0-21)
-      alpha = Math.max(0, Math.min(1, revealCount - i));
+    // Wave-reveal fade
+    let alpha = 1;
+    if (i < 22) {
+      alpha = CL(revealCount - i, 0, 1);
     } else {
-      // Continuation candles (22+)
-      const ci = i - candles.length;
-      alpha = Math.max(0, Math.min(1, continuationCount - ci));
+      const ci = i - 22;
+      alpha = CL(continuationCount - ci, 0, 1);
     }
-    
-    if (alpha <= 0.01) return; // Skip if invisible
+    if (alpha <= 0) return;
 
     const bodyColor = bull ? C.bull : C.bear;
 
     // ═══════════════════════════════════════════════════════════
-    // REFINED DEPTH - Clear but with dimension
+    // SUBTLE DEPTH - patterns stay recognizable
     // ═══════════════════════════════════════════════════════════
-    const depthFactor = Math.pow((i+1)/allCandles.length, 1.3);
-    const currentBodyW = bodyW * (0.75 + depthFactor*0.35);
-    const opacity = alpha * (0.6 + depthFactor*0.4);
-    const blur = (1-depthFactor)*1.8;
+    const depthFactor = Math.pow((i+1)/allCandles.length, 1.5); // Reduced from 2.8
+    const currentBodyW = bodyW * (0.65 + depthFactor*0.5); // Less extreme scaling
+    const opacity = alpha * (0.5 + depthFactor*0.5); // Better visibility
+    const blur = (1-depthFactor)*2.5; // Much less blur
     
-    const perspectiveX = x - (1-depthFactor)*W*0.015;
-    const scale = 0.9 + depthFactor*0.15;
+    // Minimal perspective shift
+    const perspectiveX = x - (1-depthFactor)*W*0.03; // Reduced from 0.18
+    const scale = 0.85 + depthFactor*0.25; // Minimal scaling
 
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.filter = `blur(${blur}px)`;
 
-    // Premium glow on foreground candles
-    if (i >= allCandles.length - 3 && opacity > 0.8) {
+    // Subtle glow only on last 2 candles
+    if (i >= allCandles.length - 2) {
       ctx.shadowColor = bodyColor;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 15;
     }
 
-    // ── PREMIUM WICK ──
+    // ── WICK ──
     const wickTop = toY(c.h);
     const wickBot = toY(c.l);
     
-    ctx.strokeStyle = bodyColor + Math.floor(opacity*210).toString(16).padStart(2,'0');
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = bodyColor + Math.floor(opacity*200).toString(16).padStart(2,'0');
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(perspectiveX + currentBodyW/2, wickTop);
     ctx.lineTo(perspectiveX + currentBodyW/2, wickBot);
     ctx.stroke();
 
-    // ── LIQUID GLASS BODY ──
+    // ── CLEAN GLASS CANDLE BODY ──
     const bodyTop    = toY(Math.max(c.o, c.c));
     const bodyBottom = toY(Math.min(c.o, c.c));
-    const bodyHeight = Math.max(bodyBottom - bodyTop, 1.8);
+    const bodyHeight = Math.max(bodyBottom - bodyTop, 1.5);
 
-    // Premium volumetric inner glow
+    // Main body with subtle inner glow
     const innerGlow = ctx.createRadialGradient(
       perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, 0,
-      perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, currentBodyW*0.75
+      perspectiveX + currentBodyW/2, bodyTop + bodyHeight/2, currentBodyW*0.7
     );
-    innerGlow.addColorStop(0, bodyColor + "f8");
-    innerGlow.addColorStop(0.5, bodyColor + "d0");
-    innerGlow.addColorStop(1, bodyColor + "80");
+    innerGlow.addColorStop(0, bodyColor + "f0");
+    innerGlow.addColorStop(0.7, bodyColor + "b0");
+    innerGlow.addColorStop(1, bodyColor + "70");
     ctx.fillStyle = innerGlow;
     ctx.fillRect(perspectiveX, bodyTop, currentBodyW, bodyHeight);
 
-    // Premium glass highlight (vertical light refraction)
-    const highlight = ctx.createLinearGradient(
+    // Subtle glass highlight (only on left edge)
+    const glassHighlight = ctx.createLinearGradient(
       perspectiveX, bodyTop,
-      perspectiveX + currentBodyW*0.4, bodyTop
+      perspectiveX + currentBodyW*0.3, bodyTop
     );
-    highlight.addColorStop(0, "rgba(255,255,255,0.25)");
-    highlight.addColorStop(0.5, "rgba(255,255,255,0.15)");
-    highlight.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = highlight;
-    ctx.fillRect(perspectiveX, bodyTop, currentBodyW*0.3, bodyHeight);
+    glassHighlight.addColorStop(0, "rgba(255,255,255,0.2)");
+    glassHighlight.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glassHighlight;
+    ctx.fillRect(perspectiveX, bodyTop, currentBodyW*0.25, bodyHeight);
 
-    // Secondary highlight (right edge)
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fillRect(perspectiveX + currentBodyW*0.92, bodyTop, currentBodyW*0.08, bodyHeight);
-
-    // Premium glass border with refraction
-    ctx.strokeStyle = "rgba(255,255,255," + (opacity*0.4) + ")";
-    ctx.lineWidth = 1.2;
+    // Clean border
+    ctx.strokeStyle = "rgba(255,255,255," + (opacity*0.35) + ")";
+    ctx.lineWidth = 1;
     ctx.strokeRect(perspectiveX, bodyTop, currentBodyW, bodyHeight);
 
-    // Premium particle effect (minimal, only last candle)
-    if (bull && i === allCandles.length - 1 && opacity > 0.95) {
-      ctx.shadowBlur = 8;
+    // Minimal sparks only on last candle if bullish
+    if (bull && i === allCandles.length - 1 && depthFactor > 0.9) {
       for(let p=0; p<3; p++) {
-        const px = perspectiveX + currentBodyW*0.2 + Math.random()*currentBodyW*0.6;
+        const px = perspectiveX + Math.random()*currentBodyW;
         const py = bodyTop + Math.random()*bodyHeight;
         
-        ctx.fillStyle = `rgba(0,255,170,${0.4 + Math.random()*0.5})`;
-        ctx.fillRect(px-1.5, py-1.5, 3, 3);
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = `rgba(0,255,170,${Math.random()*0.6})`;
+        ctx.fillRect(px-1, py-1, 2, 2);
       }
     }
 
     ctx.restore();
   });
 
-  // Ultra-subtle ambient flare
-  const flareX = W * 0.78;
-  const flareY = H * 0.22;
-  const flare = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, 90);
-  flare.addColorStop(0, "rgba(255,255,255,0.06)");
-  flare.addColorStop(0.4, "rgba(0,255,170,0.025)");
-  flare.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = flare;
+  // Very subtle lens flare (barely noticeable)
+  const flareX = W * 0.75;
+  const flareY = H * 0.25;
+  const flareGrad = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, 100);
+  flareGrad.addColorStop(0, "rgba(255,255,255,0.08)");
+  flareGrad.addColorStop(0.5, "rgba(0,255,170,0.03)");
+  flareGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = flareGrad;
   ctx.fillRect(0, 0, W, H);
 
   ctx.globalAlpha = 1;
