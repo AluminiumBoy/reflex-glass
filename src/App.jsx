@@ -591,6 +591,7 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   canvas.width = W * dpr;
   canvas.height= H * dpr;
   ctx.scale(dpr, dpr);
+  SND.candleDrawTick();
 
   // ═══════════════════════════════════════════════════════════════
   // CLEAN DARK SPACE BACKGROUND
