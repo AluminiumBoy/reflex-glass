@@ -1866,7 +1866,7 @@ export default function App() {
         position: "relative",
         zIndex: 1
       }}>
-        Get Ready...
+    
       </div>
     </div>
   );
