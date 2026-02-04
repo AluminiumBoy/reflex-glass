@@ -1304,6 +1304,8 @@ export default function App() {
   const [particleBurst, setParticleBurst] = useState(false);
   const [godMode, setGodMode]             = useState(false);
   const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
+  const [showCountdown, setShowCountdown] = useState(false);
+
 
   // refs
   const chartRef      = useRef(null);
@@ -1446,9 +1448,11 @@ export default function App() {
     setRoundStats([]);
     setStreak(0);
     setGodMode(false);
+    setShowCountdown(true); 
     setChoice(null);
     setContProgress(0);
     setInitialRevealProgress(0);
+     
 
     setScreen("playing");
   }, []);
@@ -1530,6 +1534,7 @@ export default function App() {
       setContProgress(0);
       setInitialRevealProgress(0);
 
+      setShowCountdown(false); 
       setScreen("playing");
     }
   }, [round, playerName]);
@@ -1672,18 +1677,49 @@ export default function App() {
       {/* timer */}
       <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
 
-      {/* chart */}
-      <div style={{ flex:1, minHeight:0, position:"relative" }}>
-        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
-        {/* pattern name watermark */}
-        {screen === "outcome" && pattern && (
-          <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
-            color:"rgba(255,255,255,0.18)", background:"rgba(6,6,12,0.6)", padding:"3px 8px", borderRadius:8,
-            backdropFilter:"blur(8px)" }}>
-            {pattern.name}
-          </div>
-        )}
-      </div>
+    {/* chart */}
+    <div style={{ flex:1, minHeight:0, position:"relative" }}>
+      <canvas
+        ref={chartRef}
+        style={{
+          width:"100%",
+          height:"100%",
+          borderRadius:20,
+          display:"block"
+        }}
+      />
+
+      {/* Countdown overlay – CSAK start / restart */}
+      {showCountdown && (
+        <Countdown
+          onDone={() => {
+            setShowCountdown(false);
+            setScreen("playing");
+          }}
+        />
+      )}
+
+      {/* pattern name watermark */}
+      {screen === "outcome" && pattern && (
+        <div
+          style={{
+            position:"absolute",
+            top:12,
+            right:14,
+            fontSize:10,
+            fontFamily:"monospace",
+            color:"rgba(255,255,255,0.18)",
+            background:"rgba(6,6,12,0.6)",
+            padding:"3px 8px",
+            borderRadius:8,
+            backdropFilter:"blur(8px)"
+          }}
+        >
+          {pattern.name}
+        </div>
+      )}
+    </div>
+
 
       {/* decision / outcome */}
       <div style={{ paddingBottom:8 }}>
