@@ -521,9 +521,7 @@ function getArchetype(stats) {
   return ARCHETYPES.find(a => a.cond(stats)) || ARCHETYPES[ARCHETYPES.length - 1];
 }
 
-/* ═══════════════════════════════════════════════════════════════
-    7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
-   ═══════════════════════════════════════════════════════════════ */
+/* ── 7  CANVAS CHART RENDERER (optimized for gradual reveal + continuation) ── */
 function drawChart(canvas, candles, revealCount, continuationCount, contCandles = [], godMode = false) {
   if (!canvas || !candles || candles.length === 0) return;
 
@@ -532,11 +530,11 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
 
-  // ── Only resize if changed ──
+  // ── Only resize if changed (prevents flicker) ──
   if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
     canvas.width = W * dpr;
     canvas.height = H * dpr;
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
   }
 
@@ -550,8 +548,12 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
   // ── Grid lines ──
   ctx.strokeStyle = "rgba(255,255,255,0.045)";
   ctx.lineWidth = 1;
-  for (let y = 0; y <= H; y += H / 6) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  for (let x = 0; x <= W; x += W / 8) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += H / 6) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  for (let x = 0; x <= W; x += W / 8) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
 
   // ── God mode glow ──
   if (godMode) {
@@ -565,10 +567,10 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
     ctx.restore();
   }
 
-  // ── Price scale ──
+  // ── Price scale calculation ──
   const allScaleCandles = [...candles, ...contCandles];
   let lo = Infinity, hi = -Infinity;
-  allScaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
+  allScaleCandles.forEach(c => { if(c.l < lo) lo = c.l; if(c.h > hi) hi = c.h; });
   const pad = (hi - lo) * 0.12;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
@@ -579,12 +581,15 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
   const offX = (slotW - bodyW) / 2;
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── Prepare visible candles ──
-  const visibleCandles = [...candles.slice(0, revealCount), ...contCandles.slice(0, continuationCount)];
+  // ── Visible candles for current frame ──
+  const visibleCandles = [
+    ...candles.slice(0, revealCount),
+    ...contCandles.slice(0, continuationCount)
+  ];
 
   if (visibleCandles.length === 0) return;
 
-  // ── Price label for last candle ──
+  // ── Price label for last visible candle ──
   const lastC = visibleCandles[visibleCandles.length - 1];
   const lblY = toY(lastC.c);
   ctx.save();
@@ -597,7 +602,7 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
   ctx.fillText(lastC.c.toFixed(2), W - 4, lblY + 3.5);
   ctx.restore();
 
-  // ── Draw candles ──
+  // ── Draw each candle ──
   visibleCandles.forEach((c, i) => {
     const x = i * slotW;
     const bull = c.c >= c.o;
@@ -644,125 +649,183 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
 
 
 /* ═══════════════════════════════════════════════════════════════
-    8  PARTICLE BURST  (perfect round / god mode)
-   ═══════════════════════════════════════════════════════════════ */
+   8  PARTICLE BURST / HAPTIC FEEDBACK
+   ────────────────────────────────────────────────────────────── */
 function ParticleCanvas({ active, godMode }) {
   const canvasRef = useRef(null);
-  const pRef      = useRef([]);
-  const rafRef    = useRef(null);
+  const pRef = useRef([]);
+  const rafRef = useRef(null);
 
   const spawn = useCallback((count, colors) => {
-    const cx = window.innerWidth/2, cy = window.innerHeight/2;
-    for(let i=0;i<count;i++) {
-      const angle = (Math.PI*2/count)*i + R(-0.3,0.3);
-      const speed = R(80,220);
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 / count) * i + R(-0.3, 0.3);
+      const speed = R(80, 220);
       pRef.current.push({
-        x:cx, y:cy,
-        vx: Math.cos(angle)*speed,
-        vy: Math.sin(angle)*speed,
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
         life: 1,
         decay: R(0.012, 0.028),
-        size: R(3,7),
-        color: colors[RI(0,colors.length-1)],
-        rot: R(0,Math.PI*2),
-        rotV: R(-4,4),
+        size: R(3, 7),
+        color: colors[RI(0, colors.length - 1)],
+        rot: R(0, Math.PI * 2),
+        rotV: R(-4, 4),
       });
     }
   }, []);
 
   useEffect(() => {
-    if(active) {
-      const cols = godMode
-        ? [C.nGreen, C.nBlue, "#fff", C.nPurple, C.nPink]
-        : [C.nGreen, C.nBlue, "#fff"];
-      spawn(godMode ? 80 : 48, cols);
-    }
+    if (!active) return;
+    const cols = godMode
+      ? [C.nGreen, C.nBlue, "#fff", C.nPurple, C.nPink]
+      : [C.nGreen, C.nBlue, "#fff"];
+    spawn(godMode ? 80 : 48, cols);
   }, [active, godMode, spawn]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if(!canvas) return;
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
     let running = true;
 
-    function loop() {
-      if(!running) return;
-      canvas.width  = window.innerWidth  * (window.devicePixelRatio||1);
-      canvas.height = window.innerHeight * (window.devicePixelRatio||1);
-      ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
-      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+    // ── Canvas resize handler ──
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+      }
+    };
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    let lastTime = performance.now();
+    const loop = (time) => {
+      if (!running) return;
+      const delta = (time - lastTime) / 1000; // seconds
+      lastTime = time;
+
+      ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
 
       pRef.current = pRef.current.filter(p => p.life > 0);
       pRef.current.forEach(p => {
-        p.x += p.vx * 0.016;
-        p.y += p.vy * 0.016;
-        p.vy += 60; // gravity
-        p.vx *= 0.99;
-        p.life -= p.decay;
-        p.rot += p.rotV * 0.016;
+        p.x += p.vx * delta;
+        p.y += p.vy * delta;
+        p.vy += 60 * delta; // gravity
+        p.vx *= Math.pow(0.99, delta * 60); // frame rate independent friction
+        p.life -= p.decay * delta * 60;
+        p.rot += p.rotV * delta * 60;
 
         ctx.save();
-        ctx.globalAlpha = p.life;
+        ctx.globalAlpha = Math.max(p.life, 0);
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
         ctx.shadowBlur = 8;
-        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
         ctx.restore();
       });
+
       rafRef.current = requestAnimationFrame(loop);
-    }
-    loop();
-    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+    };
+
+    rafRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", resizeCanvas);
+    };
   }, []);
 
-  return <canvas ref={canvasRef} style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:200, width:"100vw", height:"100vh" }} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 200,
+        width: "100vw",
+        height: "100vh"
+      }}
+    />
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    9  GLASS UI PRIMITIVES
-   ═══════════════════════════════════════════════════════════════ */
+   9  GLASS UI PRIMITIVES (specular + panels + buttons)
+   ────────────────────────────────────────────────────────────── */
 
-// Specular highlight that follows pointer
+// Specular highlight that follows pointer / touch
 function useSpecular() {
-  const [pos, setPos] = useState({ x:50, y:0 });
+  const [pos, setPos] = useState({ x: 50, y: 0 });
   useEffect(() => {
     const onMove = e => {
       const t = e.touches?.[0] || e;
-      setPos({ x: (t.clientX / window.innerWidth)*100, y: (t.clientY / window.innerHeight)*100 });
+      setPos({ x: (t.clientX / window.innerWidth) * 100, y: (t.clientY / window.innerHeight) * 100 });
     };
-    window.addEventListener("mousemove", onMove, { passive:true });
-    window.addEventListener("touchmove", onMove, { passive:true });
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("touchmove", onMove); };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("touchmove", onMove);
+    };
   }, []);
   return pos;
 }
 
-function GlassPanel({ children, style={}, className="" }) {
+// Glass panel wrapper
+function GlassPanel({ children, style = {}, className = "" }) {
   return (
-    <div className={className} style={{
-      background: "linear-gradient(135deg, rgba(20,20,38,0.62) 0%, rgba(14,14,26,0.78) 100%)",
-      backdropFilter: "blur(48px) saturate(1.8)",
-      WebkitBackdropFilter: "blur(48px) saturate(1.8)",
-      border: `1px solid ${C.glassBr}`,
-      borderRadius: 28,
-      boxShadow: "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 60px rgba(0,255,170,0.04)",
-      ...style
-    }}>
+    <div
+      className={className}
+      style={{
+        background: "linear-gradient(135deg, rgba(20,20,38,0.62) 0%, rgba(14,14,26,0.78) 100%)",
+        backdropFilter: "blur(48px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(48px) saturate(1.8)",
+        border: `1px solid ${C.glassBr}`,
+        borderRadius: 28,
+        boxShadow:
+          "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 60px rgba(0,255,170,0.04)",
+        ...style,
+      }}
+    >
       {children}
     </div>
   );
 }
 
-function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style={} }) {
+// Glass-style button with pressed animation
+function GlassButton({ children, onClick, color = C.nGreen, disabled = false, style = {} }) {
   const [pressed, setPressed] = useState(false);
+
+  // Unified press handler for mouse + touch
+  const handlePressStart = e => {
+    e.preventDefault?.();
+    if (!disabled) setPressed(true);
+  };
+  const handlePressEnd = e => {
+    e.preventDefault?.();
+    if (!disabled) {
+      setPressed(false);
+      onClick?.();
+    }
+  };
+
   return (
     <button
-      onMouseDown={()=>setPressed(true)} onMouseUp={()=>setPressed(false)}
-      onTouchStart={e=>{e.preventDefault();setPressed(true);}}
-      onTouchEnd={e=>{e.preventDefault();setPressed(false);onClick?.();}}
-      onClick={onClick}
+      onMouseDown={handlePressStart}
+      onMouseUp={handlePressEnd}
+      onTouchStart={handlePressStart}
+      onTouchEnd={handlePressEnd}
       disabled={disabled}
       style={{
         background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`,
@@ -784,7 +847,7 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
           : `0 4px 24px ${color}18, inset 0 1px 0 ${color}25`,
         padding: "14px 28px",
         outline: "none",
-        ...style
+        ...style,
       }}
     >
       {children}
@@ -792,152 +855,312 @@ function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style=
   );
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
-    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
-   ═══════════════════════════════════════════════════════════════ */
-      import { useState, useEffect } from "react";
+   11  COUNTDOWN OVERLAY (3-2-1 glass shatter)
+   ────────────────────────────────────────────────────────────── */
+import { useState, useEffect } from "react";
 
-      // Countdown overlay komponens
-      export default function Countdown({ onDone }) {
-        const [num, setNum] = useState(3);
+export default function Countdown({ onDone }) {
+  const [num, setNum] = useState(3);
 
-        useEffect(() => {
-          // hang és haptik minden számhoz
-          SND.tick(num);
-          haptic([25]);
+  useEffect(() => {
+    // hang és haptik minden számhoz
+    SND.tick(num);
+    haptic([25]);
 
-          if (num > 1) {
-            const t = setTimeout(() => setNum(n => n - 1), 900);
-            return () => clearTimeout(t);
-          } else {
-            // "1" után rövid delay, majd eltűnés
-            const t = setTimeout(onDone, 900);
-            return () => clearTimeout(t);
-          }
-        }, [num, onDone]);
+    let timer;
+    if (num > 1) {
+      // Csökkentés 900ms után
+      timer = setTimeout(() => setNum(n => n - 1), 900);
+    } else {
+      // "1" után rövid delay, majd eltűnés
+      timer = setTimeout(onDone, 900);
+    }
 
-        return (
-          <div style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 250,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(6,6,12,0.72)",
-            backdropFilter: "blur(12px)",
-            pointerEvents: "none" // ne blokkolja a canvas inputot, ha kell
-          }}>
-            <div style={{
-              width: 140,
-              height: 140,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
-              border: `2px solid ${C.nGreen}50`,
-              boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              animation: "ringPulse 0.9s ease-out"
-            }}>
-              <span style={{
-                fontSize: 72,
-                fontWeight: 800,
-                fontFamily: "'SF Mono','Fira Code',monospace",
-                color: num === 1 ? C.nPink : C.nGreen,
-                textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
-                animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)"
-              }}>
-                {num}
-              </span>
-            </div>
-          </div>
-        );
-      }
+    return () => clearTimeout(timer);
+  }, [num, onDone]);
 
-
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 250,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(6,6,12,0.72)",
+        backdropFilter: "blur(12px)",
+        pointerEvents: "none", // ne blokkolja a canvas inputot
+      }}
+    >
+      <div
+        style={{
+          width: 140,
+          height: 140,
+          borderRadius: "50%",
+          background: "linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
+          border: `2px solid ${C.nGreen}50`,
+          boxShadow: `0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          animation: "ringPulse 0.9s ease-out",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 72,
+            fontWeight: 800,
+            fontFamily: "'SF Mono','Fira Code',monospace",
+            color: num === 1 ? C.nPink : C.nGreen,
+            textShadow: `0 0 30px ${num === 1 ? C.nPink : C.nGreen}`,
+            animation: "numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+          }}
+        >
+          {num}
+        </span>
+      </div>
+    </div>
+  );
+}
 /* ═══════════════════════════════════════════════════════════════
-    12  TIMER BAR  (liquid progress, pulse when low)
-   ═══════════════════════════════════════════════════════════════ */
+   12  TIMER BAR  (liquid progress, pulse when low)
+   ────────────────────────────────────────────────────────────── */
 function TimerBar({ timeLeft, totalTime }) {
-  const pct    = (timeLeft / totalTime) * 100;
-  const isLow  = timeLeft < 1200;
-  const color  = isLow ? C.nPink : timeLeft < 2200 ? C.nAmber : C.nGreen;
+  const pct = Math.max(0, Math.min(100, (timeLeft / totalTime) * 100)); // clamp 0-100
+  const isLow = timeLeft < 1200;
+  const color = isLow ? C.nPink : timeLeft < 2200 ? C.nAmber : C.nGreen;
+
+  // Pulzáló shadow ha low-time
+  const shadow = isLow
+    ? `0 0 ${8 + 4 * Math.sin(Date.now() * 0.02)}px ${C.nPink}60`
+    : "none";
 
   return (
-    <div style={{ width:"100%", height:5, background:"rgba(255,255,255,0.07)", borderRadius:3, overflow:"hidden",
-      boxShadow: isLow ? `0 0 12px ${C.nPink}60` : "none", transition:"box-shadow 0.3s" }}>
-      <div style={{
-        width:`${pct}%`, height:"100%", borderRadius:3,
-        background:`linear-gradient(90deg, ${color}, ${color}bb)`,
-        boxShadow:`0 0 8px ${color}50`,
-        transition: "width 0.08s linear, background 0.4s ease",
-      }} />
+    <div
+      style={{
+        width: "100%",
+        height: 5,
+        background: "rgba(255,255,255,0.07)",
+        borderRadius: 3,
+        overflow: "hidden",
+        boxShadow: shadow,
+        transition: "box-shadow 0.2s ease",
+      }}
+    >
+      <div
+        style={{
+          width: `${pct}%`,
+          height: "100%",
+          borderRadius: 3,
+          background: `linear-gradient(90deg, ${color}, ${color}bb)`,
+          boxShadow: `0 0 8px ${color}50`,
+          transition: "width 0.08s linear, background 0.3s ease",
+        }}
+      />
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    13  DECISION BUTTONS
-   ═══════════════════════════════════════════════════════════════ */
+   13  DECISION BUTTONS (buy/hold/sell)
+   ────────────────────────────────────────────────────────────── */
 function DecisionButtons({ onChoose, disabled }) {
+  const btnStyle = { flex: 1, padding: "16px 8px" };
+
   return (
-    <div style={{ display:"flex", gap:12, width:"100%", maxWidth:380, margin:"0 auto" }}>
-      <GlassButton onClick={()=>onChoose("sell")} color={C.bear} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
-        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BEARISH</div>
-        <div style={{ fontSize:18 }}>📉 SELL</div>
+    <div
+      style={{
+        display: "flex",
+        gap: 12,
+        width: "100%",
+        maxWidth: 380,
+        margin: "0 auto",
+        pointerEvents: disabled ? "none" : "auto", // letiltja a gombokat ha disabled
+        opacity: disabled ? 0.6 : 1,             // vizuális jelzés
+        transition: "opacity 0.2s ease",
+      }}
+    >
+      <GlassButton onClick={() => onChoose("nuke")} color={C.bear} disabled={disabled} style={btnStyle}>
+        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>BEARISH</div>
+        <div style={{ fontSize: 18 }}>📉 SELL</div>
       </GlassButton>
-      <GlassButton onClick={()=>onChoose("hold")} color={C.nAmber} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
-        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>NEUTRAL</div>
-        <div style={{ fontSize:18 }}>⏸ HOLD</div>
+
+      <GlassButton onClick={() => onChoose("hodl")} color={C.nAmber} disabled={disabled} style={btnStyle}>
+        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>NEUTRAL</div>
+        <div style={{ fontSize: 18 }}>⏸ HOLD</div>
       </GlassButton>
-      <GlassButton onClick={()=>onChoose("buy")} color={C.bull} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
-        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BULLISH</div>
-        <div style={{ fontSize:18 }}>📈 BUY</div>
+
+      <GlassButton onClick={() => onChoose("aped")} color={C.bull} disabled={disabled} style={btnStyle}>
+        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>BULLISH</div>
+        <div style={{ fontSize: 18 }}>📈 BUY</div>
       </GlassButton>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    14  OUTCOME CARD  (shown after continuation animates in)
-   ═══════════════════════════════════════════════════════════════ */
-function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
-  return (
-    <GlassPanel style={{ padding:28, textAlign:"center", maxWidth:360, margin:"0 auto", position:"relative", overflow:"hidden" }}>
-      {/* glow accent */}
-      <div style={{ position:"absolute", top:-30, left:"50%", transform:"translateX(-50%)",
-        width:160, height:160, borderRadius:"50%",
-        background: correct ? `radial-gradient(circle, ${C.nGreen}22 0%, transparent 70%)` : `radial-gradient(circle, ${C.nPink}22 0%, transparent 70%)`,
-        pointerEvents:"none" }} />
+   14  OUTCOME CARD (after continuation reveal)
+   ────────────────────────────────────────────────────────────── */
+function OutcomeCard({
+  correct = false,
+  points = 0,
+  streak = 0,
+  patternName = "-",
+  choice = "hold",
+  signal = "hold",
+  onNext,
+  godMode = false,
+}) {
+  const color = correct ? C.nGreen : C.nPink;
 
-      <div style={{ fontSize:44, marginBottom:4 }}>{correct ? (godMode ? "🌟" : "✅") : "❌"}</div>
-      <div style={{ fontSize:20, fontWeight:800, color: correct ? C.nGreen : C.nPink,
-        fontFamily:"'SF Mono','Fira Code',monospace", textShadow:`0 0 16px ${correct?C.nGreen:C.nPink}` }}>
+  return (
+    <GlassPanel
+      style={{
+        padding: 28,
+        textAlign: "center",
+        maxWidth: 360,
+        margin: "0 auto",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* soft glow */}
+      <div
+        style={{
+          position: "absolute",
+          top: -40,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 200,
+          height: 200,
+          borderRadius: "50%",
+          background: correct
+            ? `radial-gradient(circle, ${C.nGreen}22 0%, transparent 70%)`
+            : `radial-gradient(circle, ${C.nPink}22 0%, transparent 70%)`,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* icon */}
+      <div style={{ fontSize: 44, marginBottom: 6 }}>
+        {correct ? (godMode ? "🌟" : "✅") : "❌"}
+      </div>
+
+      {/* verdict */}
+      <div
+        style={{
+          fontSize: 20,
+          fontWeight: 800,
+          color,
+          fontFamily: "'SF Mono','Fira Code',monospace",
+          textShadow: `0 0 16px ${color}`,
+        }}
+      >
         {correct ? "CORRECT" : "WRONG"}
       </div>
-      <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:4, fontFamily:"monospace" }}>
-        Pattern: <span style={{ color:"rgba(255,255,255,0.72)", fontWeight:600 }}>{patternName}</span>
+
+      {/* meta */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "rgba(255,255,255,0.45)",
+          marginTop: 6,
+          fontFamily: "monospace",
+        }}
+      >
+        Pattern:{" "}
+        <span style={{ color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>
+          {patternName}
+        </span>
       </div>
-      <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:2, fontFamily:"monospace" }}>
-        Signal: <span style={{ color: signal==="buy"?C.bull:signal==="sell"?C.bear:C.nAmber, fontWeight:700 }}>{signal.toUpperCase()}</span>
-        {"  ·  "}You chose: <span style={{ color: choice==="buy"?C.bull:choice==="sell"?C.bear:C.nAmber, fontWeight:700 }}>{choice.toUpperCase()}</span>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: "rgba(255,255,255,0.35)",
+          marginTop: 2,
+          fontFamily: "monospace",
+        }}
+      >
+        Signal:{" "}
+        <span
+          style={{
+            color:
+              signal === "buy"
+                ? C.bull
+                : signal === "sell"
+                ? C.bear
+                : C.nAmber,
+            fontWeight: 700,
+          }}
+        >
+          {signal.toUpperCase()}
+        </span>
+        {"  ·  "}
+        You chose:{" "}
+        <span
+          style={{
+            color:
+              choice === "buy"
+                ? C.bull
+                : choice === "sell"
+                ? C.bear
+                : C.nAmber,
+            fontWeight: 700,
+          }}
+        >
+          {choice.toUpperCase()}
+        </span>
       </div>
 
       {/* points */}
-      <div style={{ margin:"18px 0 4px", display:"flex", alignItems:"baseline", justifyContent:"center", gap:8 }}>
-        <span style={{ fontSize:32, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace", color:correct?C.nGreen:"rgba(255,255,255,0.35)" }}>
+      <div
+        style={{
+          margin: "20px 0 6px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          minHeight: 40, // layout stability
+        }}
+      >
+        <span
+          style={{
+            fontSize: 32,
+            fontWeight: 800,
+            fontFamily: "'SF Mono','Fira Code',monospace",
+            color: correct ? C.nGreen : "rgba(255,255,255,0.35)",
+          }}
+        >
           {correct ? `+${points}` : "+0"}
         </span>
-        {streak > 1 && correct && (
-          <span style={{ fontSize:13, color:C.nPurple, fontWeight:700, background:`${C.nPurple}18`, padding:"2px 8px", borderRadius:10, border:`1px solid ${C.nPurple}30` }}>
-            🔥 ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length-1)].toFixed(1)}
+
+        {correct && streak > 1 && (
+          <span
+            style={{
+              fontSize: 13,
+              color: C.nPurple,
+              fontWeight: 700,
+              background: `${C.nPurple}18`,
+              padding: "2px 8px",
+              borderRadius: 10,
+              border: `1px solid ${C.nPurple}30`,
+            }}
+          >
+            🔥 ×
+            {STREAK_MULT[Math.min(streak, STREAK_MULT.length - 1)].toFixed(1)}
           </span>
         )}
       </div>
 
-      <GlassButton onClick={onNext} color={C.nGreen} style={{ marginTop:16, width:"100%", justifyContent:"center" }}>
+      {/* next */}
+      <GlassButton
+        onClick={onNext}
+        color={C.nGreen}
+        style={{ marginTop: 16, width: "100%" }}
+      >
         Next Round →
       </GlassButton>
     </GlassPanel>
@@ -945,63 +1168,185 @@ function OutcomeCard({ correct, points, streak, patternName, choice, signal, onN
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    15  FINAL VERDICT SCREEN
-   ═══════════════════════════════════════════════════════════════ */
-function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
-  const arch = getArchetype(stats);
-  const stars = Math.round((stats.correct / ROUNDS) * 5);
+   15  FINAL VERDICT SCREEN
+   ────────────────────────────────────────────────────────────── */
+function FinalVerdict({
+  stats,
+  onRestart,
+  onLeaderboard,
+  onShare,
+}) {
+  if (!stats) return null;
 
-  // dramatic whoosh on verdict entrance
-  useEffect(() => { SND.whoosh(); }, []);
+  const arch  = getArchetype(stats);
+  const stars = Math.max(0, Math.min(5, Math.round((stats.correct / ROUNDS) * 5)));
+
+  // dramatic whoosh on mount (ONLY once)
+  useEffect(() => {
+    SND?.whoosh?.();
+  }, []);
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:18, padding:"20px 16px", maxWidth:420, margin:"0 auto" }}>
-      <GlassPanel style={{ padding:30, textAlign:"center", width:"100%", position:"relative", overflow:"hidden" }}>
-        {/* animated top accent */}
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
-          background:`linear-gradient(90deg, transparent, ${C.nGreen}, ${C.nPurple}, ${C.nPink}, transparent)` }} />
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 18,
+        padding: "20px 16px",
+        maxWidth: 420,
+        margin: "0 auto",
+      }}
+    >
+      <GlassPanel
+        style={{
+          padding: 30,
+          textAlign: "center",
+          width: "100%",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* top accent */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: `linear-gradient(90deg, transparent, ${C.nGreen}, ${C.nPurple}, ${C.nPink}, transparent)`,
+          }}
+        />
 
-        <div style={{ fontSize:56, marginBottom:2 }}>{arch.emoji}</div>
-        <div style={{ fontSize:22, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
-          background:`linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+        {/* archetype */}
+        <div style={{ fontSize: 56, marginBottom: 4 }}>
+          {arch.emoji}
+        </div>
+
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 800,
+            fontFamily: "'SF Mono','Fira Code',monospace",
+            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
           {arch.name}
         </div>
-        <div style={{ fontSize:12, color:"rgba(255,255,255,0.42)", marginTop:6, lineHeight:1.5, maxWidth:300, margin:"8px auto 0", fontFamily:"monospace" }}>
-          "{arch.roast}"
+
+        <div
+          style={{
+            fontSize: 12,
+            color: "rgba(255,255,255,0.42)",
+            marginTop: 8,
+            lineHeight: 1.5,
+            maxWidth: 300,
+            marginInline: "auto",
+            fontFamily: "monospace",
+          }}
+        >
+          “{arch.roast}”
         </div>
 
         {/* stars */}
-        <div style={{ display:"flex", justifyContent:"center", gap:4, margin:"16px 0 4px" }}>
-          {Array.from({length:5}, (_,i) => (
-            <span key={i} style={{ fontSize:22, filter: i<stars ? `drop-shadow(0 0 6px ${C.nAmber})` : "none" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 4,
+            margin: "16px 0 6px",
+          }}
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <span
+              key={i}
+              style={{
+                fontSize: 22,
+                opacity: i < stars ? 1 : 0.35,
+                filter: i < stars ? `drop-shadow(0 0 6px ${C.nAmber})` : "none",
+              }}
+            >
               {i < stars ? "⭐" : "☆"}
             </span>
           ))}
         </div>
 
-        {/* stats row */}
-        <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:12 }}>
+        {/* stats */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 22,
+            marginTop: 12,
+            flexWrap: "wrap",
+          }}
+        >
           {[
-            { label:"Score", val: stats.totalScore, color:C.nGreen },
-            { label:"Correct", val:`${stats.correct}/${ROUNDS}`, color:C.nBlue },
-            { label:"Streak", val:`${stats.maxStreak}`, color:C.nPurple },
-            { label:"Avg ms", val:`${stats.avgSpeed}`, color:C.nAmber },
+            { label: "Score",   val: stats.totalScore, color: C.nGreen },
+            { label: "Correct", val: `${stats.correct}/${ROUNDS}`, color: C.nBlue },
+            { label: "Streak",  val: stats.maxStreak, color: C.nPurple },
+            { label: "Avg ms",  val: stats.avgSpeed, color: C.nAmber },
           ].map(s => (
-            <div key={s.label} style={{ textAlign:"center" }}>
-              <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.val}</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,0.38)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
+            <div key={s.label} style={{ textAlign: "center", minWidth: 64 }}>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  fontFamily: "monospace",
+                  color: s.color,
+                }}
+              >
+                {s.val}
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
+                  color: "rgba(255,255,255,0.38)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {s.label}
+              </div>
             </div>
           ))}
         </div>
       </GlassPanel>
 
-      {/* action buttons */}
-      <div style={{ display:"flex", gap:10, width:"100%", maxWidth:380 }}>
-        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex:2, justifyContent:"center" }}>🔄 Play Again</GlassButton>
-        <GlassButton onClick={onShare}   color={C.nPurple} style={{ flex:1, justifyContent:"center" }}>📤 Share</GlassButton>
+      {/* actions */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          width: "100%",
+          maxWidth: 380,
+        }}
+      >
+        <GlassButton
+          onClick={onRestart}
+          color={C.nGreen}
+          style={{ flex: 2 }}
+        >
+          🔄 Play Again
+        </GlassButton>
+
+        <GlassButton
+          onClick={onShare}
+          color={C.nPurple}
+          style={{ flex: 1 }}
+        >
+          📤 Share
+        </GlassButton>
       </div>
-      <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ width:"100%", maxWidth:380, justifyContent:"center" }}>
+
+      <GlassButton
+        onClick={onLeaderboard}
+        color={C.nBlue}
+        style={{ width: "100%", maxWidth: 380 }}
+      >
         🏆 Leaderboard
       </GlassButton>
     </div>
@@ -1009,56 +1354,171 @@ function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    16  LEADERBOARD  (localStorage)
-   ═══════════════════════════════════════════════════════════════ */
-const LB_KEY = "reflexglass_lb_v2";
-function loadLB() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch(_){ return []; } }
-function saveLB(arr) { try { localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0,50))); } catch(_){} }
+   16  LEADERBOARD  (localStorage)
+   ────────────────────────────────────────────────────────────── */
 
+const LB_KEY = "reflexglass_lb_v2";
+
+/* ── storage helpers ── */
+function loadLB() {
+  try {
+    const raw = localStorage.getItem(LB_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLB(arr) {
+  try {
+    localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0, 50)));
+  } catch {}
+}
+
+/* ── add entry ── */
 function addToLeaderboard(name, stats) {
-  const lb = loadLB();
+  if (!name || !stats) return loadLB();
+
+  const lb   = loadLB();
   const arch = getArchetype(stats);
-  lb.push({ name, score:stats.totalScore, avgSpeed:stats.avgSpeed, correct:stats.correct,
-            archetype:arch.name, emoji:arch.emoji, ts:Date.now() });
-  lb.sort((a,b) => b.score - a.score);
+
+  lb.push({
+    name,
+    score: stats.totalScore,
+    avgSpeed: stats.avgSpeed,
+    correct: stats.correct,
+    archetype: arch.name,
+    emoji: arch.emoji,
+    ts: Date.now(),
+  });
+
+  lb.sort((a, b) => b.score - a.score);
   saveLB(lb);
+
   return lb;
 }
 
+/* ── leaderboard screen ── */
 function Leaderboard({ onClose, currentName }) {
-  const lb = useMemo(() => loadLB(), []);
+  const [entries, setEntries] = useState([]);
+
+  useEffect(() => {
+    setEntries(loadLB());
+  }, []);
+
   return (
-    <div style={{ maxWidth:420, margin:"0 auto", padding:"0 16px" }}>
-      <GlassPanel style={{ padding:24 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-          <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>🏆 Leaderboard</div>
-          <GlassButton onClick={onClose} color="rgba(255,255,255,0.5)" style={{ padding:"6px 14px", fontSize:12 }}>✕</GlassButton>
+    <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 16px" }}>
+      <GlassPanel style={{ padding: 24 }}>
+        {/* header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              fontFamily: "monospace",
+              color: C.nGreen,
+            }}
+          >
+            🏆 Leaderboard
+          </div>
+
+          <GlassButton
+            onClick={onClose}
+            color="rgba(255,255,255,0.5)"
+            style={{ padding: "6px 14px", fontSize: 12 }}
+          >
+            ✕
+          </GlassButton>
         </div>
-        {lb.length === 0 ? (
-          <div style={{ textAlign:"center", color:"rgba(255,255,255,0.3)", fontSize:13, fontFamily:"monospace", padding:24 }}>
+
+        {/* body */}
+        {entries.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              color: "rgba(255,255,255,0.3)",
+              fontSize: 13,
+              fontFamily: "monospace",
+              padding: 24,
+            }}
+          >
             No entries yet. Play a round!
           </div>
         ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            {lb.slice(0,15).map((e,i) => {
-              const medal = i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {entries.slice(0, 15).map((e, i) => {
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
               const isMe  = e.name === currentName;
+
               return (
-                <div key={i} style={{
-                  display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:14,
-                  background: isMe ? `${C.nGreen}12` : "rgba(255,255,255,0.03)",
-                  border: isMe ? `1px solid ${C.nGreen}28` : "1px solid rgba(255,255,255,0.05)",
-                }}>
-                  <span style={{ width:24, textAlign:"center", fontSize:14 }}>{medal || `${i+1}.`}</span>
-                  <span style={{ fontSize:15 }}>{e.emoji}</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.85)", fontFamily:"monospace", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                      {e.name} <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", fontWeight:400 }}>{e.archetype}</span>
+                <div
+                  key={e.ts}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 14px",
+                    borderRadius: 14,
+                    background: isMe
+                      ? `${C.nGreen}14`
+                      : "rgba(255,255,255,0.03)",
+                    border: isMe
+                      ? `1px solid ${C.nGreen}30`
+                      : "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <span style={{ width: 28, textAlign: "center", fontSize: 14 }}>
+                    {medal}
+                  </span>
+
+                  <span style={{ fontSize: 15 }}>{e.emoji}</span>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "rgba(255,255,255,0.85)",
+                        fontFamily: "monospace",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {e.name}
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "rgba(255,255,255,0.3)",
+                          marginLeft: 6,
+                        }}
+                      >
+                        {e.archetype}
+                      </span>
                     </div>
                   </div>
-                  <div style={{ textAlign:"right" }}>
-                    <div style={{ fontSize:15, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{e.score}</div>
-                    <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)" }}>{e.avgSpeed}ms avg</div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 800,
+                        fontFamily: "monospace",
+                        color: C.nGreen,
+                      }}
+                    >
+                      {e.score}
+                    </div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>
+                      {e.avgSpeed} ms avg
+                    </div>
                   </div>
                 </div>
               );
@@ -1071,89 +1531,223 @@ function Leaderboard({ onClose, currentName }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
-   ═══════════════════════════════════════════════════════════════ */
+   17  SHARE CARD  (SVG → data URL)
+   ────────────────────────────────────────────────────────────── */
+
 function generateShareSVG(stats) {
   const arch = getArchetype(stats);
-  const stars = "⭐".repeat(Math.round((stats.correct/ROUNDS)*5)) + "☆".repeat(5 - Math.round((stats.correct/ROUNDS)*5));
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="280" viewBox="0 0 480 280">
-    <defs>
-      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0f0f1a"/><stop offset="100%" stop-color="#06060c"/></linearGradient>
-      <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="rgba(20,20,40,0.7)"/><stop offset="100%" stop-color="rgba(14,14,26,0.9)"/></linearGradient>
-      <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
-      <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <rect width="480" height="280" fill="url(#bg)"/>
-    <!-- ambient orbs -->
-    <circle cx="80"  cy="60"  r="90"  fill="#00ffaa" opacity="0.06" filter="url(#blur)"/>
-    <circle cx="420" cy="220" r="70"  fill="#a855f7" opacity="0.07" filter="url(#blur)"/>
-    <circle cx="350" cy="40"  r="50"  fill="#ff4d94" opacity="0.05" filter="url(#blur)"/>
-    <!-- glass card -->
-    <rect x="24" y="24" width="432" height="232" rx="24" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" opacity="0.9"/>
-    <!-- top accent line -->
-    <rect x="24" y="24" width="432" height="3" rx="2" fill="url(#topAccent)"/>
-    <defs><linearGradient id="topAccent" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00ffaa"/><stop offset="50%" stop-color="#a855f7"/><stop offset="100%" stop-color="#ff4d94"/></linearGradient></defs>
-    <!-- title -->
-    <text x="240" y="58" text-anchor="middle" fill="#00ffaa" font-family="monospace" font-size="11" font-weight="700" letter-spacing="3" filter="url(#glow)">REFLEX GLASS</text>
-    <!-- archetype -->
-    <text x="240" y="100" text-anchor="middle" fill="white" font-family="monospace" font-size="26" font-weight="800">${arch.emoji} ${arch.name}</text>
-    <!-- stars -->
-    <text x="240" y="132" text-anchor="middle" font-size="18">${stars}</text>
-    <!-- stats -->
-    <text x="80"  y="180" text-anchor="middle" fill="#00ffaa" font-family="monospace" font-size="22" font-weight="800">${stats.totalScore}</text>
-    <text x="80"  y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">SCORE</text>
-    <text x="200" y="180" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="22" font-weight="800">${stats.correct}/${ROUNDS}</text>
-    <text x="200" y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">CORRECT</text>
-    <text x="320" y="180" text-anchor="middle" fill="#a855f7" font-family="monospace" font-size="22" font-weight="800">${stats.avgSpeed}ms</text>
-    <text x="320" y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">AVG SPEED</text>
-    <!-- roast -->
-    <text x="240" y="238" text-anchor="middle" fill="rgba(255,255,255,0.32)" font-family="monospace" font-size="9" font-style="italic">"${arch.roast.slice(0,62)}…"</text>
-  </svg>`;
+  const starCount = Math.round((stats.correct / ROUNDS) * 5);
+  const stars = "⭐".repeat(starCount) + "☆".repeat(5 - starCount);
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="280" viewBox="0 0 480 280">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0f1a"/>
+      <stop offset="100%" stop-color="#06060c"/>
+    </linearGradient>
+
+    <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a30"/>
+      <stop offset="100%" stop-color="#0e0e1a"/>
+    </linearGradient>
+
+    <linearGradient id="topAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00ffaa"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ff4d94"/>
+    </linearGradient>
+
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="480" height="280" fill="url(#bg)"/>
+
+  <!-- ambient orbs -->
+  <circle cx="80" cy="60" r="90" fill="#00ffaa" opacity="0.06" filter="url(#blur)"/>
+  <circle cx="420" cy="220" r="70" fill="#a855f7" opacity="0.07" filter="url(#blur)"/>
+  <circle cx="350" cy="40" r="50" fill="#ff4d94" opacity="0.05" filter="url(#blur)"/>
+
+  <!-- glass card -->
+  <rect x="24" y="24" width="432" height="232" rx="24"
+        fill="url(#glass)" stroke="rgba(255,255,255,0.12)" />
+
+  <!-- accent -->
+  <rect x="24" y="24" width="432" height="3" rx="2" fill="url(#topAccent)"/>
+
+  <!-- title -->
+  <text x="240" y="56" text-anchor="middle"
+        fill="#00ffaa" font-family="monospace"
+        font-size="11" font-weight="700"
+        letter-spacing="3"
+        filter="url(#glow)">
+    REFLEX GLASS
+  </text>
+
+  <!-- archetype -->
+  <text x="240" y="102" text-anchor="middle"
+        fill="white" font-family="monospace"
+        font-size="26" font-weight="800">
+    ${arch.emoji} ${arch.name}
+  </text>
+
+  <!-- stars -->
+  <text x="240" y="132" text-anchor="middle" font-size="18">
+    ${stars}
+  </text>
+
+  <!-- stats -->
+  <text x="80" y="180" text-anchor="middle"
+        fill="#00ffaa" font-family="monospace"
+        font-size="22" font-weight="800">
+    ${stats.totalScore}
+  </text>
+  <text x="80" y="198" text-anchor="middle"
+        fill="rgba(255,255,255,0.45)"
+        font-family="monospace" font-size="9">
+    SCORE
+  </text>
+
+  <text x="200" y="180" text-anchor="middle"
+        fill="#38bdf8" font-family="monospace"
+        font-size="22" font-weight="800">
+    ${stats.correct}/${ROUNDS}
+  </text>
+  <text x="200" y="198" text-anchor="middle"
+        fill="rgba(255,255,255,0.45)"
+        font-family="monospace" font-size="9">
+    CORRECT
+  </text>
+
+  <text x="320" y="180" text-anchor="middle"
+        fill="#a855f7" font-family="monospace"
+        font-size="22" font-weight="800">
+    ${stats.avgSpeed}ms
+  </text>
+  <text x="320" y="198" text-anchor="middle"
+        fill="rgba(255,255,255,0.45)"
+        font-family="monospace" font-size="9">
+    AVG SPEED
+  </text>
+
+  <!-- roast -->
+  <text x="240" y="238" text-anchor="middle"
+        fill="rgba(255,255,255,0.32)"
+        font-family="monospace"
+        font-size="9"
+        font-style="italic">
+    "${arch.roast.slice(0, 60)}…"
+  </text>
+</svg>`;
 }
 
-function triggerShare(stats, playerName) {
-  const svg  = generateShareSVG(stats);
-  const blob = new Blob([svg], {type:"image/svg+xml"});
-  const url  = URL.createObjectURL(blob);
 
-  // Try Web Share API first (mobile)
-  if(navigator.share) {
-    navigator.share({
-      title: "Reflex Glass",
-      text:  `I scored ${stats.totalScore} — ${getArchetype(stats).name} 🔥`,
-      url:   window.location.href,
-    }).catch(()=>{});
-  } else {
-    // fallback: open in new tab
-    window.open(url, "_blank");
+
+
+/* ═══════════════════════════════════════════════════════════════
+   18  NAME INPUT (first-time / before leaderboard)
+   ═══════════════════════════════════════════════════════════════ */
+
+const NAME_KEY = "reflexglass_name_v2";
+
+function loadName() {
+  try {
+    return localStorage.getItem(NAME_KEY) || "";
+  } catch (_) {
+    return "";
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-    18  NAME INPUT (first-time / before leaderboard)
-   ═══════════════════════════════════════════════════════════════ */
-const NAME_KEY = "reflexglass_name_v2";
-function loadName() { try { return localStorage.getItem(NAME_KEY) || ""; } catch(_){ return ""; } }
-
 function NameInput({ onSubmit }) {
-  const [val, setVal] = useState(loadName());
+  const [val, setVal] = useState(() => loadName());
+  const [locked, setLocked] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   const save = () => {
-    const n = val.trim() || "Anonymous";
-    try { localStorage.setItem(NAME_KEY, n); } catch(_){}
-    onSubmit(n);
+    if (locked) return;
+    setLocked(true);
+
+    const name = val.trim() || "Anonymous";
+    try {
+      localStorage.setItem(NAME_KEY, name);
+    } catch (_) {}
+
+    onSubmit(name);
   };
+
   return (
-    <GlassPanel style={{ padding:28, maxWidth:340, margin:"0 auto", textAlign:"center" }}>
-      <div style={{ fontSize:14, color:"rgba(255,255,255,0.55)", fontFamily:"monospace", marginBottom:12 }}>Enter your trader name</div>
-      <input value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()} maxLength={22}
+    <GlassPanel
+      style={{
+        padding: 28,
+        maxWidth: 340,
+        margin: "0 auto",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 14,
+          color: "rgba(255,255,255,0.55)",
+          fontFamily: "monospace",
+          marginBottom: 12,
+        }}
+      >
+        Enter your trader name
+      </div>
+
+      <input
+        ref={inputRef}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && save()}
+        maxLength={22}
         placeholder="e.g. SatoshiGains"
-        style={{ width:"100%", padding:"12px 16px", borderRadius:16, border:`1px solid ${C.glassBr}`,
-          background:"rgba(255,255,255,0.06)", color:"#fff", fontSize:15, fontFamily:"monospace",
-          outline:"none", textAlign:"center", boxSizing:"border-box" }} />
-      <GlassButton onClick={save} color={C.nGreen} style={{ marginTop:14, width:"100%", justifyContent:"center" }}>Continue →</GlassButton>
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          borderRadius: 16,
+          border: `1px solid ${C.glassBr}`,
+          background: "rgba(255,255,255,0.06)",
+          color: "#fff",
+          fontSize: 15,
+          fontFamily: "monospace",
+          outline: "none",
+          textAlign: "center",
+          boxSizing: "border-box",
+        }}
+      />
+
+      <GlassButton
+        onClick={save}
+        color={C.nGreen}
+        disabled={locked}
+        style={{
+          marginTop: 14,
+          width: "100%",
+          justifyContent: "center",
+        }}
+      >
+        Continue →
+      </GlassButton>
     </GlassPanel>
   );
 }
+
 
 /* ═══════════════════════════════════════════════════════════════
     20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
@@ -1285,387 +1879,396 @@ function TipPanel() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-    19  ROOT APP  —  STATE MACHINE + GAME LOOP
-        States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
-   ═══════════════════════════════════════════════════════════════ */
-      export default function App() {
-        // ── STATE ──
-        const [screen, setScreen] = useState(loadName() ? "home" : "name");
-        const [playerName, setPlayerName] = useState(loadName());
-        const [round, setRound] = useState(0);
-        const [pattern, setPattern] = useState(null);
-        const [timeLeft, setTimeLeft] = useState(DECISION_MS);
-        const [choice, setChoice] = useState(null);
-        const [streak, setStreak] = useState(0);
-        const [scores, setScores] = useState([]);
-        const [roundStats, setRoundStats] = useState([]);
-        const [contProgress, setContProgress] = useState(0);
-        const [particleBurst, setParticleBurst] = useState(false);
-        const [godMode, setGodMode] = useState(false);
-        const [screenPulse, setScreenPulse] = useState(false);
-        const [gameReady, setGameReady] = useState(false); // canvas render kész
 
+  
+/* ── 19  ROOT APP — STATE MACHINE + GAME LOOP
+   States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
+────────────────────────────────────────────────────────────── */
 
-        // refs
-        const chartRef = useRef(null);
-        const timerRef = useRef(null);
-        const contAnimRef = useRef(null);
-        const rafChartRef = useRef(null);
-        const choiceTimeRef = useRef(null);
+import { useState, useEffect, useRef, useCallback } from "react";
 
-        // ── DERIVED ──
-        const isPlaying = screen === "playing";
+export default function App() {
+  // ── STATE ──
+  const [screen, setScreen] = useState(loadName() ? "home" : "name");
+  const [playerName, setPlayerName] = useState(loadName());
+  const [round, setRound] = useState(0);
 
-        // ── CHART RENDER LOOP ──
-        useEffect(() => {
-          if (!pattern) return;
-          let running = true;
-          function loop() {
-            if (!running) return;
-            drawChart(
-              chartRef.current,
-              pattern.candles,
-              22,
-              screen === "revealing" || screen === "outcome" ? contProgress : 0,
-              pattern.continuation,
-              godMode
-            );
-            rafChartRef.current = requestAnimationFrame(loop);
-          }
-          loop();
-          return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
-        }, [pattern, screen, contProgress, godMode]);
+  const [pattern, setPattern] = useState(null);
+  const [choice, setChoice] = useState(null);
 
-        // ── LOW-TIME HAPTIC ──
-        useEffect(() => {
-          if (isPlaying && timeLeft <= 1000 && timeLeft > 0) {
-            haptic([40, 30, 40]);
-            setScreenPulse(true);
-            const t = setTimeout(() => setScreenPulse(false), 200);
-            return () => clearTimeout(t);
-          }
-        }, [isPlaying, timeLeft]);
+  const [timeLeft, setTimeLeft] = useState(DECISION_MS);
+  const [streak, setStreak] = useState(0);
+  const [scores, setScores] = useState([]);
+  const [roundStats, setRoundStats] = useState([]);
 
-        // ── TIMER ──
-        useEffect(() => {
-          if (!isPlaying) { clearInterval(timerRef.current); return; }
-          setTimeLeft(DECISION_MS);
-          const start = Date.now();
-          timerRef.current = setInterval(() => {
-            const rem = DECISION_MS - (Date.now() - start);
-            if (rem <= 0) {
-              clearInterval(timerRef.current);
-              setTimeLeft(0);
-              handleChoice(null);
-            } else {
-              setTimeLeft(rem);
-            }
-          }, 60);
-          return () => clearInterval(timerRef.current);
-        }, [isPlaying]);
+  const [chartDrawn, setChartDrawn] = useState(false); // fő pattern kész
+  const [godMode, setGodMode] = useState(false);
 
-        // ── CONTINUATION ANIMATION ──
-        useEffect(() => {
-          if (screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
-          setContProgress(0);
-          const startTime = Date.now();
-          const duration = 900;
-          function animate() {
-            const elapsed = Date.now() - startTime;
-            const pct = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - pct, 3);
-            setContProgress(eased * 10);
-            if (pct < 1) {
-              contAnimRef.current = requestAnimationFrame(animate);
-            } else {
-              setContProgress(10);
-              setTimeout(() => setScreen("outcome"), 200);
-            }
-          }
-          contAnimRef.current = requestAnimationFrame(animate);
-          return () => cancelAnimationFrame(contAnimRef.current);
-        }, [screen]);
+  // ── REFS ──
+  const chartRef = useRef(null);
+  const timerRef = useRef(null);
+  const rafRef = useRef(null);
+  const choiceTimeRef = useRef(null);
 
-        // ── GAME ACTIONS ──
-        const startGame = useCallback(() => {
-          setRound(0);
-          setScores([]);
-          setRoundStats([]);
-          setStreak(0);
-          setGodMode(false);
-          setScreen("countdown"); // 3-2-1 overlay
-        }, []);
-
-        const startPlaying = useCallback(() => {
-          const p = getRandomPattern();
-          setPattern(p);       
-          setContProgress(0);
-          setChoice(null);
-          setGameReady(false);   // most indul a canvas render
-          setScreen("playing");  // játék előkészítése
-
-          // Kis delay, amíg a canvas teljesen renderelődik
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => setGameReady(true)); // két frame delay
-          });
-
-          choiceTimeRef.current = null;
-        }, []);
-
-        const handleChoice = useCallback((ch) => {
-          if (choice !== null) return;
-          clearInterval(timerRef.current);
-          const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
-          choiceTimeRef.current = null;
-          setChoice(ch);
-
-          const correct = ch === pattern.signal;
-          haptic(correct ? [30,20,30] : [80]);
-
-          if (correct) {
-            SND.correct();
-            const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-            const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
-            const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-            setScores(prev => [...prev, pts]);
-            setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
-            const newStreak = streak + 1;
-            setStreak(newStreak);
-            setParticleBurst(true);
-            setTimeout(() => setParticleBurst(false), 600);
-            if (newStreak >= 6 && !godMode) { 
-              setGodMode(true); 
-              SND.godBurst(); 
-              haptic([50,30,50,30,50]); 
-            }
-          } else {
-            SND.wrong();
-            setScores(prev => [...prev, 0]);
-            setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
-            setStreak(0);
-          }
-
-          setScreen("revealing");
-        }, [choice, pattern, streak, godMode]);
-
-        useEffect(() => { if (isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
-
-        const advanceRound = useCallback(() => {
-          const nextRound = round + 1;
-          if (nextRound >= ROUNDS) {
-            const stats = computeStats();
-            addToLeaderboard(playerName, stats);
-            setScreen("verdict");
-          } else {
-            setRound(nextRound);
-            startPlaying(); // új round azonnal
-          }
-        }, [round, playerName, startPlaying]);
-
-        function computeStats() {
-          const totalScore = scores.reduce((a,b)=>a+b,0);
-          const correct = roundStats.filter(r=>r.correct).length;
-          const buyCount = roundStats.filter(r=>r.choice==="buy").length;
-          const sellCount = roundStats.filter(r=>r.choice==="sell").length;
-          const holdCount = roundStats.filter(r=>r.choice==="hold").length;
-          const speeds = roundStats.map(r=>r.speedMs);
-          const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
-          let maxStreak=0, cur=0;
-          roundStats.forEach(r => { if(r.correct){ cur++; maxStreak=Math.max(maxStreak,cur); } else cur=0; });
-          return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
-        }
-      }
-
-
-  // ── RENDER ──
-
-  // global styles injected once
-  useEffect(() => {
-    const tag = document.createElement("style");
-    tag.textContent = `
-      * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-      html, body { margin:0; padding:0; height:100%; overflow:hidden; }
-      body { background:${C.bg1}; color:#fff; font-family:"SF Pro","Helvetica Neue",sans-serif; }
-      @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-      @keyframes ringPulse { 0%{transform:scale(0.6);opacity:0} 100%{transform:scale(1);opacity:1} }
-      @keyframes numPop { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
-      @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-      input::placeholder { color:rgba(255,255,255,0.28); }
-      input:focus { box-shadow: 0 0 0 2px ${C.nGreen}40 !important; }
-      ::-webkit-scrollbar { width:4px; }
-      ::-webkit-scrollbar-track { background:transparent; }
-      ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:2px; }
-    `;
-    document.head.appendChild(tag);
-    return () => document.head.removeChild(tag);
+  // ── START GAME ──
+  const startGame = useCallback(() => {
+    const p = getRandomPattern();
+    setPattern(p);
+    setChoice(null);
+    setChartDrawn(false);
+    setTimeLeft(DECISION_MS);
+    setScreen("countdown");
   }, []);
 
-  // ── SCREEN RENDERERS ──
+  // ── AFTER COUNTDOWN ──
+  const startPlaying = useCallback(() => {
+    setScreen("playing");
+  }, []);
 
-  const renderHome = () => (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100%", gap:24, padding:24 }}>
-      {/* logo */}
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
-          background:`linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
-          textShadow:"none", filter:"drop-shadow(0 0 24px rgba(0,255,170,0.3))" }}>
-          REFLEX
-        </div>
-        <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
-          background:`linear-gradient(135deg, ${C.nPurple} 0%, ${C.nPink} 100%)`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
-          filter:"drop-shadow(0 0 18px rgba(168,85,247,0.35))", marginTop:-8 }}>
-          GLASS
-        </div>
-        <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", letterSpacing:"0.24em", textTransform:"uppercase", marginTop:4, fontFamily:"monospace" }}>
-          Chart Pattern Reflex Trainer
-        </div>
-      </div>
+  // ── MAIN PATTERN DRAW (PLAYING) ──
+  useEffect(() => {
+    if (screen !== "playing" || !pattern || !chartRef.current) return;
 
-      {/* info card */}
-      <GlassPanel style={{ padding:20, maxWidth:340, width:"100%", textAlign:"center" }}>
-        <div style={{ display:"flex", justifyContent:"center", gap:20 }}>
-          {[
-            { icon:"📊", label:"40+", sub:"Patterns" },
-            { icon:"⚡", label:"4s", sub:"Decision" },
-            { icon:"🔥", label:"×4", sub:"Max Streak" },
-          ].map(item => (
-            <div key={item.label} style={{ flex:1, textAlign:"center" }}>
-              <div style={{ fontSize:20 }}>{item.icon}</div>
-              <div style={{ fontSize:16, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{item.label}</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.06em" }}>{item.sub}</div>
-            </div>
-          ))}
-        </div>
-      </GlassPanel>
+    let i = 0;
+    const total = pattern.candles.length;
+    const canvas = chartRef.current;
+    let running = true;
 
-      {/* CTA */}
-      <GlassButton onClick={startGame} color={C.nGreen} style={{ padding:"18px 56px", fontSize:18, position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
-          backgroundSize:"200% 100%", animation:"shimmer 2.2s linear infinite", pointerEvents:"none" }} />
-        Start Trading
-      </GlassButton>
+    const step = () => {
+      if (!running) return;
 
-      {/* leaderboard link */}
-      <GlassButton onClick={()=>setScreen("leaderboard")} color={C.nBlue} style={{ padding:"10px 24px", fontSize:13 }}>
-        🏆 Leaderboard
-      </GlassButton>
+      i += 1;
+      drawChart(canvas, pattern.candles, i, 0, [], false);
 
-      <div style={{ fontSize:10, color:"rgba(255,255,255,0.22)", fontFamily:"monospace", textAlign:"center", maxWidth:300 }}>
-        Base Mini App · Works in Warpcast · {playerName && `Playing as ${playerName}`}
-      </div>
-    </div>
-  );
+      if (i < total) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        setChartDrawn(true);
+        choiceTimeRef.current = Date.now();
+        startTimer();
+      }
+    };
 
-  const renderPlaying = () => (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
-      {/* header row */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:2 }}>
-        <GlassPanel style={{ padding:"6px 14px", borderRadius:16 }}>
-          <span style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.5)" }}>Round </span>
-          <span style={{ fontSize:14, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{round+1}<span style={{ color:"rgba(255,255,255,0.28)", fontWeight:400 }}>/{ROUNDS}</span></span>
-        </GlassPanel>
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          {streak > 0 && (
-            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nPurple}35` }}>
-              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nPurple }}>🔥 ×{STREAK_MULT[Math.min(streak+1, STREAK_MULT.length-1)].toFixed(1)}</span>
-            </GlassPanel>
-          )}
-          {godMode && (
-            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nGreen}45`,
-              background:`linear-gradient(135deg, ${C.nGreen}15, ${C.nBlue}10)` }}>
-              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nGreen }}>⚡ GOD MODE</span>
-            </GlassPanel>
-          )}
-        </div>
-      </div>
+    step();
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+  }, [screen, pattern]);
 
-      {/* timer */}
-      <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
+  // ── TIMER ──
+  const startTimer = () => {
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 0) {
+          clearInterval(timerRef.current);
+          handleChoice("hold");
+          return 0;
+        }
+        return t - 100;
+      });
+    }, 100);
+  };
 
-      {/* chart */}
-      <div style={{ flex:1, minHeight:0, position:"relative" }}>
-        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
-        {/* pattern name watermark */}
-        {screen === "outcome" && pattern && (
-          <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
-            color:"rgba(255,255,255,0.18)", background:"rgba(6,6,12,0.6)", padding:"3px 8px", borderRadius:8,
-            backdropFilter:"blur(8px)" }}>
-            {pattern.name}
-          </div>
-        )}
-      </div>
+  // ── HANDLE CHOICE ──
+  const handleChoice = useCallback((ch) => {
+    if (!chartDrawn || choice !== null) return;
 
-      {/* decision / outcome */}
-      <div style={{ paddingBottom:8 }}>
-        {screen === "playing" && <DecisionButtons onChoose={handleChoice} disabled={false} />}
-        {screen === "outcome" && (
-          <OutcomeCard
-            correct={roundStats[roundStats.length-1]?.correct}
-            points={scores[scores.length-1]}
-            streak={streak}
-            patternName={pattern?.name}
-            choice={choice}
-            signal={pattern?.signal}
-            onNext={advanceRound}
-            godMode={godMode}
-          />
-        )}
-      </div>
-    </div>
-  );
+    clearInterval(timerRef.current);
+    setChoice(ch);
 
-  const renderVerdict = () => (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", justifyContent:"center", padding:16, gap:14 }}>
-      <FinalVerdict
-        stats={computeStats()}
-        onRestart={startGame}
-        onLeaderboard={()=>setScreen("leaderboard")}
-        onShare={()=>triggerShare(computeStats(), playerName)}
-      />
-      <TipPanel />
-    </div>
-  );
+    const speedMs = Date.now() - choiceTimeRef.current;
+    const correct = ch === pattern.signal;
 
-  // ── MAIN RETURN ──
+    if (correct) {
+      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+      const pts = Math.round(BASE_SCORE * mult);
+      setScores(s => [...s, pts]);
+      setStreak(s => s + 1);
+    } else {
+      setScores(s => [...s, 0]);
+      setStreak(0);
+    }
+
+    setRoundStats(r => [...r, { correct, speedMs, choice: ch, signal: pattern.signal }]);
+    setScreen("revealing");
+  }, [chartDrawn, choice, pattern, streak]);
+
+  // ── CONTINUATION DRAW (REVEALING) ──
+  useEffect(() => {
+    if (screen !== "revealing" || !pattern || !chartRef.current) return;
+
+    let i = 0;
+    const total = pattern.continuation?.length || 0;
+    const canvas = chartRef.current;
+    let running = true;
+
+    const step = () => {
+      if (!running) return;
+
+      i += 1;
+      drawChart(canvas, pattern.candles, pattern.candles.length, i, pattern.continuation, false);
+
+      if (i < total) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        setScreen("outcome");
+      }
+    };
+
+    step();
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
+  }, [screen, pattern]);
+
+  /* ── RENDER ── */
   return (
-    <div style={{ width:"100vw", height:"100dvh", overflowY:"auto", overflowX:"hidden",
-      background:`radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
-      position:"relative" }}>
+    <>
+      {screen === "name" && <NameInput onSubmit={(n)=>{ setPlayerName(n); setScreen("home"); }} />}
 
-      {/* ambient orbs (background atmosphere) */}
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0 }}>
-        <div style={{ position:"absolute", top:"10%",  left:"15%", width:220, height:220, borderRadius:"50%", background:`radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`, filter:"blur(40px)" }} />
-        <div style={{ position:"absolute", top:"60%", right:"10%", width:180, height:180, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`, filter:"blur(36px)" }} />
-        <div style={{ position:"absolute", bottom:"15%", left:"40%", width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPink}09 0%, transparent 70%)`, filter:"blur(30px)" }} />
-      </div>
+      {screen === "home" && <Home onStart={startGame} />}
 
+      {screen === "countdown" && <Countdown onDone={startPlaying} />}
 
-      {/* particle layer */}
-      <ParticleCanvas active={particleBurst} godMode={godMode} />
-
-      {/* screen pulse overlay (low time warning) */}
-      {screenPulse && (
-        <div style={{ position:"fixed", inset:0, zIndex:198, pointerEvents:"none",
-          boxShadow:`inset 0 0 60px ${C.nPink}55`, borderRadius:0, transition:"opacity 0.15s" }} />
+      {(screen === "playing" || screen === "revealing") && (
+        <>
+          <CanvasChart ref={chartRef} />
+          <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
+          <DecisionButtons onChoose={handleChoice} disabled={!chartDrawn || choice !== null} />
+        </>
       )}
 
-      {/* main content (below ticker) */}
-      <div style={{ position:"relative", zIndex:1, paddingTop:34, minHeight:"calc(100dvh - 34px)",
-        display:"flex", flexDirection:"column" }}>
-
-        {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
-        {screen === "home"        && renderHome()}
-        {screen === "countdown"   && <Countdown onDone={startPlaying} />}
-        {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
-        {screen === "verdict"     && renderVerdict()}
-        {screen === "leaderboard" && (
-          <div style={{ paddingTop:20 }}>
-            <Leaderboard onClose={()=>setScreen(round>=ROUNDS?"verdict":"home")} currentName={playerName} />
-          </div>
-        )}
-      </div>
-    </div>
+      {screen === "outcome" && (
+        <OutcomeCard
+          correct={roundStats.at(-1)?.correct}
+          points={scores.at(-1)}
+          streak={streak}
+          patternName={pattern.name}
+          choice={choice}
+          signal={pattern.signal}
+          onNext={() => startGame()}
+          godMode={godMode}
+        />
+      )}
+    </>
   );
+}
+
+
+/* ──────────────────────────────────────────────────────────────
+   19  ROOT APP — STATE MACHINE + GAME LOOP (FIXED)
+   States:
+   "name" | "home" | "countdown" | "playing" | "revealing"
+   | "outcome" | "verdict" | "leaderboard"
+────────────────────────────────────────────────────────────── */
+import { useState, useEffect, useRef, useCallback } from "react";
+
+export default function App() {
+  // ── CORE STATE ───────────────────────────────────────────────
+  const [screen, setScreen] = useState(loadName() ? "home" : "name");
+  const [playerName, setPlayerName] = useState(loadName());
+  const [round, setRound] = useState(0);
+  const [pattern, setPattern] = useState(null);
+
+  const [choice, setChoice] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [scores, setScores] = useState([]);
+  const [roundStats, setRoundStats] = useState([]);
+
+  const [godMode, setGodMode] = useState(false);
+  const [particleBurst, setParticleBurst] = useState(false);
+
+  // ── CHART / ANIMATION STATE ──────────────────────────────────
+  const [chartReady, setChartReady] = useState(false);     // main reveal kész
+  const [decisionOpen, setDecisionOpen] = useState(false); // user dönthet
+
+  // ── REFS ────────────────────────────────────────────────────
+  const chartRef = useRef(null);
+  const rafRef = useRef(null);
+
+  const revealRef = useRef(0);
+  const contRef = useRef(0);
+  const phaseRef = useRef("idle"); // idle | reveal | wait | cont
+
+  // ── START GAME ──────────────────────────────────────────────
+  const startGame = useCallback(() => {
+    const p = getRandomPattern();
+
+    setPattern(p);
+    setChoice(null);
+    setChartReady(false);
+    setDecisionOpen(false);
+
+    revealRef.current = 0;
+    contRef.current = 0;
+    phaseRef.current = "reveal";
+
+    setScreen("countdown");
+  }, []);
+
+  // ── COUNTDOWN DONE → PLAYING ────────────────────────────────
+  const startPlaying = useCallback(() => {
+    setScreen("playing");
+  }, []);
+
+  // ── USER DECISION ───────────────────────────────────────────
+  const handleChoice = useCallback((ch) => {
+    if (!decisionOpen || choice) return;
+
+    setChoice(ch);
+    setDecisionOpen(false);
+
+    const correct = ch === pattern.signal;
+
+    if (correct) {
+      SND.correct();
+      haptic([30, 20, 30]);
+
+      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
+      const pts = Math.round(BASE_SCORE * mult);
+
+      setScores(s => [...s, pts]);
+      setRoundStats(r => [...r, { correct:true, choice:ch, signal:pattern.signal }]);
+      setStreak(s => s + 1);
+
+      setParticleBurst(true);
+      setTimeout(() => setParticleBurst(false), 500);
+
+      if (streak + 1 >= 6 && !godMode) {
+        setGodMode(true);
+        SND.godBurst();
+      }
+    } else {
+      SND.wrong();
+      haptic([80]);
+      setScores(s => [...s, 0]);
+      setRoundStats(r => [...r, { correct:false, choice:ch, signal:pattern.signal }]);
+      setStreak(0);
+    }
+
+    phaseRef.current = "cont";
+    setScreen("revealing");
+  }, [decisionOpen, choice, pattern, streak, godMode]);
+
+  // ── CHART ANIMATION LOOP (ONE RAF) ──────────────────────────
+  useEffect(() => {
+    if (!pattern || !chartRef.current) return;
+
+    const canvas = chartRef.current;
+    let last = performance.now();
+    let running = true;
+
+    const revealTotal = pattern.candles.length;
+    const contTotal = pattern.continuation?.length || 0;
+
+    const loop = (now) => {
+      if (!running) return;
+      const dt = now - last;
+      last = now;
+
+      // ── MAIN REVEAL PHASE ──
+      if (phaseRef.current === "reveal") {
+        revealRef.current += dt / 60;
+        if (revealRef.current >= revealTotal) {
+          revealRef.current = revealTotal;
+          phaseRef.current = "wait";
+          setChartReady(true);
+          setDecisionOpen(true);
+        }
+
+        drawChart(
+          canvas,
+          pattern.candles,
+          Math.floor(revealRef.current),
+          0,
+          [],
+          godMode
+        );
+      }
+
+      // ── WAIT FOR USER ──
+      else if (phaseRef.current === "wait") {
+        drawChart(
+          canvas,
+          pattern.candles,
+          revealTotal,
+          0,
+          [],
+          godMode
+        );
+      }
+
+      // ── CONTINUATION PHASE ──
+      else if (phaseRef.current === "cont") {
+        contRef.current += dt / 50;
+        if (contRef.current >= contTotal) {
+          contRef.current = contTotal;
+          phaseRef.current = "idle";
+          setScreen("outcome");
+        }
+
+        drawChart(
+          canvas,
+          pattern.candles,
+          revealTotal,
+          Math.floor(contRef.current),
+          pattern.continuation,
+          godMode
+        );
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
+    };
+
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [pattern, godMode]);
+
+  // ── ADVANCE ROUND ───────────────────────────────────────────
+  const advanceRound = () => {
+    if (round + 1 >= ROUNDS) {
+      setScreen("verdict");
+    } else {
+      setRound(r => r + 1);
+      startGame();
+    }
+  };
+
+  // ── RENDER ──────────────────────────────────────────────────
+  return (
+    <>
+      {screen === "countdown" && <Countdown onDone={startPlaying} />}
+
+      {(screen === "playing" || screen === "revealing" || screen === "outcome") && (
+        <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+          <canvas
+            ref={chartRef}
+            style={{ width:"100%", height:"100%", borderRadius:20 }}
+          />
+
+          {screen === "playing" && (
+            <DecisionButtons
+              onChoose={handleChoice}
+              disabled={!decisionOpen}
+            />
+          )}
+
+          {screen === "outcome" && (
+            <OutcomeCard
+              correct={roundStats.at(-1)?.correct}
+              points={scores.at(-1)}
+              streak={streak}
+              patternName={pattern.name}
+              choice={choice}
+              signal={pattern.signal}
+              onNext={advanceRound}
+              godMode={godMode}
+            />
+          )}
+        </div>
+      )}
+
+      <ParticleCanvas active={particleBurst} godMode={godMode} />
+    </>
+  );
+}
