@@ -1470,7 +1470,7 @@ function TipPanel() {
 
 /* ═══════════════════════════════════════════════════════════════
    §19  ROOT APP  —  STATE MACHINE + GAME LOOP
-        States: "name" | "home" | "countdown" | "drawing" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
+        States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
    ═══════════════════════════════════════════════════════════════ */
 export default function App() {
   // ── state ──
@@ -1499,7 +1499,6 @@ export default function App() {
 
   // ── derived ──
   const isPlaying = screen === "playing";
-  const isDrawing = screen === "drawing";   // new intermediate state: chart animating in
 
   // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
   useEffect(() => {
@@ -1531,9 +1530,13 @@ export default function App() {
     }
   }, [isPlaying, timeLeft]);
 
-  // ── countdown timer (playing state) ──
+  // ── countdown timer (playing state, AFTER chart draws) ──
   useEffect(() => {
-    if(!isPlaying) { clearInterval(timerRef.current); return; }
+    // Only start timer once chart is fully drawn
+    if(!isPlaying || initialProgress < 22) { 
+      clearInterval(timerRef.current); 
+      return; 
+    }
     setTimeLeft(DECISION_MS);
     const start = Date.now();
     timerRef.current = setInterval(() => {
@@ -1548,12 +1551,15 @@ export default function App() {
       }
     }, 60);
     return () => clearInterval(timerRef.current);
-  }, [isPlaying]); // eslint-disable-line
+  }, [isPlaying, initialProgress]); // eslint-disable-line
 
-  // ── initial chart draw animation (drawing → playing) ──
+  // ── initial chart draw animation (auto-runs once on "playing" when initialProgress=0) ──
   useEffect(() => {
-    if(screen !== "drawing" || !pattern) { cancelAnimationFrame(initialAnimRef.current); return; }
-    setInitialProgress(0);
+    // Only animate if: on playing screen, pattern loaded, and animation hasn't run yet
+    if(screen !== "playing" || !pattern || initialProgress > 0) { 
+      cancelAnimationFrame(initialAnimRef.current); 
+      return; 
+    }
     const startTime = Date.now();
     function animate() {
       const elapsed = Date.now() - startTime;
@@ -1564,13 +1570,12 @@ export default function App() {
         initialAnimRef.current = requestAnimationFrame(animate);
       } else {
         setInitialProgress(22);
-        // chart fully drawn → allow user decision
-        setTimeout(() => setScreen("playing"), 100);
+        // chart fully drawn — stay on "playing", timer will start automatically
       }
     }
     initialAnimRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(initialAnimRef.current);
-  }, [screen, pattern]);
+  }, [screen, pattern, initialProgress]); // eslint-disable-line
 
   // ── continuation candle wave-reveal animation ──
   useEffect(() => {
@@ -1614,7 +1619,7 @@ export default function App() {
     setChoice(null);
     setInitialProgress(0);                                // reset for new chart
     setContProgress(0);
-    setScreen("drawing");                                 // start with chart draw animation
+    setScreen("playing");                                 // go straight to playing (timer starts after chart draws)
     choiceTimeRef.current = null;
   }, []);
 
@@ -1786,21 +1791,21 @@ export default function App() {
         </div>
       </div>
 
-      {/* timer — only show when actually playing (not during initial draw) */}
-      {screen === "playing" && <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />}
+      {/* timer — only show when chart fully drawn */}
+      {screen === "playing" && initialProgress >= 22 && <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />}
 
       {/* chart */}
       <div style={{ flex:1, minHeight:0, position:"relative" }}>
         <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
         
-        {/* loading overlay during initial draw — covers canvas until animation starts */}
-        {screen === "drawing" && (
+        {/* loading overlay — covers until first candles appear */}
+        {screen === "playing" && initialProgress < 3 && (
           <div style={{
             position:"absolute", inset:0, borderRadius:20,
             background:`linear-gradient(135deg, ${C.bg1}, ${C.bg2})`,
             backdropFilter:"blur(12px)",
             display:"flex", alignItems:"center", justifyContent:"center",
-            opacity: initialProgress === 0 ? 1 : Math.max(0, 1 - initialProgress / 3),  // full cover until anim starts
+            opacity: initialProgress === 0 ? 1 : Math.max(0, 1 - initialProgress / 3),
             pointerEvents:"none",
             transition:"opacity 0.3s ease"
           }}>
@@ -1823,9 +1828,9 @@ export default function App() {
         )}
       </div>
 
-      {/* decision / outcome */}
+      {/* decision / outcome — only show buttons when chart fully drawn */}
       <div style={{ paddingBottom:8 }}>
-        {screen === "playing" && <DecisionButtons onChoose={handleChoice} disabled={false} />}
+        {screen === "playing" && initialProgress >= 22 && <DecisionButtons onChoose={handleChoice} disabled={false} />}
         {screen === "outcome" && (
           <OutcomeCard
             correct={roundStats[roundStats.length-1]?.correct}
@@ -1886,7 +1891,7 @@ export default function App() {
         {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
         {screen === "home"        && renderHome()}
         {screen === "countdown"   && <Countdown onDone={beginRound} />}
-        {(screen==="drawing" || screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
+        {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
         {screen === "verdict"     && renderVerdict()}
         {screen === "leaderboard" && (
           <div style={{ paddingTop:20 }}>
