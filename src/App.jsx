@@ -23,13 +23,16 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+
 /* ═══════════════════════════════════════════════════════════════
-    1  CONSTANTS & COLOR TOKENS
+   §1  CONSTANTS & COLOR TOKENS
    ═══════════════════════════════════════════════════════════════ */
 
 const ROUNDS       = 7;
 const DECISION_MS  = 4000;
 const BASE_SCORE   = 1000;
+const CHART_DRAW_MS = 1400;                     // initial 22-candle reveal animation duration
 // streak multiplier table, index = consecutive correct (0-based)
 const STREAK_MULT  = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
@@ -50,57 +53,38 @@ const C = {                         // colour palette
 };
 
 /* ═══════════════════════════════════════════════════════════════
-    2  HAPTIC HELPER
+   §2  HAPTIC HELPER
    ═══════════════════════════════════════════════════════════════ */
 function haptic(pattern = [30]) {
   try { navigator?.vibrate?.(pattern); } catch(_) {}
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
+   §3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
    ═══════════════════════════════════════════════════════════════ */
-  
-   /* =====================
-   SOUND ENGINE
-   (Web Audio API — lazy-inited on first user tap)
-   ===================== */
 class SoundEngine {
-  constructor() { 
-    this.ctx = null; 
-    this.on = true; 
-  }
+  constructor() { this.ctx = null; this.on = true; }
 
-  // ── init / resume audio context ──
   _ensure() {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
   }
 
-  // ── call this on user gesture to unlock audio
-  unlock() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    if (ctx.state === "suspended") ctx.resume();
-  }
-
-  // ── internal tone player ──
   _tone(freq, dur, type = "sine", vol = 0.13, startDelay = 0) {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime + startDelay;
     const osc = ctx.createOscillator();
     const g   = ctx.createGain();
-    osc.connect(g); 
-    g.connect(ctx.destination);
+    osc.connect(g); g.connect(ctx.destination);
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
     g.gain.setValueAtTime(vol, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    osc.start(now); 
-    osc.stop(now + dur);
+    osc.start(now); osc.stop(now + dur);
   }
 
-  // ── simple effects ──
   click()     { this._tone(420, 0.07, "sine", 0.11); }
   tick(n)     { n === 1 ? this._tone(1100, 0.11, "square", 0.18) : this._tone(680, 0.07, "triangle", 0.13); }
   correct()   { [523,659,784].forEach((f,i) => this._tone(f, 0.14, "sine", 0.16, i*0.09)); }
@@ -108,8 +92,8 @@ class SoundEngine {
   godBurst()  { [440,554,659,880,1046].forEach((f,i) => this._tone(f, 0.22, "sine", 0.2, i*0.08)); }
   reveal()    { this._tone(900, 0.06, "sine", 0.08); }
 
-  // ── verdict + tips ──
-  whoosh() { 
+  // ── verdict + tips ──────────────────────────────────────────
+  whoosh() {                                    // verdict-screen entrance sweep
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     const osc = ctx.createOscillator(), g = ctx.createGain();
@@ -121,8 +105,7 @@ class SoundEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
     osc.start(now); osc.stop(now + 0.34);
   }
-
-  tipTap() { 
+  tipTap() {                                    // metallic coin-clink on button press
     if (!this.on) return;
     const ctx = this._ensure(), now = ctx.currentTime;
     [1900, 2600].forEach((f, i) => {
@@ -136,16 +119,65 @@ class SoundEngine {
       o.start(t); o.stop(t + 0.13);
     });
   }
+  tipSent() {                                   // celebratory arp when tx confirmed
+    [392, 523, 659, 784, 1047].forEach((f, i) =>
+      this._tone(f, 0.18, "sine", 0.17, i * 0.07)
+    );
+  }
+  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); } // subtle live-data refresh ping
 
-  tickerPing() { this._tone(1500, 0.035, "sine", 0.035); }
+  // ── AMBIENT BACKGROUND TENSION LOOP ──────────────────────────
+  // 3-layer synth pad + subtle clock pulse every 2.5s → urgency.
+  // Runs continuously once started, until stop() is called.
+  ambient() {
+    if (!this.on) return;
+    const ctx = this._ensure();
+    let running = true;
+
+    // Continuous pad: 3 detuned oscillators for thick texture
+    const freqs = [110, 165, 220];                         // low bass + perfect fifth + octave
+    const oscs = freqs.map((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "triangle";
+      o.frequency.value = f * (1 + (i - 1) * 0.002);       // slight detune for chorus
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.015, ctx.currentTime + 1.2); // slow fade-in
+      o.start();
+      return { osc: o, gain: g };
+    });
+
+    // Subtle clock tick every 2.5s (gentle reminder)
+    const tickLoop = () => {
+      if (!running) return;
+      this._tone(880, 0.04, "sine", 0.03);                 // very quiet high ping
+      setTimeout(tickLoop, 2500);
+    };
+    tickLoop();
+
+    // Store stop function
+    this.stopAmbient = () => {
+      running = false;
+      oscs.forEach(({ osc, gain }) => {
+        const now = ctx.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(gain.gain.value, now);
+        gain.gain.linearRampToValueAtTime(0.0001, now + 0.8);
+        osc.stop(now + 1);
+      });
+    };
+  }
+
+  stop() {
+    if (this.stopAmbient) this.stopAmbient();
+  }
 }
 
-// ── singleton instance ──
 const SND = new SoundEngine();
 
-
 /* ═══════════════════════════════════════════════════════════════
-    4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
+   §4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
       Each factory returns:
         { candles: OHLC[22], continuation: OHLC[10],
           signal: 'buy'|'sell'|'hold', name: string, cat: string }
@@ -491,10 +523,65 @@ function getRandomPattern() {
   return ALL_PATTERNS[RI(0, ALL_PATTERNS.length - 1)]();
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   §5  LIVE TICKER  — DexScreener API  (top-10 trending on Base)
+       Static seed fallback when offline / rate-limited.
+   ═══════════════════════════════════════════════════════════════ */
 
+const TICKER_SEEDS = [
+  { sym:"PEPE",      price:0.000014,   chg:+12.4  },
+  { sym:"DOGE",      price:0.081,      chg:-3.7   },
+  { sym:"SHIB",      price:0.0000091,  chg:+5.2   },
+  { sym:"FLOKI",     price:0.000182,   chg:-1.1   },
+  { sym:"BASE",      price:1.32,       chg:+8.9   },
+  { sym:"AERO",      price:0.42,       chg:-2.4   },
+  { sym:"BRETT",     price:0.0021,     chg:+22.1  },
+  { sym:"BALD",      price:0.0000003,  chg:-9.8   },
+  { sym:"TOSHI",     price:0.00000078, chg:+4.1   },
+  { sym:"BASED",     price:0.00034,    chg:-0.6   },
+];
+
+async function fetchDexTrending() {
+  try {
+    // 1) grab top boosted tokens (free tier, no key needed)
+    const res = await fetch(
+      "https://api.dexscreener.com/token-boosts/top/v1",
+      { signal: AbortSignal.timeout(3800) }
+    );
+    if (!res.ok) return null;
+    const boosts = await res.json();                          // array of {chainId, tokenAddress, …}
+
+    // 2) keep only Base-chain boosts, take first 10
+    const baseBoosts = (boosts || [])
+      .filter(b => b.chainId === "base")
+      .slice(0, 10);
+    if (baseBoosts.length === 0) return null;
+
+    // 3) resolve token details in ONE request (multi-address endpoint)
+    const addrs = baseBoosts.map(b => b.tokenAddress).join(",");
+    const res2 = await fetch(
+      `https://api.dexscreener.com/simple/dex/tokens/base/${addrs}`,
+      { signal: AbortSignal.timeout(3800) }
+    );
+    if (!res2.ok) return null;
+    const tokens = (await res2.json()).tokens || [];
+
+    // 4) map → our ticker shape, drop zero-price ghosts
+    return tokens
+      .slice(0, 10)
+      .map(t => ({
+        sym:   (t.symbol || t.name || "???").toUpperCase().slice(0, 7),
+        price: +Number(t.priceUsd || 0).toPrecision(4),
+        chg:   +Number(t.priceChange?.h24 ?? 0).toFixed(2),
+      }))
+      .filter(t => t.price > 0);
+  } catch (_) {
+    return null;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
-    6  TRADER ARCHETYPES  (final verdict engine)
+   §6  TRADER ARCHETYPES  (final verdict engine)
    ═══════════════════════════════════════════════════════════════ */
 const ARCHETYPES = [
   { name:"Impulse Ape",        emoji:"🐒", cond: r => r.buyCount > 4,
@@ -519,77 +606,83 @@ function getArchetype(stats) {
   return ARCHETYPES.find(a => a.cond(stats)) || ARCHETYPES[ARCHETYPES.length - 1];
 }
 
-/* ── 7  CANVAS CHART RENDERER (optimized for gradual reveal + continuation) ── */
-function drawChart(canvas, candles, revealCount, continuationCount, contCandles = [], godMode = false) {
-  if (!canvas || !candles || candles.length === 0) return;
+/* ═══════════════════════════════════════════════════════════════
+   §7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
+   ═══════════════════════════════════════════════════════════════ */
+function drawChart(canvas, candles, initialProgress, continuationCount, contCandles, godMode) {
+  if (!canvas) return;
+  const ctx    = canvas.getContext("2d");
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = canvas.clientWidth;
+  const H      = canvas.clientHeight;
+  
+  // Skip if canvas not yet laid out (W or H is 0)
+  if (W === 0 || H === 0) return;
+  
+  canvas.width = W * dpr;
+  canvas.height= H * dpr;
+  ctx.scale(dpr, dpr);
 
-  const ctx = canvas.getContext("2d");
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth;
-  const H = canvas.clientHeight;
-
-  // ── Only resize if changed (prevents flicker) ──
-  if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(dpr, dpr);
-  }
-
-  // ── Background ──
-  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  // ── background ──
+  const grd = ctx.createLinearGradient(0,0,0,H);
   grd.addColorStop(0, "#0d0d1a");
   grd.addColorStop(1, "#06060c");
   ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0,0,W,H);
 
-  // ── Grid lines ──
+  // ── grid lines ──
   ctx.strokeStyle = "rgba(255,255,255,0.045)";
-  ctx.lineWidth = 1;
-  for (let y = 0; y <= H; y += H / 6) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
-  for (let x = 0; x <= W; x += W / 8) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
+  ctx.lineWidth   = 1;
+  for(let y=0;y<H;y+=H/6){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for(let x=0;x<W;x+=W/8){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
 
-  // ── God mode glow ──
-  if (godMode) {
+  // ── god-mode ambient glow ──
+  if(godMode) {
     ctx.save();
-    const pulse = 0.15 + 0.08 * Math.sin(Date.now() * 0.006);
-    ctx.shadowColor = C.nGreen;
-    ctx.shadowBlur = 40;
+    const pulse = 0.15 + 0.08*Math.sin(Date.now()*0.006);
+    ctx.shadowColor = C.nGreen; ctx.shadowBlur = 40;
     ctx.strokeStyle = `rgba(0,255,170,${pulse})`;
     ctx.lineWidth = 2;
-    ctx.strokeRect(4, 4, W - 8, H - 8);
+    ctx.strokeRect(4,4,W-8,H-8);
     ctx.restore();
   }
 
-  // ── Price scale calculation ──
-  const allScaleCandles = [...candles, ...contCandles];
+  // Visible candles = initial (animated 0 → 22) + continuation (animated 0 → 10)
+  const revealCount = Math.floor(initialProgress);          // initial candles visible (0-22)
+  const totalVisible = revealCount + continuationCount;
+  const allCandles   = [...candles.slice(0, revealCount), ...(contCandles||[]).slice(0, continuationCount)];
+  
+  // If no candles yet, draw loading state directly on canvas
+  if(allCandles.length === 0) {
+    ctx.save();
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.font = "14px 'SF Mono', monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("📊 Reading chart...", W/2, H/2);
+    ctx.restore();
+    return;
+  }
+
+  // ── price scale  ──
   let lo = Infinity, hi = -Infinity;
-  allScaleCandles.forEach(c => { if(c.l < lo) lo = c.l; if(c.h > hi) hi = c.h; });
-  const pad = (hi - lo) * 0.12;
+  // Use ALL candles (initial + full continuation) for a stable scale
+  const scaleCandles = [...candles, ...(contCandles||[])];
+  scaleCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
+  const pad  = (hi - lo) * 0.12;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
 
-  const totalSlots = candles.length + contCandles.length;
-  const slotW = W / totalSlots;
-  const bodyW = slotW * 0.55;
-  const offX = (slotW - bodyW) / 2;
+  const totalSlots = candles.length + (contCandles?.length || 0);
+  const slotW      = W / totalSlots;
+  const bodyW      = slotW * 0.55;
+  const offX       = (slotW - bodyW) / 2;
+
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── Visible candles for current frame ──
-  const visibleCandles = [
-    ...candles.slice(0, revealCount),
-    ...contCandles.slice(0, continuationCount)
-  ];
-
-  if (visibleCandles.length === 0) return;
-
-  // ── Price label for last visible candle ──
-  const lastC = visibleCandles[visibleCandles.length - 1];
-  const lblY = toY(lastC.c);
+  // ── price label (right axis) for last visible candle ──
+  const lastC = allCandles[allCandles.length - 1];
+  const lblY  = toY(lastC.c);
   ctx.save();
   const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
   ctx.fillStyle = lblColor + "33";
@@ -600,39 +693,50 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
   ctx.fillText(lastC.c.toFixed(2), W - 4, lblY + 3.5);
   ctx.restore();
 
-  // ── Draw each candle ──
-  visibleCandles.forEach((c, i) => {
+  // ── draw candles ──
+  allCandles.forEach((c, i) => {
     const x = i * slotW;
     const bull = c.c >= c.o;
 
-    // fade in for continuation candles
+    // Fade-in alpha for both initial AND continuation candles
     let alpha = 1;
-    if (i >= revealCount) {
+    if (i < revealCount) {
+      // Initial candles: fade in the last partial candle during draw animation
+      const frac = initialProgress - Math.floor(initialProgress);
+      if (i === revealCount - 1 && frac < 1) {
+        alpha = frac;  // smooth fade-in for the candle currently being drawn
+      }
+    } else {
+      // Continuation candles: wave-reveal fade
       const ci = i - revealCount;
-      alpha = Math.min(Math.max(continuationCount - ci, 0), 1);
+      alpha = CL(continuationCount - ci, 0, 1);
     }
+
+    const bodyColor = bull ? C.bull : C.bear;
+    const wickColor = bull ? "#00b85a" : "#e01030";
 
     ctx.globalAlpha = alpha;
     ctx.save();
 
     // wick
-    ctx.strokeStyle = bull ? "#00b85a" : "#e01030";
+    ctx.strokeStyle = wickColor;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(x + slotW / 2, toY(c.h));
-    ctx.lineTo(x + slotW / 2, toY(c.l));
+    ctx.moveTo(x + slotW/2, toY(c.h));
+    ctx.lineTo(x + slotW/2, toY(c.l));
     ctx.stroke();
 
     // body
-    const bodyTop = toY(Math.max(c.o, c.c));
+    const bodyTop    = toY(Math.max(c.o, c.c));
     const bodyBottom = toY(Math.min(c.o, c.c));
     const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
 
-    const grad = ctx.createLinearGradient(x + offX, bodyTop, x + offX + bodyW, bodyTop);
-    grad.addColorStop(0, bull ? C.bull : C.bear);
-    grad.addColorStop(0.4, bull ? "#00ff9d" : "#ff4466");
-    grad.addColorStop(1, bull ? C.bull : C.bear);
-    ctx.fillStyle = grad;
+    // glass-style body gradient
+    const bg = ctx.createLinearGradient(x+offX, bodyTop, x+offX+bodyW, bodyTop);
+    bg.addColorStop(0, bodyColor);
+    bg.addColorStop(0.4, bull ? "#00ff9d" : "#ff4466");
+    bg.addColorStop(1, bodyColor);
+    ctx.fillStyle = bg;
     ctx.fillRect(x + offX, bodyTop, bodyW, bodyHeight);
 
     // subtle border
@@ -643,187 +747,131 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles 
     ctx.restore();
     ctx.globalAlpha = 1;
   });
+  
+  // Final safety: ensure globalAlpha is always reset after drawing
+  ctx.globalAlpha = 1;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
-   8  PARTICLE BURST / HAPTIC FEEDBACK
-   ────────────────────────────────────────────────────────────── */
+   §8  PARTICLE BURST  (perfect round / god mode)
+   ═══════════════════════════════════════════════════════════════ */
 function ParticleCanvas({ active, godMode }) {
   const canvasRef = useRef(null);
-  const pRef = useRef([]);
-  const rafRef = useRef(null);
+  const pRef      = useRef([]);
+  const rafRef    = useRef(null);
 
   const spawn = useCallback((count, colors) => {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 / count) * i + R(-0.3, 0.3);
-      const speed = R(80, 220);
+    const cx = window.innerWidth/2, cy = window.innerHeight/2;
+    for(let i=0;i<count;i++) {
+      const angle = (Math.PI*2/count)*i + R(-0.3,0.3);
+      const speed = R(80,220);
       pRef.current.push({
-        x: cx, y: cy,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        x:cx, y:cy,
+        vx: Math.cos(angle)*speed,
+        vy: Math.sin(angle)*speed,
         life: 1,
         decay: R(0.012, 0.028),
-        size: R(3, 7),
-        color: colors[RI(0, colors.length - 1)],
-        rot: R(0, Math.PI * 2),
-        rotV: R(-4, 4),
+        size: R(3,7),
+        color: colors[RI(0,colors.length-1)],
+        rot: R(0,Math.PI*2),
+        rotV: R(-4,4),
       });
     }
   }, []);
 
   useEffect(() => {
-    if (!active) return;
-    const cols = godMode
-      ? [C.nGreen, C.nBlue, "#fff", C.nPurple, C.nPink]
-      : [C.nGreen, C.nBlue, "#fff"];
-    spawn(godMode ? 80 : 48, cols);
+    if(active) {
+      const cols = godMode
+        ? [C.nGreen, C.nBlue, "#fff", C.nPurple, C.nPink]
+        : [C.nGreen, C.nBlue, "#fff"];
+      spawn(godMode ? 80 : 48, cols);
+    }
   }, [active, godMode, spawn]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if(!canvas) return;
     const ctx = canvas.getContext("2d");
     let running = true;
 
-    // ── Canvas resize handler ──
-    const resizeCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
-        canvas.width = W * dpr;
-        canvas.height = H * dpr;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
-      }
-    };
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-
-    let lastTime = performance.now();
-    const loop = (time) => {
-      if (!running) return;
-      const delta = (time - lastTime) / 1000; // seconds
-      lastTime = time;
-
-      ctx.clearRect(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
+    function loop() {
+      if(!running) return;
+      canvas.width  = window.innerWidth  * (window.devicePixelRatio||1);
+      canvas.height = window.innerHeight * (window.devicePixelRatio||1);
+      ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
+      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
 
       pRef.current = pRef.current.filter(p => p.life > 0);
       pRef.current.forEach(p => {
-        p.x += p.vx * delta;
-        p.y += p.vy * delta;
-        p.vy += 60 * delta; // gravity
-        p.vx *= Math.pow(0.99, delta * 60); // frame rate independent friction
-        p.life -= p.decay * delta * 60;
-        p.rot += p.rotV * delta * 60;
+        p.x += p.vx * 0.016;
+        p.y += p.vy * 0.016;
+        p.vy += 60; // gravity
+        p.vx *= 0.99;
+        p.life -= p.decay;
+        p.rot += p.rotV * 0.016;
 
         ctx.save();
-        ctx.globalAlpha = Math.max(p.life, 0);
+        ctx.globalAlpha = p.life;
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
         ctx.fillStyle = p.color;
         ctx.shadowColor = p.color;
         ctx.shadowBlur = 8;
-        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
         ctx.restore();
       });
-
       rafRef.current = requestAnimationFrame(loop);
-    };
-
-    rafRef.current = requestAnimationFrame(loop);
-
-    return () => {
-      running = false;
-      cancelAnimationFrame(rafRef.current);
-      window.removeEventListener("resize", resizeCanvas);
-    };
+    }
+    loop();
+    return () => { running = false; cancelAnimationFrame(rafRef.current); };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "fixed",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 200,
-        width: "100vw",
-        height: "100vh"
-      }}
-    />
-  );
+  return <canvas ref={canvasRef} style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:200, width:"100vw", height:"100vh" }} />;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   9  GLASS UI PRIMITIVES (specular + panels + buttons)
-   ────────────────────────────────────────────────────────────── */
+   §9  GLASS UI PRIMITIVES
+   ═══════════════════════════════════════════════════════════════ */
 
-// Specular highlight that follows pointer / touch
+// Specular highlight that follows pointer
 function useSpecular() {
-  const [pos, setPos] = useState({ x: 50, y: 0 });
+  const [pos, setPos] = useState({ x:50, y:0 });
   useEffect(() => {
     const onMove = e => {
       const t = e.touches?.[0] || e;
-      setPos({ x: (t.clientX / window.innerWidth) * 100, y: (t.clientY / window.innerHeight) * 100 });
+      setPos({ x: (t.clientX / window.innerWidth)*100, y: (t.clientY / window.innerHeight)*100 });
     };
-    window.addEventListener("mousemove", onMove, { passive: true });
-    window.addEventListener("touchmove", onMove, { passive: true });
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("touchmove", onMove);
-    };
+    window.addEventListener("mousemove", onMove, { passive:true });
+    window.addEventListener("touchmove", onMove, { passive:true });
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("touchmove", onMove); };
   }, []);
   return pos;
 }
 
-// Glass panel wrapper
-function GlassPanel({ children, style = {}, className = "" }) {
+function GlassPanel({ children, style={}, className="" }) {
   return (
-    <div
-      className={className}
-      style={{
-        background: "linear-gradient(135deg, rgba(20,20,38,0.62) 0%, rgba(14,14,26,0.78) 100%)",
-        backdropFilter: "blur(48px) saturate(1.8)",
-        WebkitBackdropFilter: "blur(48px) saturate(1.8)",
-        border: `1px solid ${C.glassBr}`,
-        borderRadius: 28,
-        boxShadow:
-          "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 60px rgba(0,255,170,0.04)",
-        ...style,
-      }}
-    >
+    <div className={className} style={{
+      background: "linear-gradient(135deg, rgba(20,20,38,0.62) 0%, rgba(14,14,26,0.78) 100%)",
+      backdropFilter: "blur(48px) saturate(1.8)",
+      WebkitBackdropFilter: "blur(48px) saturate(1.8)",
+      border: `1px solid ${C.glassBr}`,
+      borderRadius: 28,
+      boxShadow: "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 60px rgba(0,255,170,0.04)",
+      ...style
+    }}>
       {children}
     </div>
   );
 }
 
-// Glass-style button with pressed animation
-function GlassButton({ children, onClick, color = C.nGreen, disabled = false, style = {} }) {
+function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style={} }) {
   const [pressed, setPressed] = useState(false);
-
-  // Unified press handler for mouse + touch
-  const handlePressStart = e => {
-    e.preventDefault?.();
-    if (!disabled) setPressed(true);
-  };
-  const handlePressEnd = e => {
-    e.preventDefault?.();
-    if (!disabled) {
-      setPressed(false);
-      onClick?.();
-    }
-  };
-
   return (
     <button
-      onMouseDown={handlePressStart}
-      onMouseUp={handlePressEnd}
-      onTouchStart={handlePressStart}
-      onTouchEnd={handlePressEnd}
+      onMouseDown={()=>setPressed(true)} onMouseUp={()=>setPressed(false)}
+      onTouchStart={e=>{e.preventDefault();setPressed(true);}}
+      onTouchEnd={e=>{e.preventDefault();setPressed(false);onClick?.();}}
+      onClick={onClick}
       disabled={disabled}
       style={{
         background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`,
@@ -845,7 +893,7 @@ function GlassButton({ children, onClick, color = C.nGreen, disabled = false, st
           : `0 4px 24px ${color}18, inset 0 1px 0 ${color}25`,
         padding: "14px 28px",
         outline: "none",
-        ...style,
+        ...style
       }}
     >
       {children}
@@ -854,247 +902,255 @@ function GlassButton({ children, onClick, color = C.nGreen, disabled = false, st
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   11  COUNTDOWN OVERLAY (3-2-1 glass shatter)
-   ────────────────────────────────────────────────────────────── */
+   §10  LIVE TICKER BAR  (DexScreener-powered, seed fallback)
+   ═══════════════════════════════════════════════════════════════ */
+function LiveTicker() {
+  const [tickers, setTickers] = useState(TICKER_SEEDS);
+  const [offset, setOffset]   = useState(0);
+  const rafRef  = useRef(null);
+  const lastT   = useRef(Date.now());
+  const hasFetched = useRef(false);                // first successful fetch flag
 
+  // ── fetch loop: initial + every 28 s ──
+  useEffect(() => {
+    let alive = true;
+    async function pull() {
+      const data = await fetchDexTrending();
+      if (!alive) return;
+      if (data && data.length > 0) {
+        setTickers(data);
+        if (hasFetched.current) SND.tickerPing();  // ping only after first success (avoid autoplay block)
+        hasFetched.current = true;
+      }
+      // else keep previous / seeds — no stale flash
+    }
+    pull();                                        // immediate first fetch
+    const iv = setInterval(pull, 28000);           // then every 28 s (DexScreener is generous but be polite)
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
 
-/* ═══════════════════════════════════════════════════════════════
-   12  TIMER BAR  (liquid progress, pulse when low)
-   ────────────────────────────────────────────────────────────── */
-function TimerBar({ timeLeft, totalTime }) {
-  const pct = Math.max(0, Math.min(100, (timeLeft / totalTime) * 100)); // clamp 0-100
-  const isLow = timeLeft < 1200;
-  const color = isLow ? C.nPink : timeLeft < 2200 ? C.nAmber : C.nGreen;
+  // ── smooth scroll RAF ──
+  useEffect(() => {
+    let pos = 0;
+    const spd = 28;
+    function loop() {
+      const now = Date.now();
+      const dt  = (now - lastT.current) / 1000;
+      lastT.current = now;
+      pos -= spd * dt;
+      if (pos < -window.innerWidth * 0.8) pos = 0;
+      setOffset(pos);
+      rafRef.current = requestAnimationFrame(loop);
+    }
+    loop();
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
 
-  // Pulzáló shadow ha low-time
-  const shadow = isLow
-    ? `0 0 ${8 + 4 * Math.sin(Date.now() * 0.02)}px ${C.nPink}60`
-    : "none";
-
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: 5,
-        background: "rgba(255,255,255,0.07)",
-        borderRadius: 3,
-        overflow: "hidden",
-        boxShadow: shadow,
-        transition: "box-shadow 0.2s ease",
-      }}
-    >
-      <div
-        style={{
-          width: `${pct}%`,
-          height: "100%",
-          borderRadius: 3,
-          background: `linear-gradient(90deg, ${color}, ${color}bb)`,
-          boxShadow: `0 0 8px ${color}50`,
-          transition: "width 0.08s linear, background 0.3s ease",
-        }}
-      />
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   13  DECISION BUTTONS (buy/hold/sell)
-   ────────────────────────────────────────────────────────────── */
-function DecisionButtons({ onChoose, disabled }) {
-  const btnStyle = { flex: 1, padding: "16px 8px" };
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-        width: "100%",
-        maxWidth: 380,
-        margin: "0 auto",
-        pointerEvents: disabled ? "none" : "auto", // letiltja a gombokat ha disabled
-        opacity: disabled ? 0.6 : 1,             // vizuális jelzés
-        transition: "opacity 0.2s ease",
-      }}
-    >
-      <GlassButton onClick={() => onChoose("nuke")} color={C.bear} disabled={disabled} style={btnStyle}>
-        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>BEARISH</div>
-        <div style={{ fontSize: 18 }}>📉 SELL</div>
-      </GlassButton>
-
-      <GlassButton onClick={() => onChoose("hodl")} color={C.nAmber} disabled={disabled} style={btnStyle}>
-        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>NEUTRAL</div>
-        <div style={{ fontSize: 18 }}>⏸ HOLD</div>
-      </GlassButton>
-
-      <GlassButton onClick={() => onChoose("aped")} color={C.bull} disabled={disabled} style={btnStyle}>
-        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>BULLISH</div>
-        <div style={{ fontSize: 18 }}>📈 BUY</div>
-      </GlassButton>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   14  OUTCOME CARD (after continuation reveal)
-   ────────────────────────────────────────────────────────────── */
-function OutcomeCard({
-  correct = false,
-  points = 0,
-  streak = 0,
-  patternName = "-",
-  choice = "hold",
-  signal = "hold",
-  onNext,
-  godMode = false,
-}) {
-  const color = correct ? C.nGreen : C.nPink;
+  // ── format price nicely (tiny prices → scientific-ish, big → normal) ──
+  const fmtPrice = (p) => {
+    if (p === 0) return "0";
+    if (p >= 1)     return p.toFixed(2);
+    if (p >= 0.01)  return p.toFixed(4);
+    if (p >= 0.0001) return p.toFixed(6);
+    // very small → use toPrecision
+    return Number(p.toPrecision(3)).toExponential(1);
+  };
 
   return (
-    <GlassPanel
-      style={{
-        padding: 28,
-        textAlign: "center",
-        maxWidth: 360,
-        margin: "0 auto",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* soft glow */}
-      <div
-        style={{
-          position: "absolute",
-          top: -40,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 200,
-          height: 200,
-          borderRadius: "50%",
-          background: correct
-            ? `radial-gradient(circle, ${C.nGreen}22 0%, transparent 70%)`
-            : `radial-gradient(circle, ${C.nPink}22 0%, transparent 70%)`,
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* icon */}
-      <div style={{ fontSize: 44, marginBottom: 6 }}>
-        {correct ? (godMode ? "🌟" : "✅") : "❌"}
+    <div style={{ position:"fixed", top:0, left:0, right:0, height:34, zIndex:300,
+      background:"linear-gradient(90deg, rgba(6,6,12,0.88) 0%, rgba(15,15,26,0.92) 100%)",
+      backdropFilter:"blur(20px)", borderBottom:`1px solid ${C.glassBr}`,
+      overflow:"hidden", display:"flex", alignItems:"center" }}>
+      <div style={{ display:"flex", gap:32, whiteSpace:"nowrap", transform:`translateX(${offset}px)`, willChange:"transform" }}>
+        {[...tickers,...tickers].map((t,i) => (
+          <span key={i} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, fontFamily:"'SF Mono','Fira Code',monospace" }}>
+            <span style={{ color:"rgba(255,255,255,0.45)", fontWeight:600 }}>{t.sym}</span>
+            <span style={{ color:"rgba(255,255,255,0.72)", fontWeight:700 }}>${fmtPrice(t.price)}</span>
+            <span style={{ color: t.chg>=0 ? C.bull : C.bear, fontWeight:600 }}>{t.chg>=0?"+":""}{t.chg}%</span>
+            <span style={{ color:"rgba(255,255,255,0.15)" }}>│</span>
+          </span>
+        ))}
       </div>
+      {/* LIVE dot */}
+      <div style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", display:"flex", alignItems:"center", gap:5 }}>
+        <div style={{ width:6, height:6, borderRadius:"50%", background:C.nPink, boxShadow:`0 0 6px ${C.nPink}`, animation:"pulse 1.4s infinite" }} />
+        <span style={{ color:C.nPink, fontSize:9, fontWeight:700, fontFamily:"monospace", letterSpacing:"0.12em" }}>LIVE</span>
+      </div>
+    </div>
+  );
+}
 
-      {/* verdict */}
-      <div
-        style={{
-          fontSize: 20,
-          fontWeight: 800,
-          color,
-          fontFamily: "'SF Mono','Fira Code',monospace",
-          textShadow: `0 0 16px ${color}`,
-        }}
-      >
+/* ═══════════════════════════════════════════════════════════════
+   §11  LOADING SCREEN  (brief transition before chart appears)
+   ═══════════════════════════════════════════════════════════════ */
+function LoadingScreen() {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", padding:24 }}>
+      <GlassPanel style={{ padding:40, textAlign:"center" }}>
+        <div style={{ fontSize:48, marginBottom:16, animation:"pulse 1.2s ease-in-out infinite" }}>📊</div>
+        <div style={{ fontSize:15, fontFamily:"monospace", color:"rgba(255,255,255,0.65)", fontWeight:600, letterSpacing:"0.08em" }}>
+          Preparing chart...
+        </div>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:8, fontFamily:"monospace" }}>
+          Get ready
+        </div>
+      </GlassPanel>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   §12  COUNTDOWN OVERLAY  (3-2-1 glass shatter)
+   ═══════════════════════════════════════════════════════════════ */
+function Countdown({ onDone }) {
+  const [num, setNum]       = useState(3);
+  const [shatter, setShatter] = useState(false);
+  const [exit, setExit]     = useState(false);
+
+  useEffect(() => {
+    SND.tick(3);
+    haptic([25]);
+    if(num > 1) {
+      const t = setTimeout(() => { SND.tick(num-1); haptic([25]); setNum(n=>n-1); }, 900);
+      return () => clearTimeout(t);
+    } else {
+      // after "1" show briefly then shatter
+      const t1 = setTimeout(() => setShatter(true), 600);
+      const t2 = setTimeout(() => { setExit(true); }, 900);
+      const t3 = setTimeout(onDone, 1050);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    }
+  }, [num, onDone]);
+
+  // shatter fragments (CSS)
+  const frags = useMemo(() => Array.from({length:12}, (_,i) => ({
+    id:i, angle: (i/12)*360, dist: R(40,160), delay: i*30
+  })), []);
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:250, display:"flex", alignItems:"center", justifyContent:"center",
+      background:"rgba(6,6,12,0.72)", backdropFilter:"blur(12px)" }}>
+      {!shatter ? (
+        <div style={{ position:"relative" }}>
+          {/* outer glass ring */}
+          <div style={{ width:140, height:140, borderRadius:"50%",
+            background:"linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
+            border:`2px solid ${C.nGreen}50`,
+            boxShadow:`0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            animation:"ringPulse 0.9s ease-out" }}>
+            <span style={{ fontSize: 72, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
+              color: num===1 ? C.nPink : C.nGreen,
+              textShadow: `0 0 30px ${num===1?C.nPink:C.nGreen}`,
+              animation:"numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}>
+              {num}
+            </span>
+          </div>
+        </div>
+      ) : (
+        // shatter fragments
+        <div style={{ position:"relative", width:140, height:140 }}>
+          {frags.map(f => (
+            <div key={f.id} style={{
+              position:"absolute", left:"50%", top:"50%",
+              width: R(15,40), height: R(10,28),
+              background:`linear-gradient(${f.angle}deg, ${C.nGreen}44, ${C.nPurple}22)`,
+              border: `1px solid ${C.nGreen}30`,
+              borderRadius: R(2,6),
+              transform: exit
+                ? `translate(${Math.cos(f.angle*Math.PI/180)*f.dist}px, ${Math.sin(f.angle*Math.PI/180)*f.dist}px) rotate(${f.angle}deg) scale(0)`
+                : "translate(-50%,-50%) scale(1)",
+              opacity: exit ? 0 : 1,
+              transition: `transform 0.35s cubic-bezier(0.55,0,1,1) ${f.delay}ms, opacity 0.3s ease ${f.delay+100}ms`,
+            }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   §12  TIMER BAR  (liquid progress, pulse when low)
+   ═══════════════════════════════════════════════════════════════ */
+function TimerBar({ timeLeft, totalTime }) {
+  const pct    = (timeLeft / totalTime) * 100;
+  const isLow  = timeLeft < 1200;
+  const color  = isLow ? C.nPink : timeLeft < 2200 ? C.nAmber : C.nGreen;
+
+  return (
+    <div style={{ width:"100%", height:5, background:"rgba(255,255,255,0.07)", borderRadius:3, overflow:"hidden",
+      boxShadow: isLow ? `0 0 12px ${C.nPink}60` : "none", transition:"box-shadow 0.3s" }}>
+      <div style={{
+        width:`${pct}%`, height:"100%", borderRadius:3,
+        background:`linear-gradient(90deg, ${color}, ${color}bb)`,
+        boxShadow:`0 0 8px ${color}50`,
+        transition: "width 0.08s linear, background 0.4s ease",
+      }} />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   §13  DECISION BUTTONS
+   ═══════════════════════════════════════════════════════════════ */
+function DecisionButtons({ onChoose, disabled }) {
+  return (
+    <div style={{ display:"flex", gap:12, width:"100%", maxWidth:380, margin:"0 auto" }}>
+      <GlassButton onClick={()=>onChoose("sell")} color={C.bear} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BEARISH</div>
+        <div style={{ fontSize:18 }}>📉 SELL</div>
+      </GlassButton>
+      <GlassButton onClick={()=>onChoose("hold")} color={C.nAmber} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>NEUTRAL</div>
+        <div style={{ fontSize:18 }}>⏸ HOLD</div>
+      </GlassButton>
+      <GlassButton onClick={()=>onChoose("buy")} color={C.bull} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
+        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BULLISH</div>
+        <div style={{ fontSize:18 }}>📈 BUY</div>
+      </GlassButton>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   §14  OUTCOME CARD  (shown after continuation animates in)
+   ═══════════════════════════════════════════════════════════════ */
+function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
+  return (
+    <GlassPanel style={{ padding:28, textAlign:"center", maxWidth:360, margin:"0 auto", position:"relative", overflow:"hidden" }}>
+      {/* glow accent */}
+      <div style={{ position:"absolute", top:-30, left:"50%", transform:"translateX(-50%)",
+        width:160, height:160, borderRadius:"50%",
+        background: correct ? `radial-gradient(circle, ${C.nGreen}22 0%, transparent 70%)` : `radial-gradient(circle, ${C.nPink}22 0%, transparent 70%)`,
+        pointerEvents:"none" }} />
+
+      <div style={{ fontSize:44, marginBottom:4 }}>{correct ? (godMode ? "🌟" : "✅") : "❌"}</div>
+      <div style={{ fontSize:20, fontWeight:800, color: correct ? C.nGreen : C.nPink,
+        fontFamily:"'SF Mono','Fira Code',monospace", textShadow:`0 0 16px ${correct?C.nGreen:C.nPink}` }}>
         {correct ? "CORRECT" : "WRONG"}
       </div>
-
-      {/* meta */}
-      <div
-        style={{
-          fontSize: 12,
-          color: "rgba(255,255,255,0.45)",
-          marginTop: 6,
-          fontFamily: "monospace",
-        }}
-      >
-        Pattern:{" "}
-        <span style={{ color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>
-          {patternName}
-        </span>
+      <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginTop:4, fontFamily:"monospace" }}>
+        Pattern: <span style={{ color:"rgba(255,255,255,0.72)", fontWeight:600 }}>{patternName}</span>
       </div>
-
-      <div
-        style={{
-          fontSize: 12,
-          color: "rgba(255,255,255,0.35)",
-          marginTop: 2,
-          fontFamily: "monospace",
-        }}
-      >
-        Signal:{" "}
-        <span
-          style={{
-            color:
-              signal === "buy"
-                ? C.bull
-                : signal === "sell"
-                ? C.bear
-                : C.nAmber,
-            fontWeight: 700,
-          }}
-        >
-          {signal.toUpperCase()}
-        </span>
-        {"  ·  "}
-        You chose:{" "}
-        <span
-          style={{
-            color:
-              choice === "buy"
-                ? C.bull
-                : choice === "sell"
-                ? C.bear
-                : C.nAmber,
-            fontWeight: 700,
-          }}
-        >
-          {choice.toUpperCase()}
-        </span>
+      <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:2, fontFamily:"monospace" }}>
+        Signal: <span style={{ color: signal==="buy"?C.bull:signal==="sell"?C.bear:C.nAmber, fontWeight:700 }}>{signal.toUpperCase()}</span>
+        {"  ·  "}You chose: <span style={{ color: choice==="buy"?C.bull:choice==="sell"?C.bear:C.nAmber, fontWeight:700 }}>{choice.toUpperCase()}</span>
       </div>
 
       {/* points */}
-      <div
-        style={{
-          margin: "20px 0 6px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          minHeight: 40, // layout stability
-        }}
-      >
-        <span
-          style={{
-            fontSize: 32,
-            fontWeight: 800,
-            fontFamily: "'SF Mono','Fira Code',monospace",
-            color: correct ? C.nGreen : "rgba(255,255,255,0.35)",
-          }}
-        >
+      <div style={{ margin:"18px 0 4px", display:"flex", alignItems:"baseline", justifyContent:"center", gap:8 }}>
+        <span style={{ fontSize:32, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace", color:correct?C.nGreen:"rgba(255,255,255,0.35)" }}>
           {correct ? `+${points}` : "+0"}
         </span>
-
-        {correct && streak > 1 && (
-          <span
-            style={{
-              fontSize: 13,
-              color: C.nPurple,
-              fontWeight: 700,
-              background: `${C.nPurple}18`,
-              padding: "2px 8px",
-              borderRadius: 10,
-              border: `1px solid ${C.nPurple}30`,
-            }}
-          >
-            🔥 ×
-            {STREAK_MULT[Math.min(streak, STREAK_MULT.length - 1)].toFixed(1)}
+        {streak > 1 && correct && (
+          <span style={{ fontSize:13, color:C.nPurple, fontWeight:700, background:`${C.nPurple}18`, padding:"2px 8px", borderRadius:10, border:`1px solid ${C.nPurple}30` }}>
+            🔥 ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length-1)].toFixed(1)}
           </span>
         )}
       </div>
 
-      {/* next */}
-      <GlassButton
-        onClick={onNext}
-        color={C.nGreen}
-        style={{ marginTop: 16, width: "100%" }}
-      >
+      <GlassButton onClick={onNext} color={C.nGreen} style={{ marginTop:16, width:"100%", justifyContent:"center" }}>
         Next Round →
       </GlassButton>
     </GlassPanel>
@@ -1102,185 +1158,63 @@ function OutcomeCard({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   15  FINAL VERDICT SCREEN
-   ────────────────────────────────────────────────────────────── */
-function FinalVerdict({
-  stats,
-  onRestart,
-  onLeaderboard,
-  onShare,
-}) {
-  if (!stats) return null;
+   §15  FINAL VERDICT SCREEN
+   ═══════════════════════════════════════════════════════════════ */
+function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
+  const arch = getArchetype(stats);
+  const stars = Math.round((stats.correct / ROUNDS) * 5);
 
-  const arch  = getArchetype(stats);
-  const stars = Math.max(0, Math.min(5, Math.round((stats.correct / ROUNDS) * 5)));
-
-  // dramatic whoosh on mount (ONLY once)
-  useEffect(() => {
-    SND?.whoosh?.();
-  }, []);
+  // dramatic whoosh on verdict entrance
+  useEffect(() => { SND.whoosh(); }, []);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 18,
-        padding: "20px 16px",
-        maxWidth: 420,
-        margin: "0 auto",
-      }}
-    >
-      <GlassPanel
-        style={{
-          padding: 30,
-          textAlign: "center",
-          width: "100%",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* top accent */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: `linear-gradient(90deg, transparent, ${C.nGreen}, ${C.nPurple}, ${C.nPink}, transparent)`,
-          }}
-        />
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:18, padding:"20px 16px", maxWidth:420, margin:"0 auto" }}>
+      <GlassPanel style={{ padding:30, textAlign:"center", width:"100%", position:"relative", overflow:"hidden" }}>
+        {/* animated top accent */}
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
+          background:`linear-gradient(90deg, transparent, ${C.nGreen}, ${C.nPurple}, ${C.nPink}, transparent)` }} />
 
-        {/* archetype */}
-        <div style={{ fontSize: 56, marginBottom: 4 }}>
-          {arch.emoji}
-        </div>
-
-        <div
-          style={{
-            fontSize: 22,
-            fontWeight: 800,
-            fontFamily: "'SF Mono','Fira Code',monospace",
-            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
+        <div style={{ fontSize:56, marginBottom:2 }}>{arch.emoji}</div>
+        <div style={{ fontSize:22, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
+          background:`linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
+          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
           {arch.name}
         </div>
-
-        <div
-          style={{
-            fontSize: 12,
-            color: "rgba(255,255,255,0.42)",
-            marginTop: 8,
-            lineHeight: 1.5,
-            maxWidth: 300,
-            marginInline: "auto",
-            fontFamily: "monospace",
-          }}
-        >
-          “{arch.roast}”
+        <div style={{ fontSize:12, color:"rgba(255,255,255,0.42)", marginTop:6, lineHeight:1.5, maxWidth:300, margin:"8px auto 0", fontFamily:"monospace" }}>
+          "{arch.roast}"
         </div>
 
         {/* stars */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 4,
-            margin: "16px 0 6px",
-          }}
-        >
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                fontSize: 22,
-                opacity: i < stars ? 1 : 0.35,
-                filter: i < stars ? `drop-shadow(0 0 6px ${C.nAmber})` : "none",
-              }}
-            >
+        <div style={{ display:"flex", justifyContent:"center", gap:4, margin:"16px 0 4px" }}>
+          {Array.from({length:5}, (_,i) => (
+            <span key={i} style={{ fontSize:22, filter: i<stars ? `drop-shadow(0 0 6px ${C.nAmber})` : "none" }}>
               {i < stars ? "⭐" : "☆"}
             </span>
           ))}
         </div>
 
-        {/* stats */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 22,
-            marginTop: 12,
-            flexWrap: "wrap",
-          }}
-        >
+        {/* stats row */}
+        <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:12 }}>
           {[
-            { label: "Score",   val: stats.totalScore, color: C.nGreen },
-            { label: "Correct", val: `${stats.correct}/${ROUNDS}`, color: C.nBlue },
-            { label: "Streak",  val: stats.maxStreak, color: C.nPurple },
-            { label: "Avg ms",  val: stats.avgSpeed, color: C.nAmber },
+            { label:"Score", val: stats.totalScore, color:C.nGreen },
+            { label:"Correct", val:`${stats.correct}/${ROUNDS}`, color:C.nBlue },
+            { label:"Streak", val:`${stats.maxStreak}`, color:C.nPurple },
+            { label:"Avg ms", val:`${stats.avgSpeed}`, color:C.nAmber },
           ].map(s => (
-            <div key={s.label} style={{ textAlign: "center", minWidth: 64 }}>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  fontFamily: "monospace",
-                  color: s.color,
-                }}
-              >
-                {s.val}
-              </div>
-              <div
-                style={{
-                  fontSize: 9,
-                  color: "rgba(255,255,255,0.38)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                {s.label}
-              </div>
+            <div key={s.label} style={{ textAlign:"center" }}>
+              <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.val}</div>
+              <div style={{ fontSize:9, color:"rgba(255,255,255,0.38)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
             </div>
           ))}
         </div>
       </GlassPanel>
 
-      {/* actions */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          width: "100%",
-          maxWidth: 380,
-        }}
-      >
-        <GlassButton
-          onClick={onRestart}
-          color={C.nGreen}
-          style={{ flex: 2 }}
-        >
-          🔄 Play Again
-        </GlassButton>
-
-        <GlassButton
-          onClick={onShare}
-          color={C.nPurple}
-          style={{ flex: 1 }}
-        >
-          📤 Share
-        </GlassButton>
+      {/* action buttons */}
+      <div style={{ display:"flex", gap:10, width:"100%", maxWidth:380 }}>
+        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex:2, justifyContent:"center" }}>🔄 Play Again</GlassButton>
+        <GlassButton onClick={onShare}   color={C.nPurple} style={{ flex:1, justifyContent:"center" }}>📤 Share</GlassButton>
       </div>
-
-      <GlassButton
-        onClick={onLeaderboard}
-        color={C.nBlue}
-        style={{ width: "100%", maxWidth: 380 }}
-      >
+      <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ width:"100%", maxWidth:380, justifyContent:"center" }}>
         🏆 Leaderboard
       </GlassButton>
     </div>
@@ -1288,171 +1222,56 @@ function FinalVerdict({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   16  LEADERBOARD  (localStorage)
-   ────────────────────────────────────────────────────────────── */
-
+   §16  LEADERBOARD  (localStorage)
+   ═══════════════════════════════════════════════════════════════ */
 const LB_KEY = "reflexglass_lb_v2";
+function loadLB() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch(_){ return []; } }
+function saveLB(arr) { try { localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0,50))); } catch(_){} }
 
-/* ── storage helpers ── */
-function loadLB() {
-  try {
-    const raw = localStorage.getItem(LB_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLB(arr) {
-  try {
-    localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0, 50)));
-  } catch {}
-}
-
-/* ── add entry ── */
 function addToLeaderboard(name, stats) {
-  if (!name || !stats) return loadLB();
-
-  const lb   = loadLB();
+  const lb = loadLB();
   const arch = getArchetype(stats);
-
-  lb.push({
-    name,
-    score: stats.totalScore,
-    avgSpeed: stats.avgSpeed,
-    correct: stats.correct,
-    archetype: arch.name,
-    emoji: arch.emoji,
-    ts: Date.now(),
-  });
-
-  lb.sort((a, b) => b.score - a.score);
+  lb.push({ name, score:stats.totalScore, avgSpeed:stats.avgSpeed, correct:stats.correct,
+            archetype:arch.name, emoji:arch.emoji, ts:Date.now() });
+  lb.sort((a,b) => b.score - a.score);
   saveLB(lb);
-
   return lb;
 }
 
-/* ── leaderboard screen ── */
 function Leaderboard({ onClose, currentName }) {
-  const [entries, setEntries] = useState([]);
-
-  useEffect(() => {
-    setEntries(loadLB());
-  }, []);
-
+  const lb = useMemo(() => loadLB(), []);
   return (
-    <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 16px" }}>
-      <GlassPanel style={{ padding: 24 }}>
-        {/* header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 18,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 800,
-              fontFamily: "monospace",
-              color: C.nGreen,
-            }}
-          >
-            🏆 Leaderboard
-          </div>
-
-          <GlassButton
-            onClick={onClose}
-            color="rgba(255,255,255,0.5)"
-            style={{ padding: "6px 14px", fontSize: 12 }}
-          >
-            ✕
-          </GlassButton>
+    <div style={{ maxWidth:420, margin:"0 auto", padding:"0 16px" }}>
+      <GlassPanel style={{ padding:24 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+          <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>🏆 Leaderboard</div>
+          <GlassButton onClick={onClose} color="rgba(255,255,255,0.5)" style={{ padding:"6px 14px", fontSize:12 }}>✕</GlassButton>
         </div>
-
-        {/* body */}
-        {entries.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              color: "rgba(255,255,255,0.3)",
-              fontSize: 13,
-              fontFamily: "monospace",
-              padding: 24,
-            }}
-          >
+        {lb.length === 0 ? (
+          <div style={{ textAlign:"center", color:"rgba(255,255,255,0.3)", fontSize:13, fontFamily:"monospace", padding:24 }}>
             No entries yet. Play a round!
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {entries.slice(0, 15).map((e, i) => {
-              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {lb.slice(0,15).map((e,i) => {
+              const medal = i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
               const isMe  = e.name === currentName;
-
               return (
-                <div
-                  key={e.ts}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 14px",
-                    borderRadius: 14,
-                    background: isMe
-                      ? `${C.nGreen}14`
-                      : "rgba(255,255,255,0.03)",
-                    border: isMe
-                      ? `1px solid ${C.nGreen}30`
-                      : "1px solid rgba(255,255,255,0.05)",
-                  }}
-                >
-                  <span style={{ width: 28, textAlign: "center", fontSize: 14 }}>
-                    {medal}
-                  </span>
-
-                  <span style={{ fontSize: 15 }}>{e.emoji}</span>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "rgba(255,255,255,0.85)",
-                        fontFamily: "monospace",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {e.name}
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: "rgba(255,255,255,0.3)",
-                          marginLeft: 6,
-                        }}
-                      >
-                        {e.archetype}
-                      </span>
+                <div key={i} style={{
+                  display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:14,
+                  background: isMe ? `${C.nGreen}12` : "rgba(255,255,255,0.03)",
+                  border: isMe ? `1px solid ${C.nGreen}28` : "1px solid rgba(255,255,255,0.05)",
+                }}>
+                  <span style={{ width:24, textAlign:"center", fontSize:14 }}>{medal || `${i+1}.`}</span>
+                  <span style={{ fontSize:15 }}>{e.emoji}</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.85)", fontFamily:"monospace", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                      {e.name} <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", fontWeight:400 }}>{e.archetype}</span>
                     </div>
                   </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <div
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 800,
-                        fontFamily: "monospace",
-                        color: C.nGreen,
-                      }}
-                    >
-                      {e.score}
-                    </div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>
-                      {e.avgSpeed} ms avg
-                    </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:15, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{e.score}</div>
+                    <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)" }}>{e.avgSpeed}ms avg</div>
                   </div>
                 </div>
               );
@@ -1465,233 +1284,99 @@ function Leaderboard({ onClose, currentName }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   17  SHARE CARD  (SVG → data URL)
-   ────────────────────────────────────────────────────────────── */
-
+   §17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
+   ═══════════════════════════════════════════════════════════════ */
 function generateShareSVG(stats) {
   const arch = getArchetype(stats);
-  const starCount = Math.round((stats.correct / ROUNDS) * 5);
-  const stars = "⭐".repeat(starCount) + "☆".repeat(5 - starCount);
-
-  return `
-<svg xmlns="http://www.w3.org/2000/svg" width="480" height="280" viewBox="0 0 480 280">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f0f1a"/>
-      <stop offset="100%" stop-color="#06060c"/>
-    </linearGradient>
-
-    <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a1a30"/>
-      <stop offset="100%" stop-color="#0e0e1a"/>
-    </linearGradient>
-
-    <linearGradient id="topAccent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#00ffaa"/>
-      <stop offset="50%" stop-color="#a855f7"/>
-      <stop offset="100%" stop-color="#ff4d94"/>
-    </linearGradient>
-
-    <filter id="blur">
-      <feGaussianBlur stdDeviation="10"/>
-    </filter>
-
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-
-  <!-- background -->
-  <rect width="480" height="280" fill="url(#bg)"/>
-
-  <!-- ambient orbs -->
-  <circle cx="80" cy="60" r="90" fill="#00ffaa" opacity="0.06" filter="url(#blur)"/>
-  <circle cx="420" cy="220" r="70" fill="#a855f7" opacity="0.07" filter="url(#blur)"/>
-  <circle cx="350" cy="40" r="50" fill="#ff4d94" opacity="0.05" filter="url(#blur)"/>
-
-  <!-- glass card -->
-  <rect x="24" y="24" width="432" height="232" rx="24"
-        fill="url(#glass)" stroke="rgba(255,255,255,0.12)" />
-
-  <!-- accent -->
-  <rect x="24" y="24" width="432" height="3" rx="2" fill="url(#topAccent)"/>
-
-  <!-- title -->
-  <text x="240" y="56" text-anchor="middle"
-        fill="#00ffaa" font-family="monospace"
-        font-size="11" font-weight="700"
-        letter-spacing="3"
-        filter="url(#glow)">
-    REFLEX GLASS
-  </text>
-
-  <!-- archetype -->
-  <text x="240" y="102" text-anchor="middle"
-        fill="white" font-family="monospace"
-        font-size="26" font-weight="800">
-    ${arch.emoji} ${arch.name}
-  </text>
-
-  <!-- stars -->
-  <text x="240" y="132" text-anchor="middle" font-size="18">
-    ${stars}
-  </text>
-
-  <!-- stats -->
-  <text x="80" y="180" text-anchor="middle"
-        fill="#00ffaa" font-family="monospace"
-        font-size="22" font-weight="800">
-    ${stats.totalScore}
-  </text>
-  <text x="80" y="198" text-anchor="middle"
-        fill="rgba(255,255,255,0.45)"
-        font-family="monospace" font-size="9">
-    SCORE
-  </text>
-
-  <text x="200" y="180" text-anchor="middle"
-        fill="#38bdf8" font-family="monospace"
-        font-size="22" font-weight="800">
-    ${stats.correct}/${ROUNDS}
-  </text>
-  <text x="200" y="198" text-anchor="middle"
-        fill="rgba(255,255,255,0.45)"
-        font-family="monospace" font-size="9">
-    CORRECT
-  </text>
-
-  <text x="320" y="180" text-anchor="middle"
-        fill="#a855f7" font-family="monospace"
-        font-size="22" font-weight="800">
-    ${stats.avgSpeed}ms
-  </text>
-  <text x="320" y="198" text-anchor="middle"
-        fill="rgba(255,255,255,0.45)"
-        font-family="monospace" font-size="9">
-    AVG SPEED
-  </text>
-
-  <!-- roast -->
-  <text x="240" y="238" text-anchor="middle"
-        fill="rgba(255,255,255,0.32)"
-        font-family="monospace"
-        font-size="9"
-        font-style="italic">
-    "${arch.roast.slice(0, 60)}…"
-  </text>
-</svg>`;
+  const stars = "⭐".repeat(Math.round((stats.correct/ROUNDS)*5)) + "☆".repeat(5 - Math.round((stats.correct/ROUNDS)*5));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="280" viewBox="0 0 480 280">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0f0f1a"/><stop offset="100%" stop-color="#06060c"/></linearGradient>
+      <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="rgba(20,20,40,0.7)"/><stop offset="100%" stop-color="rgba(14,14,26,0.9)"/></linearGradient>
+      <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+      <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect width="480" height="280" fill="url(#bg)"/>
+    <!-- ambient orbs -->
+    <circle cx="80"  cy="60"  r="90"  fill="#00ffaa" opacity="0.06" filter="url(#blur)"/>
+    <circle cx="420" cy="220" r="70"  fill="#a855f7" opacity="0.07" filter="url(#blur)"/>
+    <circle cx="350" cy="40"  r="50"  fill="#ff4d94" opacity="0.05" filter="url(#blur)"/>
+    <!-- glass card -->
+    <rect x="24" y="24" width="432" height="232" rx="24" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" opacity="0.9"/>
+    <!-- top accent line -->
+    <rect x="24" y="24" width="432" height="3" rx="2" fill="url(#topAccent)"/>
+    <defs><linearGradient id="topAccent" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00ffaa"/><stop offset="50%" stop-color="#a855f7"/><stop offset="100%" stop-color="#ff4d94"/></linearGradient></defs>
+    <!-- title -->
+    <text x="240" y="58" text-anchor="middle" fill="#00ffaa" font-family="monospace" font-size="11" font-weight="700" letter-spacing="3" filter="url(#glow)">REFLEX GLASS</text>
+    <!-- archetype -->
+    <text x="240" y="100" text-anchor="middle" fill="white" font-family="monospace" font-size="26" font-weight="800">${arch.emoji} ${arch.name}</text>
+    <!-- stars -->
+    <text x="240" y="132" text-anchor="middle" font-size="18">${stars}</text>
+    <!-- stats -->
+    <text x="80"  y="180" text-anchor="middle" fill="#00ffaa" font-family="monospace" font-size="22" font-weight="800">${stats.totalScore}</text>
+    <text x="80"  y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">SCORE</text>
+    <text x="200" y="180" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="22" font-weight="800">${stats.correct}/${ROUNDS}</text>
+    <text x="200" y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">CORRECT</text>
+    <text x="320" y="180" text-anchor="middle" fill="#a855f7" font-family="monospace" font-size="22" font-weight="800">${stats.avgSpeed}ms</text>
+    <text x="320" y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">AVG SPEED</text>
+    <!-- roast -->
+    <text x="240" y="238" text-anchor="middle" fill="rgba(255,255,255,0.32)" font-family="monospace" font-size="9" font-style="italic">"${arch.roast.slice(0,62)}…"</text>
+  </svg>`;
 }
 
+function triggerShare(stats, playerName) {
+  const svg  = generateShareSVG(stats);
+  const blob = new Blob([svg], {type:"image/svg+xml"});
+  const url  = URL.createObjectURL(blob);
 
-
-
-/* ═══════════════════════════════════════════════════════════════
-   18  NAME INPUT (first-time / before leaderboard)
-   ═══════════════════════════════════════════════════════════════ */
-
-const NAME_KEY = "reflexglass_name_v2";
-
-function loadName() {
-  try {
-    return localStorage.getItem(NAME_KEY) || "";
-  } catch (_) {
-    return "";
+  // Try Web Share API first (mobile)
+  if(navigator.share) {
+    navigator.share({
+      title: "Reflex Glass",
+      text:  `I scored ${stats.totalScore} — ${getArchetype(stats).name} 🔥`,
+      url:   window.location.href,
+    }).catch(()=>{});
+  } else {
+    // fallback: open in new tab
+    window.open(url, "_blank");
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   §18  NAME INPUT (first-time / before leaderboard)
+   ═══════════════════════════════════════════════════════════════ */
+const NAME_KEY = "reflexglass_name_v2";
+function loadName() { try { return localStorage.getItem(NAME_KEY) || ""; } catch(_){ return ""; } }
+
 function NameInput({ onSubmit }) {
-  const [val, setVal] = useState(() => loadName());
-  const [locked, setLocked] = useState(false);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
+  const [val, setVal] = useState(loadName());
   const save = () => {
-    if (locked) return;
-    setLocked(true);
-
-    const name = val.trim() || "Anonymous";
-    try {
-      localStorage.setItem(NAME_KEY, name);
-    } catch (_) {}
-
-    onSubmit(name);
+    const n = val.trim() || "Anonymous";
+    try { localStorage.setItem(NAME_KEY, n); } catch(_){}
+    onSubmit(n);
   };
-
   return (
-    <GlassPanel
-      style={{
-        padding: 28,
-        maxWidth: 340,
-        margin: "0 auto",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 14,
-          color: "rgba(255,255,255,0.55)",
-          fontFamily: "monospace",
-          marginBottom: 12,
-        }}
-      >
-        Enter your trader name
-      </div>
-
-      <input
-        ref={inputRef}
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && save()}
-        maxLength={22}
+    <GlassPanel style={{ padding:28, maxWidth:340, margin:"0 auto", textAlign:"center" }}>
+      <div style={{ fontSize:14, color:"rgba(255,255,255,0.55)", fontFamily:"monospace", marginBottom:12 }}>Enter your trader name</div>
+      <input value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()} maxLength={22}
         placeholder="e.g. SatoshiGains"
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          borderRadius: 16,
-          border: `1px solid ${C.glassBr}`,
-          background: "rgba(255,255,255,0.06)",
-          color: "#fff",
-          fontSize: 15,
-          fontFamily: "monospace",
-          outline: "none",
-          textAlign: "center",
-          boxSizing: "border-box",
-        }}
-      />
-
-      <GlassButton
-        onClick={save}
-        color={C.nGreen}
-        disabled={locked}
-        style={{
-          marginTop: 14,
-          width: "100%",
-          justifyContent: "center",
-        }}
-      >
-        Continue →
-      </GlassButton>
+        style={{ width:"100%", padding:"12px 16px", borderRadius:16, border:`1px solid ${C.glassBr}`,
+          background:"rgba(255,255,255,0.06)", color:"#fff", fontSize:15, fontFamily:"monospace",
+          outline:"none", textAlign:"center", boxSizing:"border-box" }} />
+      <GlassButton onClick={save} color={C.nGreen} style={{ marginTop:14, width:"100%", justifyContent:"center" }}>Continue →</GlassButton>
     </GlassPanel>
   );
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
-    20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
+   §20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
         Uses raw ERC-20 transfer calldata — no wagmi contract hooks needed.
         Caller must supply sendTransaction (wagmi useWriteContract or
         equivalent) via the global hook wired in main.jsx / provider.
    ═══════════════════════════════════════════════════════════════ */
 
 // ── config ──────────────────────────────────────────────────────
-const DONATION_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";           // ← replace with your Base address
+const DONATION_ADDRESS = "0xYOUR_ADDRESS_HERE";           // ← replace with your Base address
 const USDC_BASE        = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base mainnet USDC
 const TIPS = [
   { amount: 0.5, label: "☕ 0.5 USDC" },
@@ -1747,8 +1432,7 @@ function TipPanel() {
       setErrMsg(e.message || "Transaction failed");
       setStatus("error");
       setTimeout(() => setStatus("idle"), 2800);
-    
-    } [pattern, screen]; // volt: }, [pattern]);
+    }
   };
 
   return (
@@ -1814,231 +1498,423 @@ function TipPanel() {
   );
 }
 
-
-  
-
-
-/* ──────────────────────────────────────────────────────────────
-   19  ROOT APP — STATE MACHINE + GAME LOOP (FIXED)
-   States:
-   "name" | "home" | "countdown" | "playing" | "revealing"
-   | "outcome" | "verdict" | "leaderboard"
-────────────────────────────────────────────────────────────── */
-import { useState, useEffect, useRef, useCallback } from "react";
-
+/* ═══════════════════════════════════════════════════════════════
+   §19  ROOT APP  —  STATE MACHINE + GAME LOOP
+        States: "name" | "home" | "countdown" | "loading" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
+   ═══════════════════════════════════════════════════════════════ */
 export default function App() {
-  // ── CORE STATE ───────────────────────────────────────────────
-  const [screen, setScreen] = useState(loadName() ? "home" : "name");
-  const [playerName, setPlayerName] = useState(loadName());
-  const [round, setRound] = useState(0);
-  const [pattern, setPattern] = useState(null);
-
-  const [choice, setChoice] = useState(null);
-  const [streak, setStreak] = useState(0);
-  const [scores, setScores] = useState([]);
-  const [roundStats, setRoundStats] = useState([]);
-
-  const [godMode, setGodMode] = useState(false);
+  // ── state ──
+  const [screen, setScreen]               = useState(loadName() ? "home" : "name");
+  const [playerName, setPlayerName]       = useState(loadName());
+  const [round, setRound]                 = useState(0);        // 0-based
+  const [pattern, setPattern]             = useState(null);     // current pattern object
+  const [timeLeft, setTimeLeft]           = useState(DECISION_MS);
+  const [choice, setChoice]               = useState(null);
+  const [streak, setStreak]               = useState(0);
+  const [scores, setScores]               = useState([]);       // per-round score
+  const [roundStats, setRoundStats]       = useState([]);       // {correct, speedMs, choice, signal}
+  const [initialProgress, setInitialProgress] = useState(0);    // 0 → 22 (initial candle draw animation)
+  const [contProgress, setContProgress]   = useState(0);        // 0 → 10 (continuation candle reveal)
   const [particleBurst, setParticleBurst] = useState(false);
+  const [godMode, setGodMode]             = useState(false);
+  const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
 
-  // ── CHART / ANIMATION STATE ──────────────────────────────────
-  const [chartReady, setChartReady] = useState(false);     // main reveal kész
-  const [decisionOpen, setDecisionOpen] = useState(false); // user dönthet
+  // refs
+  const chartRef      = useRef(null);
+  const timerRef      = useRef(null);
+  const initialAnimRef = useRef(null);                          // initial chart draw animation
+  const contAnimRef   = useRef(null);
+  const rafChartRef   = useRef(null);
+  const choiceTimeRef = useRef(null);       // ms when choice was made
 
-  // ── REFS ────────────────────────────────────────────────────
-  const chartRef = useRef(null);
-  const rafRef = useRef(null);
+  // ── derived ──
+  const isPlaying = screen === "playing";
 
-  const revealRef = useRef(0);
-  const contRef = useRef(0);
-  const phaseRef = useRef("idle"); // idle | reveal | wait | cont
+  // ── chart RAF loop (redraws every frame for smooth continuation reveal) ──
+  useEffect(() => {
+    if(!pattern) return;
+    let running = true;
+    function loop() {
+      if(!running) return;
+      drawChart(
+        chartRef.current,
+        pattern.candles,
+        initialProgress,             // animated 0 → 22
+        (screen === "revealing" || screen === "outcome") && initialProgress >= 22 ? contProgress : 0,
+        pattern.continuation,
+        godMode
+      );
+      rafChartRef.current = requestAnimationFrame(loop);
+    }
+    loop();
+    return () => { running = false; cancelAnimationFrame(rafChartRef.current); };
+  }, [pattern, screen, initialProgress, contProgress, godMode]);
 
-  // ── START GAME ──────────────────────────────────────────────
+  // ── low-time haptic pulse ──
+  useEffect(() => {
+    if(isPlaying && timeLeft <= 1000 && timeLeft > 0) {
+      haptic([40, 30, 40]);
+      setScreenPulse(true);
+      const t = setTimeout(() => setScreenPulse(false), 200);
+      return () => clearTimeout(t);
+    }
+  }, [isPlaying, timeLeft]);
+
+  // ── countdown timer (playing state, AFTER chart draws) ──
+  useEffect(() => {
+    // Only start timer once chart is fully drawn
+    if(!isPlaying || initialProgress < 22) { 
+      clearInterval(timerRef.current); 
+      return; 
+    }
+    setTimeLeft(DECISION_MS);
+    const start = Date.now();
+    timerRef.current = setInterval(() => {
+      const rem = DECISION_MS - (Date.now() - start);
+      if(rem <= 0) {
+        clearInterval(timerRef.current);
+        setTimeLeft(0);
+        // timeout = wrong answer
+        handleChoice(null);
+      } else {
+        setTimeLeft(rem);
+      }
+    }, 60);
+    return () => clearInterval(timerRef.current);
+  }, [isPlaying, initialProgress]); // eslint-disable-line
+
+  // ── initial chart draw animation (auto-runs once on "playing" when initialProgress=0) ──
+  useEffect(() => {
+    // Only animate if: on playing screen, pattern loaded, and animation hasn't run yet
+    if(screen !== "playing" || !pattern || initialProgress > 0) { 
+      cancelAnimationFrame(initialAnimRef.current); 
+      return; 
+    }
+    const startTime = Date.now();
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const pct     = Math.min(elapsed / CHART_DRAW_MS, 1);
+      const eased   = 1 - Math.pow(1 - pct, 3);            // ease-out cubic
+      setInitialProgress(eased * 22);
+      if(pct < 1) {
+        initialAnimRef.current = requestAnimationFrame(animate);
+      } else {
+        setInitialProgress(22);
+        // chart fully drawn — stay on "playing", timer will start automatically
+      }
+    }
+    initialAnimRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(initialAnimRef.current);
+  }, [screen, pattern, initialProgress]); // eslint-disable-line
+
+  // ── continuation candle wave-reveal animation ──
+  useEffect(() => {
+    if(screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
+    setContProgress(0);
+    const startTime = Date.now();
+    const duration  = 900; // ms for all 10 candles
+    function animate() {
+      const elapsed = Date.now() - startTime;
+      const pct     = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased   = 1 - Math.pow(1 - pct, 3);
+      setContProgress(eased * 10);
+      if(pct < 1) {
+        contAnimRef.current = requestAnimationFrame(animate);
+      } else {
+        setContProgress(10);
+        // after reveal completes → show outcome
+        setTimeout(() => setScreen("outcome"), 200);
+      }
+    }
+    contAnimRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(contAnimRef.current);
+  }, [screen]);
+
+  // ── GAME ACTIONS ──
+
   const startGame = useCallback(() => {
-    const p = getRandomPattern();
-
-    setPattern(p);
-    setChoice(null);
-    setChartReady(false);
-    setDecisionOpen(false);
-
-    revealRef.current = 0;
-    contRef.current = 0;
-    phaseRef.current = "reveal";
-
+    setRound(0);
+    setScores([]);
+    setRoundStats([]);
+    setStreak(0);
+    setGodMode(false);
+    SND.ambient();                                        // start ambient tension loop
     setScreen("countdown");
   }, []);
 
-  
-// ── COUNTDOWN DONE → PLAYING ────────────────────────────────
-const startPlaying = useCallback(() => {
-  setScreen("playing");
-  // Azonnal indítjuk a reveal fázist
-  revealRef.current = 0;
-  contRef.current = 0;
-  phaseRef.current = "reveal";
-}, []);
-  // ── USER DECISION ───────────────────────────────────────────
-  const handleChoice = useCallback((ch) => {
-    if (!decisionOpen || choice) return;
+  const beginRound = useCallback(() => {
+    const p = getRandomPattern();
+    setPattern(p);
+    setChoice(null);
+    setInitialProgress(0);
+    setContProgress(0);
+    setScreen("loading");                                 // new: dedicated loading screen
+    choiceTimeRef.current = null;
+    
+    // After a brief moment (to ensure pattern is set), start the chart animation
+    setTimeout(() => {
+      setScreen("playing");
+    }, 50);
+  }, []);
 
+  const handleChoice = useCallback((ch) => {
+    if(choice !== null) return; // already chose
+    clearInterval(timerRef.current);
+    const speedMs = choiceTimeRef.current ? Date.now() - choiceTimeRef.current : DECISION_MS;
+    choiceTimeRef.current = null;
     setChoice(ch);
-    setDecisionOpen(false);
 
     const correct = ch === pattern.signal;
+    haptic(correct ? [30,20,30] : [80]);
 
-    if (correct) {
+    if(correct) {
       SND.correct();
-      haptic([30, 20, 30]);
-
       const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-      const pts = Math.round(BASE_SCORE * mult);
-
-      setScores(s => [...s, pts]);
-      setRoundStats(r => [...r, { correct:true, choice:ch, signal:pattern.signal }]);
-      setStreak(s => s + 1);
-
+      const speedBonus = Math.round((1 - (speedMs / DECISION_MS)) * BASE_SCORE * 0.5);
+      const pts = Math.round((BASE_SCORE + speedBonus) * mult);
+      setScores(prev => [...prev, pts]);
+      setRoundStats(prev => [...prev, { correct:true, speedMs, choice:ch, signal:pattern.signal }]);
+      const newStreak = streak + 1;
+      setStreak(newStreak);
       setParticleBurst(true);
-      setTimeout(() => setParticleBurst(false), 500);
-
-      if (streak + 1 >= 6 && !godMode) {
-        setGodMode(true);
-        SND.godBurst();
-      }
+      setTimeout(() => setParticleBurst(false), 600);
+      // god mode check
+      if(newStreak >= 6 && !godMode) { setGodMode(true); SND.godBurst(); haptic([50,30,50,30,50]); }
     } else {
       SND.wrong();
-      haptic([80]);
-      setScores(s => [...s, 0]);
-      setRoundStats(r => [...r, { correct:false, choice:ch, signal:pattern.signal }]);
+      setScores(prev => [...prev, 0]);
+      setRoundStats(prev => [...prev, { correct:false, speedMs, choice:ch, signal:pattern.signal }]);
       setStreak(0);
     }
-
-    phaseRef.current = "cont";
+    // trigger continuation reveal
     setScreen("revealing");
-  }, [decisionOpen, choice, pattern, streak, godMode]);
+  }, [choice, pattern, streak, godMode]);
 
-  // ── CHART ANIMATION LOOP (ONE RAF) ──────────────────────────
-  useEffect(() => {
-    if (!pattern || !chartRef.current) return;
+  // record start-of-playing timestamp
+  useEffect(() => { if(isPlaying) choiceTimeRef.current = Date.now(); }, [isPlaying]);
 
-    const canvas = chartRef.current;
-    let last = performance.now();
-    let running = true;
-
-    const revealTotal = pattern.candles.length;
-    const contTotal = pattern.continuation?.length || 0;
-
-    const loop = (now) => {
-      if (!running) return;
-      const dt = now - last;
-      last = now;
-
-      // ── MAIN REVEAL PHASE ──
-      if (phaseRef.current === "reveal") {
-        revealRef.current += dt / 60;
-        if (revealRef.current >= revealTotal) {
-          revealRef.current = revealTotal;
-          phaseRef.current = "wait";
-          setChartReady(true);
-          setDecisionOpen(true);
-        }
-
-        drawChart(
-          canvas,
-          pattern.candles,
-          Math.floor(revealRef.current),
-          0,
-          [],
-          godMode
-        );
-      }
-
-      // ── WAIT FOR USER ──
-      else if (phaseRef.current === "wait") {
-        drawChart(
-          canvas,
-          pattern.candles,
-          revealTotal,
-          0,
-          [],
-          godMode
-        );
-      }
-
-      // ── CONTINUATION PHASE ──
-      else if (phaseRef.current === "cont") {
-        contRef.current += dt / 50;
-        if (contRef.current >= contTotal) {
-          contRef.current = contTotal;
-          phaseRef.current = "idle";
-          setScreen("outcome");
-        }
-
-        drawChart(
-          canvas,
-          pattern.candles,
-          revealTotal,
-          Math.floor(contRef.current),
-          pattern.continuation,
-          godMode
-        );
-      }
-
-      rafRef.current = requestAnimationFrame(loop);
-    };
-
-    rafRef.current = requestAnimationFrame(loop);
-    return () => {
-      running = false;
-      cancelAnimationFrame(rafRef.current);
-    };
-  }, [pattern, godMode]);
-
-  // ── ADVANCE ROUND ───────────────────────────────────────────
-  const advanceRound = () => {
-    if (round + 1 >= ROUNDS) {
+  const advanceRound = useCallback(() => {
+    const nextRound = round + 1;
+    if(nextRound >= ROUNDS) {
+      // game over → stop ambient → save to leaderboard → verdict
+      SND.stop();
+      const stats = computeStats();
+      addToLeaderboard(playerName, stats);
       setScreen("verdict");
     } else {
-      setRound(r => r + 1);
-      startGame();
+      setRound(nextRound);
+      setScreen("countdown");
     }
-  };
+  }, [round, playerName]); // eslint-disable-line
 
-  // ── RENDER ──────────────────────────────────────────────────
-  return (
-    <>
-      {screen === "countdown" && <Countdown onDone={startPlaying} />}
+  function computeStats() {
+    const totalScore = scores.reduce((a,b)=>a+b, 0);
+    const correct    = roundStats.filter(r=>r.correct).length;
+    const buyCount   = roundStats.filter(r=>r.choice==="buy").length;
+    const sellCount  = roundStats.filter(r=>r.choice==="sell").length;
+    const holdCount  = roundStats.filter(r=>r.choice==="hold").length;
+    const speeds     = roundStats.map(r=>r.speedMs);
+    const avgSpeed   = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
+    // max streak
+    let maxStreak=0, cur=0;
+    roundStats.forEach(r=>{ if(r.correct){cur++;maxStreak=Math.max(maxStreak,cur);}else cur=0; });
+    return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
+  }
 
-      {(screen === "playing" || screen === "revealing" || screen === "outcome") && (
-        <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
-          <canvas
-            ref={chartRef}
-            style={{ width:"100%", height:"100%", borderRadius:20 }}
-          />
+  // ── RENDER ──
 
-          {screen === "playing" && (
-            <DecisionButtons
-              onChoose={handleChoice}
-              disabled={!decisionOpen}
-            />
+  // global styles injected once
+  useEffect(() => {
+    const tag = document.createElement("style");
+    tag.textContent = `
+      * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+      html, body { margin:0; padding:0; height:100%; overflow:hidden; }
+      body { background:${C.bg1}; color:#fff; font-family:"SF Pro","Helvetica Neue",sans-serif; }
+      @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+      @keyframes ringPulse { 0%{transform:scale(0.6);opacity:0} 100%{transform:scale(1);opacity:1} }
+      @keyframes numPop { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
+      @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+      input::placeholder { color:rgba(255,255,255,0.28); }
+      input:focus { box-shadow: 0 0 0 2px ${C.nGreen}40 !important; }
+      ::-webkit-scrollbar { width:4px; }
+      ::-webkit-scrollbar-track { background:transparent; }
+      ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:2px; }
+    `;
+    document.head.appendChild(tag);
+    return () => document.head.removeChild(tag);
+  }, []);
+
+  // ── SCREEN RENDERERS ──
+
+  const renderHome = () => (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100%", gap:24, padding:24 }}>
+      {/* logo */}
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
+          background:`linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
+          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+          textShadow:"none", filter:"drop-shadow(0 0 24px rgba(0,255,170,0.3))" }}>
+          REFLEX
+        </div>
+        <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
+          background:`linear-gradient(135deg, ${C.nPurple} 0%, ${C.nPink} 100%)`,
+          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+          filter:"drop-shadow(0 0 18px rgba(168,85,247,0.35))", marginTop:-8 }}>
+          GLASS
+        </div>
+        <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", letterSpacing:"0.24em", textTransform:"uppercase", marginTop:4, fontFamily:"monospace" }}>
+          Chart Pattern Reflex Trainer
+        </div>
+      </div>
+
+      {/* info card */}
+      <GlassPanel style={{ padding:20, maxWidth:340, width:"100%", textAlign:"center" }}>
+        <div style={{ display:"flex", justifyContent:"center", gap:20 }}>
+          {[
+            { icon:"📊", label:"40+", sub:"Patterns" },
+            { icon:"⚡", label:"4s", sub:"Decision" },
+            { icon:"🔥", label:"×4", sub:"Max Streak" },
+          ].map(item => (
+            <div key={item.label} style={{ flex:1, textAlign:"center" }}>
+              <div style={{ fontSize:20 }}>{item.icon}</div>
+              <div style={{ fontSize:16, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{item.label}</div>
+              <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.06em" }}>{item.sub}</div>
+            </div>
+          ))}
+        </div>
+      </GlassPanel>
+
+      {/* CTA */}
+      <GlassButton onClick={startGame} color={C.nGreen} style={{ padding:"18px 56px", fontSize:18, position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+          backgroundSize:"200% 100%", animation:"shimmer 2.2s linear infinite", pointerEvents:"none" }} />
+        Start Trading
+      </GlassButton>
+
+      {/* leaderboard link */}
+      <GlassButton onClick={()=>setScreen("leaderboard")} color={C.nBlue} style={{ padding:"10px 24px", fontSize:13 }}>
+        🏆 Leaderboard
+      </GlassButton>
+
+      <div style={{ fontSize:10, color:"rgba(255,255,255,0.22)", fontFamily:"monospace", textAlign:"center", maxWidth:300 }}>
+        Base Mini App · Works in Warpcast · {playerName && `Playing as ${playerName}`}
+      </div>
+    </div>
+  );
+
+  const renderPlaying = () => (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
+      {/* header row */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:2 }}>
+        <GlassPanel style={{ padding:"6px 14px", borderRadius:16 }}>
+          <span style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.5)" }}>Round </span>
+          <span style={{ fontSize:14, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{round+1}<span style={{ color:"rgba(255,255,255,0.28)", fontWeight:400 }}>/{ROUNDS}</span></span>
+        </GlassPanel>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          {streak > 0 && (
+            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nPurple}35` }}>
+              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nPurple }}>🔥 ×{STREAK_MULT[Math.min(streak+1, STREAK_MULT.length-1)].toFixed(1)}</span>
+            </GlassPanel>
           )}
-
-          {screen === "outcome" && (
-            <OutcomeCard
-              correct={roundStats.at(-1)?.correct}
-              points={scores.at(-1)}
-              streak={streak}
-              patternName={pattern.name}
-              choice={choice}
-              signal={pattern.signal}
-              onNext={advanceRound}
-              godMode={godMode}
-            />
+          {godMode && (
+            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nGreen}45`,
+              background:`linear-gradient(135deg, ${C.nGreen}15, ${C.nBlue}10)` }}>
+              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nGreen }}>⚡ GOD MODE</span>
+            </GlassPanel>
           )}
         </div>
+      </div>
+
+      {/* timer — only show when chart fully drawn */}
+      {screen === "playing" && initialProgress >= 22 && <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />}
+
+      {/* chart */}
+      <div style={{ flex:1, minHeight:0, position:"relative" }}>
+        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
+
+        {/* pattern name watermark */}
+        {screen === "outcome" && pattern && (
+          <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
+            color:"rgba(255,255,255,0.18)", background:"rgba(6,6,12,0.6)", padding:"3px 8px", borderRadius:8,
+            backdropFilter:"blur(8px)" }}>
+            {pattern.name}
+          </div>
+        )}
+      </div>
+
+      {/* decision / outcome — only show buttons when chart fully drawn */}
+      <div style={{ paddingBottom:8 }}>
+        {screen === "playing" && initialProgress >= 22 && <DecisionButtons onChoose={handleChoice} disabled={false} />}
+        {screen === "outcome" && (
+          <OutcomeCard
+            correct={roundStats[roundStats.length-1]?.correct}
+            points={scores[scores.length-1]}
+            streak={streak}
+            patternName={pattern?.name}
+            choice={choice}
+            signal={pattern?.signal}
+            onNext={advanceRound}
+            godMode={godMode}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  const renderVerdict = () => (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", justifyContent:"center", padding:16, gap:14 }}>
+      <FinalVerdict
+        stats={computeStats()}
+        onRestart={startGame}
+        onLeaderboard={()=>setScreen("leaderboard")}
+        onShare={()=>triggerShare(computeStats(), playerName)}
+      />
+      <TipPanel />
+    </div>
+  );
+
+  // ── MAIN RETURN ──
+  return (
+    <div style={{ width:"100vw", height:"100dvh", overflowY:"auto", overflowX:"hidden",
+      background:`radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
+      position:"relative" }}>
+
+      {/* ambient orbs (background atmosphere) */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0 }}>
+        <div style={{ position:"absolute", top:"10%",  left:"15%", width:220, height:220, borderRadius:"50%", background:`radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`, filter:"blur(40px)" }} />
+        <div style={{ position:"absolute", top:"60%", right:"10%", width:180, height:180, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`, filter:"blur(36px)" }} />
+        <div style={{ position:"absolute", bottom:"15%", left:"40%", width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPink}09 0%, transparent 70%)`, filter:"blur(30px)" }} />
+      </div>
+
+      {/* live ticker */}
+      <LiveTicker />
+
+      {/* particle layer */}
+      <ParticleCanvas active={particleBurst} godMode={godMode} />
+
+      {/* screen pulse overlay (low time warning) */}
+      {screenPulse && (
+        <div style={{ position:"fixed", inset:0, zIndex:198, pointerEvents:"none",
+          boxShadow:`inset 0 0 60px ${C.nPink}55`, borderRadius:0, transition:"opacity 0.15s" }} />
       )}
 
-      <ParticleCanvas active={particleBurst} godMode={godMode} />
-    </>
+      {/* main content (below ticker) */}
+      <div style={{ position:"relative", zIndex:1, paddingTop:34, minHeight:"calc(100dvh - 34px)",
+        display:"flex", flexDirection:"column" }}>
+
+        {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
+        {screen === "home"        && renderHome()}
+        {screen === "countdown"   && <Countdown onDone={beginRound} />}
+        {screen === "loading"     && <LoadingScreen />}
+        {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
+        {screen === "verdict"     && renderVerdict()}
+        {screen === "leaderboard" && (
+          <div style={{ paddingTop:20 }}>
+            <Leaderboard onClose={()=>setScreen(round>=ROUNDS?"verdict":"home")} currentName={playerName} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
