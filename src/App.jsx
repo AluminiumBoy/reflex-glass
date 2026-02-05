@@ -1639,10 +1639,12 @@ export default function App() {
 
       // Smooth scrolling reveal animation
       const duration = 6500; // Gyorsabb, pörgősebb ritmus
-      const startTime = Date.now();
+      let startTime = null;
 
-      const animateScroll = () => {
-        const elapsed = Date.now() - startTime;
+      const animateScroll = (timestamp) => {
+        if (!startTime) startTime = timestamp;
+        
+        const elapsed = timestamp - startTime;
         const progress = Math.min(1, elapsed / duration);
         
         // Smoother easing - linear with slight ease at start
@@ -1678,7 +1680,8 @@ export default function App() {
         }
       };
 
-      animateScroll();
+      // Start animation with RAF
+      animFrameRef.current = requestAnimationFrame(animateScroll);
     },
     [] // Don't include handleChoice - causes circular dependency
   );
@@ -1708,6 +1711,7 @@ export default function App() {
     setWindowStart(0);
     setRevealProgress(0);
     setSwipeOffset(0);
+    setScreen("home"); // Explicitly reset screen
     buildAnimationProgress.current = 0;
     lastCandleCount.current = 0;
     cachedCandles.current = [];
@@ -1730,11 +1734,11 @@ export default function App() {
         // Set to 0 to trigger fade-out
         setCountdownNum(0);
         
-        // Wait for fade-out animation (200ms) then hide completely
+        // Wait for fade-out animation to complete
         setTimeout(() => {
           setShowCountdown(false);
           
-          // Small delay to ensure countdown overlay is removed from DOM
+          // Initialize renderer and start building animation
           setTimeout(() => {
             if (chartRef.current && !rendererRef.current) {
               rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
@@ -1742,9 +1746,13 @@ export default function App() {
               rendererRef.current.setDimensions(rect.width, rect.height);
             }
             
+            // Reset animation state before starting
+            buildAnimationProgress.current = 0;
+            lastCandleCount.current = 0;
+            
             initializeRound(0);
-          }, 50);
-        }, 200);
+          }, 150);
+        }, 250);
       }
     }, 1000);
   }, [initializeRound]);
