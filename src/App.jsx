@@ -1449,7 +1449,7 @@ export default function App() {
     }
   }, [round, initializeRound]);
 
-    // Throttle segédfüggvény (lodash nélkül)
+    // Throttle segédfüggvény (változatlan)
     const throttle = (func, limit) => {
       let inThrottle;
       return function (...args) {
@@ -1465,7 +1465,6 @@ export default function App() {
     useEffect(() => {
       if (!chartRef.current || !structure) return;
 
-      // Renderer inicializálás (változatlan)
       if (!rendererRef.current) {
         rendererRef.current = new ChartRenderer(
           chartRef.current,
@@ -1477,14 +1476,13 @@ export default function App() {
 
       const isMobile = window.innerWidth < 520;
 
-      // KÜLÖNBÖZŐ SEBESSÉG – most fordítva
       let throttleDelay;
       if (screen === "building" || screen === "playing") {
-        // LASSABB, amikor még épül, mielőtt eldönti az user
-        throttleDelay = isMobile ? 350 : 100;   // mobilon kb. 2.8–3 fps
+        // MÉG LASSABB – döntés előtt
+        throttleDelay = isMobile ? 600 : 150;   // mobilon kb. 1.6–2 fps
       } else {
-        // GYORSABB, amikor már eldöntötte → revealing / outcome
-        throttleDelay = isMobile ? 120 : 50;    // mobilon kb. 8 fps, asztali 20 fps
+        // revealing / outcome – kicsit lassabb, mint előzőleg, hogy ne legyen vég-lag
+        throttleDelay = isMobile ? 200 : 80;    // mobilon kb. 5 fps
       }
 
       const throttledRender = throttle((candles) => {
@@ -1493,7 +1491,6 @@ export default function App() {
         }
       }, throttleDelay);
 
-      // Render hívások
       if (screen === "building" || screen === "playing") {
         const visibleCandles = structure.candles.slice(0, windowStart + 1);
         throttledRender(visibleCandles);
