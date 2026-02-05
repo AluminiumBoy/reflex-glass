@@ -1030,19 +1030,21 @@ const GlassButton = React.memo(({ children, onClick, color, disabled, style }) =
   }, []);
   
   const buttonStyle = useMemo(() => ({
-    background: disabled ? C.glass : `linear-gradient(135deg, ${color}22, ${color}11)`,
-    border: `1.5px solid ${disabled ? C.glassBr : color}55`,
+    background: disabled ? `${C.glass}` : `linear-gradient(135deg, ${color}22, ${color}11)`,
+    border: `1.5px solid ${disabled ? `${color}25` : color}55`,
     borderRadius: 16,
     padding: "12px 24px",
-    color: disabled ? "rgba(255,255,255,0.3)" : "#fff",
+    color: disabled ? "rgba(255,255,255,0.5)" : "#fff",
     fontSize: 14,
     fontWeight: 600,
-    cursor: disabled ? "not-allowed" : "pointer",
+    cursor: disabled ? "wait" : "pointer",
     backdropFilter: "blur(16px)",
     transform: !disabled && isHovered ? "translateY(-1px)" : "translateY(0)",
-    boxShadow: !disabled && isHovered ? `0 6px 20px ${color}33` : "none",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border 0.2s ease",
+    boxShadow: !disabled && isHovered ? `0 6px 20px ${color}33` : (disabled ? "none" : `0 0 0 ${color}00`),
+    transition: "all 0.2s ease",
     willChange: "transform, box-shadow",
+    opacity: disabled ? 0.6 : 1,
+    animation: disabled ? "none" : "buttonActivate 0.3s ease-out",
     ...style,
   }), [disabled, color, isHovered, style]);
   
@@ -1348,7 +1350,7 @@ export default function App() {
       buildAnimationProgress.current = 0;
 
       // Smooth scrolling reveal animation
-      const duration = 3500; // Kicsit rövidebb
+      const duration = 2500; // Gyorsabb, pörgősebb ritmus
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -1844,10 +1846,9 @@ export default function App() {
       <div style={{ paddingBottom: 6, flexShrink: 0, padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0", minHeight: 64 }}>
         <div style={{ 
           display: screen === "outcome" ? "none" : "block",
-          opacity: screen === "playing" ? 1 : 0,
+          opacity: screen === "home" ? 0 : 1,
           pointerEvents: screen === "playing" ? "auto" : "none",
-          transition: "opacity 0.1s ease-out",
-          willChange: "opacity",
+          transition: "none",
           transform: "translateZ(0)",
         }}>
           <DecisionButtons onChoose={handleChoice} disabled={screen !== "playing"} />
@@ -2018,6 +2019,11 @@ export default function App() {
         @keyframes ringPulse {
           0% { transform: scale(1); opacity: 1; }
           100% { transform: scale(1.15); opacity: 0; }
+        }
+        @keyframes buttonActivate {
+          0% { opacity: 0.6; transform: scale(0.98); }
+          50% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>
