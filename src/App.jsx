@@ -1350,7 +1350,7 @@ export default function App() {
       buildAnimationProgress.current = 0;
 
       // Smooth scrolling reveal animation
-      const duration = 8000; // Gyorsabb, pörgősebb ritmus
+      const duration = 2000; // Gyorsabb, pörgősebb ritmus
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -1494,66 +1494,72 @@ export default function App() {
       if (!chartRef.current || !structure) return;
 
       if (!rendererRef.current) {
-        rendererRef.current = new ChartRenderer(
-          chartRef.current,
-          DIFFICULTY_CONFIG
-        );
+        rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
         const rect = chartRef.current.getBoundingClientRect();
         rendererRef.current.setDimensions(rect.width, rect.height);
       }
 
       const isMobile = window.innerWidth < 520;
-      
-      // Adaptive frame rate based on screen state
+
       let targetFps = 60;
       if (screen === "building") {
-        // LOWER FPS during build to prevent stutter with many candles
-        targetFps = isMobile ? 24 : 30; // Cinematic feel, no lag
+        targetFps = isMobile ? 18 : 24;        // még film-szerűbbé tettem
       } else if (screen === "playing") {
-        // Static view, lower fps ok
-        targetFps = 24; // Save battery
+        targetFps = 24;
       } else {
-        // Revealing/outcome - smooth animations
         targetFps = isMobile ? 40 : 60;
       }
-      
+
       const minFrameTime = 1000 / targetFps;
 
       const render = (timestamp) => {
-        // Throttle to target FPS
         if (timestamp - lastRenderTime.current < minFrameTime) {
           renderRafId.current = requestAnimationFrame(render);
           return;
         }
-        
         lastRenderTime.current = timestamp;
-        
-        // Recalculate candles on each frame for smooth building
+
         let currentCandles = [];
         let currentOffset = 0;
-        
+
         if (screen === "building") {
-          const currentIndex = Math.floor(buildAnimationProgress.current * structure.decisionIndex);
-          // Cache optimization: only slice when count changes
-          if (currentIndex !== lastCandleCount.current) {
-            cachedCandles.current = structure.candles.slice(0, currentIndex + 1);
-            lastCandleCount.current = currentIndex;
+          // ── ÚJ: Progress-alapú lassú építés + partial candle ──
+          const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
+          const displayedIndex = Math.floor(targetIndex);
+          const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
+
+          // Teljes gyertyák az utolsó előttiig
+          currentCandles = structure.candles.slice(0, displayedIndex);
+
+          // Az utolsó gyertya részlegesen "épül"
+          if (displayedIndex < structure.candles.length) {
+            const nextCandle = structure.candles[displayedIndex];
+
+            const partialCandle = {
+              ...nextCandle,                    // time, volume, stb. marad
+              open: nextCandle.open,
+              high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
+              low:  nextCandle.open + (nextCandle.low  - nextCandle.open) * partialProgress,
+              close: nextCandle.open + (nextCandle.close - nextCandle.open) * partialProgress,
+            };
+
+            currentCandles = [...currentCandles, partialCandle];
           }
-          currentCandles = cachedCandles.current;
-        } else if (screen === "playing") {
-          // Show all candles up to and including decision point
+        } 
+        else if (screen === "playing") {
           currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-        } else if (screen === "revealing" || screen === "outcome") {
+        } 
+        else if (screen === "revealing" || screen === "outcome") {
           const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
           const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
           currentCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
           currentOffset = screen === "outcome" ? swipeOffset : 0;
         }
-        
+
         if (rendererRef.current && currentCandles.length > 0) {
           rendererRef.current.renderAll(currentCandles, currentOffset);
         }
-        
+
         renderRafId.current = requestAnimationFrame(render);
       };
 
