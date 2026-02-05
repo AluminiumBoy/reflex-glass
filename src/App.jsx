@@ -1495,15 +1495,22 @@ export default function App() {
 
       if (!rendererRef.current) {
         rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+      }
+
+      const resize = () => {
+        if (!chartRef.current || !rendererRef.current) return;
         const rect = chartRef.current.getBoundingClientRect();
         rendererRef.current.setDimensions(rect.width, rect.height);
-      }
+      };
+
+      resize();
+      window.addEventListener("resize", resize);
 
       const isMobile = window.innerWidth < 520;
 
-      let targetFps = 60;
+      let targetFps;
       if (screen === "building") {
-        targetFps = isMobile ? 24 : 40;        // még film-szerűbbé tettem
+        targetFps = isMobile ? 24 : 40;
       } else if (screen === "playing") {
         targetFps = 24;
       } else {
@@ -1517,33 +1524,36 @@ export default function App() {
           renderRafId.current = requestAnimationFrame(render);
           return;
         }
+
         lastRenderTime.current = timestamp;
 
         let currentCandles = [];
         let currentOffset = 0;
 
         if (screen === "building") {
-          // ── ÚJ: Progress-alapú lassú építés + partial candle ──
-          const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
-          const displayedIndex = Math.floor(targetIndex);
-          const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
+          const maxIndex = structure.decisionIndex;
+          const progress = Math.max(0, Math.min(1, buildAnimationProgress.current));
+          const targetIndex = progress * maxIndex;
 
-          // Teljes gyertyák az utolsó előttiig
+          const displayedIndex = Math.floor(targetIndex);
+          const partialProgress = targetIndex - displayedIndex;
+
           currentCandles = structure.candles.slice(0, displayedIndex);
 
-          // Az utolsó gyertya részlegesen "épül"
           if (displayedIndex < structure.candles.length) {
-            const nextCandle = structure.candles[displayedIndex];
+            const c = structure.candles[displayedIndex];
+
+            const interp = (from, to) => from + (to - from) * partialProgress;
 
             const partialCandle = {
-              ...nextCandle,                    // time, volume, stb. marad
-              open: nextCandle.open,
-              high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
-              low:  nextCandle.open + (nextCandle.low  - nextCandle.open) * partialProgress,
-              close: nextCandle.open + (nextCandle.close - nextCandle.open) * partialProgress,
+              ...c,
+              open: c.open,
+              high: interp(c.open, c.high),
+              low: interp(c.open, c.low),
+              close: interp(c.open, c.close),
             };
 
-            currentCandles = [...currentCandles, partialCandle];
+            currentCandles.push(partialCandle);
           }
         } 
         else if (screen === "playing") {
@@ -1551,34 +1561,49 @@ export default function App() {
         } 
         else if (screen === "revealing" || screen === "outcome") {
           const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-          const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
-          currentCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
+          const contLen = structure.continuation?.candles?.length ?? 0;
+          const contCount = Math.floor(
+            Math.max(0, Math.min(1, revealProgress)) * contLen
+          );
+
+          currentCandles = [
+            ...baseCandles,
+            ...structure.continuation.candles.slice(0, contCount),
+          ];
+
           currentOffset = screen === "outcome" ? swipeOffset : 0;
         }
 
-        if (rendererRef.current && currentCandles.length > 0) {
+        if (rendererRef.current && currentCandles.length) {
           rendererRef.current.renderAll(currentCandles, currentOffset);
         }
 
         renderRafId.current = requestAnimationFrame(render);
       };
 
+      lastRenderTime.current = 0;
       renderRafId.current = requestAnimationFrame(render);
 
       return () => {
-        if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
+        if (renderRafId.current) {
+          cancelAnimationFrame(renderRafId.current);
+        }
+        window.removeEventListener("resize", resize);
       };
-    }, [structure, screen, revealProgress, swipeOffset, windowStart]);
+    }, [structure, screen, revealProgress, swipeOffset]);
 
-  // ── Compute stats ──
-  const computeStats = useCallback(() => {
-    const totalScore = scores.reduce((a, b) => a + b, 0);
-    const correct = roundStats.filter((r) => r.correct).length;
-    const total = roundStats.length;
-    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+    // ── Compute stats ──
+    const computeStats = useCallback(() => {
+      const totalScore = scores.reduce((a, b) => a + b, 0);
+      const correct = roundStats.filter((r) => r.correct).length;
+      const total = roundStats.length;
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-    return { totalScore, correct, total, accuracy, bestStreak };
-  }, [scores, roundStats, bestStreak]);
+      return { totalScore, correct, total, accuracy, bestStreak };
+    }, [scores, roundStats, bestStreak]);
+
+
+
 
   // ── Home screen ──
   const renderHome = () => (
