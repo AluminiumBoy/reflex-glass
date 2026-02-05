@@ -1476,7 +1476,7 @@ export default function App() {
       }
 
       const isMobile = window.innerWidth < 520;
-      const throttleDelay = isMobile ? 400 : 120;  // mobilon 400 ms → kb. 2.5 fps
+      const throttleDelay = isMobile ? 800 : 120;  // mobilon 400 ms → kb. 2.5 fps
 
       const throttledRender = throttle((candles) => {
         if (rendererRef.current) {
