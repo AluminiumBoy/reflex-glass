@@ -1503,7 +1503,7 @@ export default function App() {
 
       let targetFps = 60;
       if (screen === "building") {
-        targetFps = isMobile ? 15 : 20;          // alacsonyabb FPS → sokkal cinematicabb / lassabb érzet
+        targetFps = isMobile ? 30 : 40;          // alacsonyabb FPS → sokkal cinematicabb / lassabb érzet
       } else if (screen === "playing") {
         targetFps = 24;
       } else {
