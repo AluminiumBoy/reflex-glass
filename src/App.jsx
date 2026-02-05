@@ -1207,43 +1207,45 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
   </GlassPanel>
 );
 
-const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => {
-  const [playerName, setPlayerName] = useState("");
+const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  const saveScore = async () => {
-    if (!playerName.trim() || saving) return;
+  useEffect(() => {
+    const saveScore = async () => {
+      if (!playerName || saved) return;
+      
+      try {
+        const timestamp = Date.now();
+        const scoreData = {
+          name: playerName,
+          score: stats.totalScore,
+          streak: stats.bestStreak,
+          accuracy: stats.accuracy,
+          timestamp
+        };
+        
+        await window.storage.set(
+          `score:${playerName}:${timestamp}`,
+          JSON.stringify(scoreData),
+          true // shared
+        );
+        
+        setSaved(true);
+        haptic([50, 30, 50]);
+      } catch (err) {
+        console.error("Failed to save score:", err);
+      }
+    };
     
-    setSaving(true);
-    try {
-      const timestamp = Date.now();
-      const scoreData = {
-        name: playerName.trim(),
-        score: stats.totalScore,
-        streak: stats.bestStreak,
-        accuracy: stats.accuracy,
-        timestamp
-      };
-      
-      await window.storage.set(
-        `score:${playerName.trim()}:${timestamp}`,
-        JSON.stringify(scoreData),
-        true // shared
-      );
-      
-      setSaved(true);
-      haptic([50, 30, 50]);
-    } catch (err) {
-      console.error("Failed to save score:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
+    saveScore();
+  }, [playerName, stats, saved]);
 
   return (
     <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
       <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
+      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>
+        {playerName}
+      </div>
       <div
         style={{
           fontSize: 48,
@@ -1292,55 +1294,18 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => {
         </div>
       </div>
 
-      {!saved ? (
-        <div style={{ marginBottom: 16 }}>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && saveScore()}
-            maxLength={20}
-            style={{
-              width: "100%",
-              padding: "12px 16px",
-              fontSize: 16,
-              fontWeight: 600,
-              background: C.glass,
-              border: `1px solid ${C.glassBr}`,
-              borderRadius: 12,
-              color: "#fff",
-              textAlign: "center",
-              outline: "none",
-              marginBottom: 10,
-              backdropFilter: "blur(20px)"
-            }}
-          />
-          <GlassButton 
-            onClick={saveScore} 
-            color={C.nGreen}
-            disabled={!playerName.trim() || saving}
-            style={{ 
-              width: "100%", 
-              padding: "12px 0",
-              opacity: (!playerName.trim() || saving) ? 0.5 : 1
-            }}
-          >
-            {saving ? "Saving..." : "Save Score"}
-          </GlassButton>
-        </div>
-      ) : (
+      {saved && (
         <div style={{ 
-          padding: "12px", 
+          padding: "10px", 
           marginBottom: 16,
           background: `${C.nGreen}20`,
           border: `1px solid ${C.nGreen}60`,
           borderRadius: 12,
           color: C.nGreen,
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: 600
         }}>
-          ✓ Score saved!
+          ✓ Score saved to leaderboard!
         </div>
       )}
 
@@ -1551,6 +1516,7 @@ export default function App() {
   const [countdownNum, setCountdownNum] = useState(3);
   const [revealProgress, setRevealProgress] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [playerName, setPlayerName] = useState("");
 
   // ── Refs ──
   const chartRef = useRef(null);
@@ -1584,6 +1550,21 @@ export default function App() {
       window.addEventListener("resize", updateSize);
       return () => window.removeEventListener("resize", updateSize);
     }
+  }, []);
+
+  // ── Load saved player name ──
+  useEffect(() => {
+    const loadPlayerName = async () => {
+      try {
+        const result = await window.storage.get("playerName", false);
+        if (result && result.value) {
+          setPlayerName(result.value);
+        }
+      } catch (err) {
+        console.log("No saved name");
+      }
+    };
+    loadPlayerName();
   }, []);
 
   // ── Initialize round ──
@@ -1858,7 +1839,21 @@ export default function App() {
   }, [scores, roundStats, bestStreak]);
 
   // ── Home screen ──
-  const renderHome = () => (
+  const renderHome = () => {
+    const handleStartGame = async () => {
+      if (!playerName.trim()) return;
+      
+      // Save player name
+      try {
+        await window.storage.set("playerName", playerName.trim(), false);
+      } catch (err) {
+        console.error("Failed to save name:", err);
+      }
+      
+      startGame();
+    };
+
+    return (
     <div
       style={{
         display: "flex",
@@ -1890,16 +1885,46 @@ export default function App() {
       </div>
 
       <GlassPanel style={{ padding: "20px", maxWidth: 380 }}>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: 16 }}>
           Master pattern recognition in realistic market conditions. Learn when to trade and when
           to wait. Focus on context, not memorization.
         </div>
+        
+        <input
+          type="text"
+          placeholder="Enter your name"
+          value={playerName}
+          onChange={(e) => setPlayerName(e.target.value)}
+          onKeyPress={(e) => e.key === "Enter" && handleStartGame()}
+          maxLength={20}
+          style={{
+            width: "100%",
+            padding: "12px 16px",
+            fontSize: 16,
+            fontWeight: 600,
+            background: C.glass,
+            border: `1px solid ${C.glassBr}`,
+            borderRadius: 12,
+            color: "#fff",
+            textAlign: "center",
+            outline: "none",
+            backdropFilter: "blur(20px)"
+          }}
+        />
       </GlassPanel>
 
       <GlassButton
-        onClick={startGame}
+        onClick={handleStartGame}
         color={C.nGreen}
-        style={{ padding: "18px 56px", fontSize: 18, position: "relative", overflow: "hidden" }}
+        disabled={!playerName.trim()}
+        style={{ 
+          padding: "18px 56px", 
+          fontSize: 18, 
+          position: "relative", 
+          overflow: "hidden",
+          opacity: !playerName.trim() ? 0.5 : 1,
+          cursor: !playerName.trim() ? "not-allowed" : "pointer"
+        }}
       >
         <div
           style={{
@@ -1907,7 +1932,7 @@ export default function App() {
             inset: 0,
             background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
             backgroundSize: "200% 100%",
-            animation: "shimmer 2.2s linear infinite",
+            animation: playerName.trim() ? "shimmer 2.2s linear infinite" : "none",
             pointerEvents: "none",
           }}
         />
@@ -1926,7 +1951,8 @@ export default function App() {
         Learn when NOT to trade • {ROUNDS} rounds • Context matters
       </div>
     </div>
-  );
+    );
+  };
 
   // ── Playing screen ──
   const renderPlaying = () => {
@@ -2222,6 +2248,7 @@ export default function App() {
         stats={computeStats()}
         onRestart={startGame}
         onLeaderboard={() => setScreen("leaderboard")}
+        playerName={playerName}
       />
     </div>
   );
