@@ -926,105 +926,65 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   ctx.scale(dpr, dpr);
 
   // ═══════════════════════════════════════════════════════════════
-  // REFINED 5D HOLOGRAPHIC GLASS PRISM BACKGROUND
-  // Visible depth without overwhelming the chart
+  // ULTRA-MODERN MINIMALIST BACKGROUND
+  // Clean, sophisticated, Apple-level quality
   // ═══════════════════════════════════════════════════════════════
   
-  // Deep space foundation
-  const space = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
-  space.addColorStop(0, "#0d0d1e");
-  space.addColorStop(0.5, "#07070f");
-  space.addColorStop(1, "#020206");
-  ctx.fillStyle = space; 
-  ctx.fillRect(0,0,W,H);
-
-  // Subtle bokeh city grid (very faint background)
-  ctx.save();
-  ctx.strokeStyle = "#00ffaa";
-  ctx.lineWidth = 0.5;
-  const gridSize = 40;
-  for(let y=0; y<H; y+=gridSize){ 
-    ctx.globalAlpha = 0.015;
-    ctx.beginPath(); 
-    ctx.moveTo(0,y); 
-    ctx.lineTo(W,y); 
-    ctx.stroke(); 
-  }
-  for(let x=0; x<W; x+=gridSize){ 
-    ctx.globalAlpha = 0.015;
-    ctx.beginPath(); 
-    ctx.moveTo(x,0); 
-    ctx.lineTo(x,H); 
-    ctx.stroke(); 
-  }
-  ctx.restore();
-
-  // Selective volumetric god rays (only 4, subtle)
-  const rayAngles = [0, Math.PI/2, Math.PI, Math.PI*1.5];
-  rayAngles.forEach((angle, i) => {
-    const rayGrad = ctx.createLinearGradient(
-      W/2 + Math.cos(angle)*W*0.2, 
-      H/2 + Math.sin(angle)*H*0.2,
-      W/2 + Math.cos(angle)*W*0.7, 
-      H/2 + Math.sin(angle)*H*0.7
-    );
-    rayGrad.addColorStop(0, "rgba(0,255,170,0.04)");
-    rayGrad.addColorStop(0.6, "rgba(168,85,247,0.02)");
-    rayGrad.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = rayGrad;
-    ctx.fillRect(0, 0, W, H);
-  });
-
-  // Liquid-glass monolith subtle glow
-  const prismGlow = ctx.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.45);
-  prismGlow.addColorStop(0, "rgba(0,255,170,0.02)");
-  prismGlow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = prismGlow;
+  // Premium dark gradient - deep but rich
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0a0a12");
+  bg.addColorStop(1, "#050508");
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // God-mode refined border
+  // Minimal horizontal grid lines (subtle structure)
+  ctx.strokeStyle = "rgba(255,255,255,0.03)";
+  ctx.lineWidth = 1;
+  const gridCount = 5;
+  for(let i=1; i<gridCount; i++) {
+    const y = (H / gridCount) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  // God mode - clean premium glow
   if(godMode) {
     ctx.save();
-    const pulse = 0.25 + 0.12*Math.sin(Date.now()*0.004);
-    
-    // Double layer glow
-    ctx.shadowColor = C.nGreen; 
-    ctx.shadowBlur = 60;
-    ctx.strokeStyle = `rgba(0,255,170,${pulse * 0.5})`;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(6, 6, W-12, H-12);
-    
-    ctx.shadowBlur = 30;
-    ctx.strokeStyle = `rgba(0,255,170,${pulse * 0.8})`;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(10, 10, W-20, H-20);
+    const pulse = 0.6 + 0.4*Math.sin(Date.now()*0.003);
+    ctx.shadowColor = C.nGreen;
+    ctx.shadowBlur = 40;
+    ctx.strokeStyle = `rgba(0,255,170,${0.3 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(4, 4, W-8, H-8);
     ctx.restore();
   }
 
-  // Ha nincs még candle, csak háttér
   if (!candles || candles.length === 0 || revealCount === 0) return;
 
   // ═══════════════════════════════════════════════════════════════
-  // BALANCED 5D DEPTH - VISIBLE PATTERNS WITH DEPTH
+  // CLEAN CHART RENDERING
   // ═══════════════════════════════════════════════════════════════
   
   const allCandles = [...candles, ...(contCandles||[])];
   if(allCandles.length === 0) return;
 
-  // ── price scale ──
+  // Price scale
   let lo = Infinity, hi = -Infinity;
   allCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
-  const pad  = (hi - lo) * 0.08;
+  const pad = (hi - lo) * 0.08;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
 
   const totalSlots = allCandles.length;
-  const slotW      = W / totalSlots;
-  const bodyW      = slotW * 0.65;
+  const slotW = W / totalSlots;
+  const bodyW = slotW * 0.7;
+  const gap = slotW * 0.15;
 
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── Premium 5D price label ──
+  // ── Premium price label ──
   let lastVisibleIdx = -1;
   for(let i = allCandles.length - 1; i >= 0; i--) {
     let alpha = 0;
@@ -1042,187 +1002,117 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   
   if (lastVisibleIdx >= 0) {
     const lastC = allCandles[lastVisibleIdx];
-    const lblY  = toY(lastC.c);
-    ctx.save();
+    const lblY = toY(lastC.c);
     const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
     
-    // Holographic glow
-    ctx.shadowColor = lblColor;
-    ctx.shadowBlur = 25;
+    ctx.save();
     
-    ctx.fillStyle = lblColor + "45";
-    const lblW = 58, lblH = 24;
-    ctx.fillRect(W - lblW, lblY - lblH/2, lblW, lblH);
+    // Clean pill background
+    const lblW = 62, lblH = 28;
+    ctx.fillStyle = "rgba(10,10,18,0.95)";
+    ctx.beginPath();
+    ctx.roundRect(W - lblW - 8, lblY - lblH/2, lblW, lblH, 14);
+    ctx.fill();
     
-    // Subtle chromatic edge
-    ctx.fillStyle = "rgba(0,255,255,0.06)";
-    ctx.fillRect(W - lblW + 1, lblY - lblH/2, lblW-2, lblH);
+    // Subtle border
+    ctx.strokeStyle = lblColor + "30";
+    ctx.lineWidth = 1;
+    ctx.stroke();
     
-    // Glass highlight
-    const labelGrad = ctx.createLinearGradient(W-lblW, lblY-lblH/2, W-lblW+18, lblY-lblH/2);
-    labelGrad.addColorStop(0, "rgba(255,255,255,0.3)");
-    labelGrad.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = labelGrad;
-    ctx.fillRect(W - lblW, lblY - lblH/2, 18, lblH);
-    
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 12px monospace";
+    // Clean price text
+    ctx.fillStyle = lblColor;
+    ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(lastC.c.toFixed(2), W - 7, lblY + 4);
+    ctx.fillText(lastC.c.toFixed(2), W - 18, lblY + 4.5);
+    
     ctx.restore();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // REFINED 5D DEPTH - PATTERNS STAY CLEAR
-  // Moderate depth for 3D effect without losing pattern visibility
+  // ULTRA-CLEAN MODERN CANDLES
+  // Minimal depth, maximum clarity
   // ═══════════════════════════════════════════════════════════════
-/* ═══════════════════════════════════════════════════════════════
-    7  CANVAS CHART RENDERER — 2067 HOLOGRAPHIC PHONE (3D POP-OUT)
-   ═══════════════════════════════════════════════════════════════ */
-function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth;
-  const H = canvas.clientHeight;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  ctx.scale(dpr, dpr);
-
-  // Mély, telefonos sötét háttér
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#0a0a1f");
-  bg.addColorStop(1, "#05050f");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  // Finom holografikus grid + scanline
-  ctx.strokeStyle = "rgba(0, 255, 220, 0.055)";
-  for (let x = W * 0.1; x < W; x += W * 0.14) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
-  ctx.fillStyle = "rgba(255,255,255,0.022)";
-  for (let y = 3; y < H; y += 5) ctx.fillRect(0, y, W, 1);
-
-  if (!candles || candles.length === 0) return;
-
-  let lo = Infinity, hi = -Infinity;
-  [...candles, ...(contCandles || [])].forEach(c => { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); });
-  const pad = (hi - lo) * 0.16;
-  lo -= pad; hi += pad;
-  const range = hi - lo || 1;
-  const toY = p => H - ((p - lo) / range) * H;
-
-  const total = candles.length + (contCandles?.length || 0);
-  const barW = W / total;
-  const bodyW = barW * 0.72;
-  const wickW = barW * 0.26;
-
-  const visible = [
-    ...candles.slice(0, Math.floor(revealCount)),
-    ...(contCandles || []).slice(0, Math.floor(continuationCount))
-  ];
-
-  visible.forEach((c, i) => {
-    const x = i * barW + barW / 2;
+  
+  allCandles.forEach((c, i) => {
+    const x = i * slotW + gap/2;
     const bull = c.c >= c.o;
-    const col = bull ? "#00ffdd" : "#ff2e88";
-    const glow = bull ? "#aaffff" : "#ff88bb";
 
-    let prog = 1;
-    if (i < candles.length) prog = Math.min(1, (revealCount - i) * 1.15);
-    else prog = Math.min(1, (continuationCount - (i - candles.length)) * 1.45);
+    // Smooth alpha
+    let alpha = 0;
+    if (i < candles.length) {
+      alpha = Math.max(0, Math.min(1, revealCount - i));
+    } else {
+      const ci = i - candles.length;
+      alpha = Math.max(0, Math.min(1, continuationCount - ci));
+    }
+    
+    if (alpha <= 0.02) return;
 
-    if (prog < 0.03) return;
-
-    const top = toY(Math.max(c.o, c.c));
-    const bot = toY(Math.min(c.o, c.c));
-    const h = Math.max(bot - top, 5);
+    const bodyColor = bull ? C.bull : C.bear;
+    
+    // Subtle depth for the last few candles only
+    const isRecent = i >= allCandles.length - 5;
+    const depthBoost = isRecent ? 0.15 : 0;
+    const finalAlpha = alpha * (0.85 + depthBoost);
+    
+    const currentBodyW = bodyW - gap;
 
     ctx.save();
-    ctx.globalAlpha = prog;
+    ctx.globalAlpha = finalAlpha;
 
-    // 3D "kijön a telefonból" árnyék (pop-out effekt)
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = 65;
-    ctx.shadowOffsetY = 22;
-    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    // ── MINIMAL WICK ──
+    const wickTop = toY(c.h);
+    const wickBot = toY(c.l);
+    
+    ctx.strokeStyle = bodyColor;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(x - bodyW/2 + 8, bot + 22, bodyW, 26, 12);
-    ctx.fill();
-
-    // Wick
-    ctx.shadowBlur = 52;
-    ctx.shadowOffsetY = 0;
-    ctx.strokeStyle = glow;
-    ctx.lineWidth = wickW;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x, toY(c.h));
-    ctx.lineTo(x, toY(c.l));
+    ctx.moveTo(x + currentBodyW/2, wickTop);
+    ctx.lineTo(x + currentBodyW/2, wickBot);
     ctx.stroke();
 
-    // Liquid glass body
-    const grad = ctx.createLinearGradient(x - bodyW/2, top, x + bodyW/2, bot);
-    grad.addColorStop(0, col);
-    grad.addColorStop(0.5, bull ? "#eeffff" : "#ffbbdd");
-    grad.addColorStop(1, col);
+    // ── CLEAN MODERN BODY ──
+    const bodyTop = toY(Math.max(c.o, c.c));
+    const bodyBottom = toY(Math.min(c.o, c.c));
+    const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
 
-    ctx.shadowBlur = 58;
-    ctx.shadowColor = glow;
-    ctx.fillStyle = grad;
+    // Solid fill with subtle gradient
+    const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
+    bodyGrad.addColorStop(0, bodyColor + "f0");
+    bodyGrad.addColorStop(1, bodyColor + "b8");
+    ctx.fillStyle = bodyGrad;
+    
+    // Rounded corners for modern look
     ctx.beginPath();
-    ctx.roundRect(x - bodyW/2, top, bodyW, h, 11);
+    ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
     ctx.fill();
 
-    // Belső üveg reflexió
-    ctx.fillStyle = "rgba(255,255,255,0.78)";
-    ctx.shadowBlur = 0;
-    ctx.beginPath();
-    ctx.roundRect(x - bodyW/2 + 7, top + 7, bodyW * 0.42, 14, 6);
-    ctx.fill();
+    // Clean border
+    ctx.strokeStyle = bodyColor;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Subtle highlight on top edge
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
+
+    // Premium glow on recent candles
+    if (isRecent && alpha > 0.9) {
+      ctx.shadowColor = bodyColor;
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = bodyColor + "80";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
 
     ctx.restore();
   });
 
-  // Lebegő utolsó ár címke (holografikus, kijövő)
-  const last = visible[visible.length - 1];
-  const ly = toY(last.c);
-  ctx.shadowBlur = 80;
-  ctx.shadowColor = last.c >= last.o ? "#00ffdd" : "#ff4488";
-  ctx.fillStyle = last.c >= last.o ? "#00ffcc" : "#ff2266";
-  ctx.beginPath();
-  ctx.roundRect(W - 110, ly - 26, 106, 52, 26);
-  ctx.fill();
-
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#000";
-  ctx.font = "900 17px 'SF Mono', monospace";
-  ctx.textAlign = "center";
-  ctx.fillText(last.c.toFixed(2), W - 57, ly + 10);
-}
-  // ═══════════════════════════════════════════════════════════════
-  // REFINED LENS FLARES (subtle, cinematic)
-  // ═══════════════════════════════════════════════════════════════
-  
-  // Main flare
-  const flareX = W * 0.78;
-  const flareY = H * 0.22;
-  const mainFlare = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, 110);
-  mainFlare.addColorStop(0, "rgba(255,255,255,0.12)");
-  mainFlare.addColorStop(0.3, "rgba(0,255,170,0.06)");
-  mainFlare.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = mainFlare;
-  ctx.fillRect(0, 0, W, H);
-
-  // Secondary subtle flare
-  const flare2X = W * 0.25;
-  const flare2Y = H * 0.72;
-  const secondFlare = ctx.createRadialGradient(flare2X, flare2Y, 0, flare2X, flare2Y, 80);
-  secondFlare.addColorStop(0, "rgba(168,85,247,0.08)");
-  secondFlare.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = secondFlare;
+  // Subtle ambient lighting
+  const ambientLight = ctx.createRadialGradient(W*0.5, H*0.3, 0, W*0.5, H*0.3, W*0.6);
+  ambientLight.addColorStop(0, "rgba(0,255,170,0.02)");
+  ambientLight.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = ambientLight;
   ctx.fillRect(0, 0, W, H);
 
   ctx.globalAlpha = 1;
