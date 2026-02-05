@@ -822,7 +822,7 @@ class ChartRenderer {
 
     /* ───────── PLATFORM LOGIC ───────── */
     const mobile = this.isMobile(width);
-    const MAX_VISIBLE = mobile ? 24 : 36;
+    const MAX_VISIBLE = mobile ? 36 : 48;
 
     const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
     const visible = allCandles.slice(startIdx);
