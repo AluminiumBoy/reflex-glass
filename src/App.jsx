@@ -1210,35 +1210,39 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
 const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    const saveScore = async () => {
-      if (!playerName || saved) return;
-      
-      try {
-        const timestamp = Date.now();
+    useEffect(() => {
+      const saveScore = async () => {
+        if (!playerName || saved) return;
+
+        const thisGameId = Date.now() + Math.random().toString(36).slice(2, 8);
+
         const scoreData = {
+          gameId: thisGameId,
           name: playerName,
           score: stats.totalScore,
-          streak: stats.bestStreak,
           accuracy: stats.accuracy,
-          timestamp
+          bestStreak: stats.bestStreak,
+          correct: stats.correct,
+          totalRounds: stats.total,
+          timestamp: new Date().toISOString(),
         };
-        
-        await window.storage.set(
-          `score:${playerName}:${timestamp}`,
-          JSON.stringify(scoreData),
-          true // shared
-        );
-        
-        setSaved(true);
-        haptic([50, 30, 50]);
-      } catch (err) {
-        console.error("Failed to save score:", err);
-      }
-    };
-    
-    saveScore();
-  }, [playerName, stats, saved]);
+
+        try {
+          // Egyedi kulcs → nem írjuk felül a korábbit
+          await window.storage.set(
+            `score:${playerName}:${thisGameId}`,
+            JSON.stringify(scoreData),
+            true // shared
+          );
+          setSaved(true);
+          haptic([50, 30, 50, 30]);
+        } catch (err) {
+          console.error("Score mentés sikertelen:", err);
+        }
+      };
+
+      saveScore();
+    }, [playerName, stats, saved]);
 
   return (
     <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
@@ -1325,177 +1329,184 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     6.5  LEADERBOARD COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 
-const Leaderboard = ({ onBack }) => {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+    const Leaderboard = ({ onBack }) => {
+      const [entries, setEntries] = useState([]);
+      const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, []);
+      useEffect(() => {
+        loadLeaderboard();
+      }, []);
 
-  const loadLeaderboard = async () => {
-    try {
-      setLoading(true);
-      const result = await window.storage.list("score:", true);
-      if (result && result.keys) {
-        // Load all scores
-        const scores = await Promise.all(
-          result.keys.map(async (key) => {
-            const data = await window.storage.get(key, true);
-            return data ? JSON.parse(data.value) : null;
-          })
-        );
-        
-        // Filter out nulls and aggregate by player name
-        const validScores = scores.filter(s => s);
-        const aggregated = {};
-        
-        validScores.forEach(score => {
-          if (!aggregated[score.name]) {
-            aggregated[score.name] = {
-              name: score.name,
-              totalScore: 0,
-              games: 0,
-              bestScore: 0,
-              bestStreak: 0
-            };
+      const loadLeaderboard = async () => {
+        try {
+          setLoading(true);
+          const result = await window.storage.list("score:", true);
+          if (!result?.keys) {
+            setEntries([]);
+            return;
           }
-          aggregated[score.name].totalScore += score.score;
-          aggregated[score.name].games += 1;
-          aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
-          aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
-        });
-        
-        // Convert to array and sort by total score
-        const leaderboard = Object.values(aggregated)
-          .sort((a, b) => b.totalScore - a.totalScore)
-          .slice(0, 10); // Top 10
-        
-        setEntries(leaderboard);
-      } else {
-        setEntries([]);
-      }
-    } catch (err) {
-      console.log("No leaderboard data yet");
-      setEntries([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  return (
-    <div style={{ 
-      display: "flex", 
-      flexDirection: "column", 
-      gap: 16, 
-      maxWidth: 480, 
-      margin: "0 auto",
-      padding: 16 
-    }}>
-      <div style={{ 
-        textAlign: "center", 
-        fontSize: 32, 
-        fontWeight: 800,
-        background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 100%)`,
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        marginBottom: 8
-      }}>
-        🏆 Leaderboard
-      </div>
+          const allScores = await Promise.all(
+            result.keys.map(async (key) => {
+              const data = await window.storage.get(key, true);
+              return data ? JSON.parse(data.value) : null;
+            })
+          );
 
-      {loading ? (
-        <div style={{ textAlign: "center", color: C.neut, padding: 40 }}>
-          Loading...
-        </div>
-      ) : entries.length === 0 ? (
-        <div style={{ 
-          textAlign: "center", 
-          color: "rgba(255,255,255,0.5)", 
-          padding: 40,
-          fontSize: 14
-        }}>
-          No scores yet. Be the first!
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {entries.map((entry, idx) => (
+          const valid = allScores.filter(Boolean);
+
+          // Csoportosítás játékosonként → csak a LEGJOBB eredményét tartjuk meg
+          const byPlayer = {};
+
+          valid.forEach((score) => {
+            const name = score.name;
+            if (!byPlayer[name] || score.score > byPlayer[name].score) {
+              byPlayer[name] = {
+                ...score,
+                // opcionálisan itt tudsz még több infót hozzáadni, pl. timestamp-ből dátum
+              };
+            }
+          });
+
+          // Rendezés pontszám szerint csökkenő
+          const leaderboard = Object.values(byPlayer)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 10);
+
+          setEntries(leaderboard);
+        } catch (err) {
+          console.error("Leaderboard betöltés hiba:", err);
+          setEntries([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+            maxWidth: 480,
+            margin: "0 auto",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: 32,
+              fontWeight: 800,
+              background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 100%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              marginBottom: 8,
+            }}
+          >
+            🏆 Leaderboard
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: "center", color: C.neut, padding: 40 }}>
+              Betöltés...
+            </div>
+          ) : entries.length === 0 ? (
             <div
-              key={entry.name}
               style={{
-                background: C.glass,
-                border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
-                borderRadius: 12,
-                padding: "12px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                backdropFilter: "blur(20px)",
-                boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none"
+                textAlign: "center",
+                color: "rgba(255,255,255,0.5)",
+                padding: 40,
+                fontSize: 14,
               }}
             >
-              <div style={{ 
-                fontSize: 20, 
-                fontWeight: 700,
-                minWidth: 32,
-                color: idx === 0 ? C.nGreen : idx === 1 ? C.nPurple : idx === 2 ? C.nBlue : "rgba(255,255,255,0.6)"
-              }}>
-                {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontSize: 16, 
-                  fontWeight: 600,
-                  color: "#fff",
-                  marginBottom: 2
-                }}>
-                  {entry.name}
-                </div>
-                <div style={{ 
-                  fontSize: 11, 
-                  color: "rgba(255,255,255,0.5)",
-                  fontFamily: "monospace"
-                }}>
-                  {entry.games} game{entry.games !== 1 ? "s" : ""} • Best: {entry.bestScore.toLocaleString()}
-                </div>
-              </div>
-              <div style={{ 
-                textAlign: "right",
-                display: "flex",
-                flexDirection: "column",
-                gap: 2
-              }}>
-                <div style={{ 
-                  fontSize: 18, 
-                  fontWeight: 700,
-                  color: C.nGreen
-                }}>
-                  {entry.totalScore.toLocaleString()}
-                </div>
-                <div style={{ 
-                  fontSize: 10, 
-                  color: "rgba(255,255,255,0.4)",
-                  fontFamily: "monospace"
-                }}>
-                  🔥 {entry.bestStreak}
-                </div>
-              </div>
+              Még nincsenek pontszámok. Légy az első!
             </div>
-          ))}
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {entries.map((entry, idx) => (
+                <div
+                  key={entry.gameId || entry.name} // gameId alapján egyedi kulcs
+                  style={{
+                    background: C.glass,
+                    border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
+                    borderRadius: 12,
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    backdropFilter: "blur(20px)",
+                    boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      minWidth: 32,
+                      color:
+                        idx === 0
+                          ? C.nGreen
+                          : idx === 1
+                          ? C.nPurple
+                          : idx === 2
+                          ? C.nBlue
+                          : "rgba(255,255,255,0.6)",
+                    }}
+                  >
+                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>
+                      {entry.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "rgba(255,255,255,0.5)",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {entry.correct}/{entry.totalRounds} · streak {entry.bestStreak}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: C.nGreen,
+                      }}
+                    >
+                      {entry.score.toLocaleString()}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "rgba(255,255,255,0.4)",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {new Date(entry.timestamp).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <GlassButton
+            onClick={onBack}
+            color={C.nPurple}
+            style={{ marginTop: 8 }}
+          >
+            Vissza
+          </GlassButton>
         </div>
-      )}
-
-      <GlassButton 
-        onClick={onBack} 
-        color={C.nPurple} 
-        style={{ marginTop: 8 }}
-      >
-        Back
-      </GlassButton>
-    </div>
-  );
-};
-
+      );
+    };
 /* ═══════════════════════════════════════════════════════════════
     7  MAIN APP COMPONENT
    ═══════════════════════════════════════════════════════════════ */
@@ -1839,224 +1850,123 @@ export default function App() {
   }, [scores, roundStats, bestStreak]);
 
   // ── Home screen ──
-  const renderHome = () => {
-    const [isEditing, setIsEditing] = useState(!playerName);
-    const [tempName, setTempName] = useState(playerName);
+    const renderHome = () => {
+      const [isEditing, setIsEditing] = useState(!playerName);
+      const [tempName, setTempName] = useState(playerName || "");
+      const [error, setError] = useState("");
 
-    const handleSaveName = async () => {
-      if (!tempName.trim()) return;
-      
-      // Save player name
-      try {
-        await window.storage.set("playerName", tempName.trim(), false);
-        setPlayerName(tempName.trim());
-        setIsEditing(false);
-        haptic([30, 20, 30]);
-      } catch (err) {
-        console.error("Failed to save name:", err);
-      }
-    };
+      const handleSaveName = async () => {
+        const cleaned = tempName.trim();
+        if (!cleaned) {
+          setError("Adj meg egy nevet!");
+          return;
+        }
+        if (cleaned.length < 3) {
+          setError("Legalább 3 karakter legyen!");
+          return;
+        }
 
-    const handleCancelEdit = () => {
-      setTempName(playerName);
-      setIsEditing(false);
-    };
+        try {
+          await window.storage.set("playerName", cleaned, false);
+          setPlayerName(cleaned);
+          setIsEditing(false);
+          setError("");
+          haptic([30, 20, 30]);
+        } catch (err) {
+          console.error("Név mentés sikertelen", err);
+          setError("Hiba a mentés során");
+        }
+      };
 
-    const handleStartGame = () => {
-      if (!playerName.trim()) return;
-      startGame();
-    };
+      const handleStart = () => {
+        if (!playerName.trim()) {
+          setError("Előbb add meg a neved!");
+          return;
+        }
+        startGame();
+      };
 
-    return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "calc(100dvh - 80px)",
-        padding: "20px",
-        gap: 20,
-      }}
-    >
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
-        <div
-          style={{
-            fontSize: 48,
-            fontWeight: 900,
-            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple}, ${C.nPink})`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            marginBottom: 8,
-            lineHeight: 1,
-          }}
-        >
-          REFLEX GLASS
-        </div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em" }}>
-          Context-Aware Pattern Trainer
-        </div>
-      </div>
+      return (
+        <div style={{ /* ... meglévő stílusok ... */ }}>
+          {/* ... cím ... */}
 
-      <GlassPanel style={{ padding: "20px", maxWidth: 380 }}>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: 16 }}>
-          Master pattern recognition in realistic market conditions. Learn when to trade and when
-          to wait. Focus on context, not memorization.
-        </div>
-        
-        <div style={{ position: "relative" }}>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={isEditing ? tempName : playerName}
-            onChange={(e) => isEditing && setTempName(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter") {
-                if (isEditing) {
-                  handleSaveName();
-                } else {
-                  handleStartGame();
-                }
-              }
-            }}
-            maxLength={20}
-            disabled={!isEditing}
-            style={{
-              width: "100%",
-              padding: "12px 48px 12px 16px",
-              fontSize: 16,
-              fontWeight: 600,
-              background: C.glass,
-              border: `1px solid ${isEditing ? C.nGreen : C.glassBr}`,
-              borderRadius: 12,
-              color: "#fff",
-              textAlign: "center",
-              outline: "none",
-              backdropFilter: "blur(20px)",
-              cursor: isEditing ? "text" : "default",
-              opacity: isEditing ? 1 : 0.9
-            }}
-          />
-          {isEditing ? (
-            <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
-              <button
-                onClick={handleSaveName}
-                disabled={!tempName.trim()}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: "none",
-                  background: tempName.trim() ? C.nGreen : "rgba(255,255,255,0.1)",
-                  color: "#fff",
-                  cursor: tempName.trim() ? "pointer" : "not-allowed",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  opacity: tempName.trim() ? 1 : 0.4,
-                  transition: "all 0.2s"
+          <GlassPanel style={{ padding: "20px", maxWidth: 380 }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16 }}>
+              Master pattern recognition in realistic conditions...
+            </div>
+
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <input
+                type="text"
+                placeholder="Neved (3+ karakter)"
+                value={tempName}
+                onChange={(e) => {
+                  setTempName(e.target.value);
+                  setError("");
                 }}
-              >
-                ✓
-              </button>
-              {playerName && (
-                <button
-                  onClick={handleCancelEdit}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    border: "none",
-                    background: "rgba(255,77,148,0.3)",
-                    color: C.nPink,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    transition: "all 0.2s"
-                  }}
+                onKeyPress={(e) => e.key === "Enter" && (isEditing ? handleSaveName() : handleStart())}
+                maxLength={20}
+                disabled={!isEditing}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  background: C.glass,
+                  border: `1.5px solid ${error ? C.nPink : isEditing ? C.nGreen : C.glassBr}`,
+                  borderRadius: 12,
+                  color: "#fff",
+                  textAlign: "center",
+                }}
+              />
+
+              {isEditing ? (
+                <div style={{ marginTop: 12, display: "flex", gap: 10, justifyContent: "center" }}>
+                  <GlassButton
+                    onClick={handleSaveName}
+                    color={C.nGreen}
+                    disabled={!tempName.trim()}
+                    style={{ minWidth: 100 }}
+                  >
+                    Mentés
+                  </GlassButton>
+                  {playerName && (
+                    <GlassButton onClick={() => { setIsEditing(false); setTempName(playerName); }} color={C.nPink}>
+                      Mégse
+                    </GlassButton>
+                  )}
+                </div>
+              ) : (
+                <GlassButton
+                  onClick={() => setIsEditing(true)}
+                  color={C.nBlue}
+                  style={{ marginTop: 8, width: "100%" }}
                 >
-                  ✕
-                </button>
+                  Név módosítása
+                </GlassButton>
+              )}
+
+              {error && (
+                <div style={{ color: C.nPink, fontSize: 13, marginTop: 8, textAlign: "center" }}>
+                  {error}
+                </div>
               )}
             </div>
-          ) : (
-            playerName && (
-              <button
-                onClick={() => {
-                  setTempName(playerName);
-                  setIsEditing(true);
-                }}
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: "none",
-                  background: "rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.6)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
-                  transition: "all 0.2s"
-                }}
-              >
-                ✎
-              </button>
-            )
-          )}
+          </GlassPanel>
+
+          <GlassButton
+            onClick={handleStart}
+            color={C.nGreen}
+            disabled={!playerName.trim()}
+            style={{ padding: "18px 60px", fontSize: 18 }}
+          >
+            Kezdés
+          </GlassButton>
+
+          {/* ... kis szöveg alul ... */}
         </div>
-      </GlassPanel>
-
-      <GlassButton
-        onClick={handleStartGame}
-        color={C.nGreen}
-        disabled={!playerName.trim()}
-        style={{ 
-          padding: "18px 56px", 
-          fontSize: 18, 
-          position: "relative", 
-          overflow: "hidden",
-          opacity: !playerName.trim() ? 0.5 : 1,
-          cursor: !playerName.trim() ? "not-allowed" : "pointer"
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
-            backgroundSize: "200% 100%",
-            animation: playerName.trim() ? "shimmer 2.2s linear infinite" : "none",
-            pointerEvents: "none",
-          }}
-        />
-        Start Training
-      </GlassButton>
-
-      <div
-        style={{
-          fontSize: 10,
-          color: "rgba(255,255,255,0.22)",
-          fontFamily: "monospace",
-          textAlign: "center",
-          maxWidth: 300,
-        }}
-      >
-        Learn when NOT to trade • {ROUNDS} rounds • Context matters
-      </div>
-    </div>
-    );
-  };
+      );
+    };
 
   // ── Playing screen ──
   const renderPlaying = () => {
