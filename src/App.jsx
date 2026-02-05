@@ -1660,17 +1660,18 @@ export default function App() {
 
     let count = 2;
     const countInterval = setInterval(() => {
-      if (count === 0) {
+      setCountdownNum(count);
+      sound.tick(count);
+      
+      if (count === 1) {
         clearInterval(countInterval);
         setTimeout(() => {
           setShowCountdown(false);
           initializeRound(0);
-        }, 300);
-      } else {
-        setCountdownNum(count);
-        sound.tick(count);
-        count--;
+        }, 1000); // Wait 1 second after showing "1" before starting
       }
+      
+      count--;
     }, 1000);
   }, [initializeRound]);
 
@@ -1873,7 +1874,7 @@ export default function App() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "calc(100dvh - 80px)",
-        padding: "20px",
+        padding: "20px 16px",
         gap: 20,
       }}
     >
@@ -1896,7 +1897,7 @@ export default function App() {
         </div>
       </div>
 
-      <GlassPanel style={{ padding: "20px", maxWidth: 380 }}>
+      <GlassPanel style={{ padding: "20px 16px", maxWidth: 380, width: "100%" }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: 16 }}>
           Master pattern recognition in realistic market conditions. Learn when to trade and when
           to wait. Focus on context, not memorization.
@@ -1932,7 +1933,8 @@ export default function App() {
               outline: "none",
               backdropFilter: "blur(20px)",
               cursor: isEditingName ? "text" : "default",
-              opacity: isEditingName ? 1 : 0.9
+              opacity: isEditingName ? 1 : 0.9,
+              boxSizing: "border-box"
             }}
           />
           {isEditingName ? (
