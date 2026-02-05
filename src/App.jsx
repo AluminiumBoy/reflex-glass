@@ -13,13 +13,11 @@
  *   ╚██████╔╝███████╗██║  ██║███████║███████║
  *    ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝
  *
- *  REFLEX GLASS — Ultra-Addictive Chart Pattern Reflex Trainer
- *  Base Mini App + Farcaster Frame · 2026 Liquid Glass Design
+ *  REFLEX GLASS — Context-Aware Chart Pattern Reflex Trainer
+ *  REDESIGNED 2026 — Realistic Market Structure Edition
  *
- *  Single-file React 19 app. No external UI deps besides React.
- *  Canvas chart · Web Audio · requestAnimationFrame at 60fps.
- *  Drop into a Vite + React project, wire up OnchainKit/MiniKit
- *  at the provider level outside this component (see README).
+ *  Focus: Pattern recognition in context, not pattern memorization
+ *  Core: Multi-pattern environments, windowed view, patience training
  * ═══════════════════════════════════════════════════════════════
  */
 
@@ -29,2309 +27,1644 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
     1  CONSTANTS & COLOR TOKENS
    ═══════════════════════════════════════════════════════════════ */
 
-const ROUNDS       = 7;
-const DECISION_MS  = 4000;
-const BASE_SCORE   = 1000;
-// streak multiplier table, index = consecutive correct (0-based)
-const STREAK_MULT  = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
+const ROUNDS = 7;
+const DECISION_MS = 5000; // Increased to 5s for context analysis
+const BASE_SCORE = 1000;
+const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
-const C = {                         // colour palette
-  nGreen  : "#00ffaa",
-  nPink   : "#ff4d94",
-  nPurple : "#a855f7",
-  nBlue   : "#38bdf8",
-  nAmber  : "#fbbf24",
-  bull    : "#00e676",
-  bear    : "#ff1744",
-  neut    : "#fbbf24",
-  bg1     : "#06060c",
-  bg2     : "#0f0f1a",
-  glass   : "rgba(14,14,26,0.52)",
-  glassBr : "rgba(255,255,255,0.07)",
-  glassHi : "rgba(255,255,255,0.13)",
+// Difficulty affects window size and pattern complexity
+const DIFFICULTY_CONFIG = {
+  easy: { windowSize: 35, contextSize: 50, cleanRatio: 0.6 },
+  medium: { windowSize: 28, contextSize: 65, cleanRatio: 0.4 },
+  hard: { windowSize: 22, contextSize: 80, cleanRatio: 0.25 },
+};
+
+const C = {
+  nGreen: "#00ffaa",
+  nPink: "#ff4d94",
+  nPurple: "#a855f7",
+  nBlue: "#38bdf8",
+  nAmber: "#fbbf24",
+  bull: "#00e676",
+  bear: "#ff1744",
+  neut: "#fbbf24",
+  bg1: "#06060c",
+  bg2: "#0f0f1a",
+  glass: "rgba(14,14,26,0.52)",
+  glassBr: "rgba(255,255,255,0.07)",
+  glassHi: "rgba(255,255,255,0.13)",
 };
 
 /* ═══════════════════════════════════════════════════════════════
     2  HAPTIC HELPER
    ═══════════════════════════════════════════════════════════════ */
 function haptic(pattern = [30]) {
-  try { navigator?.vibrate?.(pattern); } catch(_) {}
+  try {
+    navigator?.vibrate?.(pattern);
+  } catch (_) {}
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    3  SOUND ENGINE  (Web Audio API — lazy-inited on first user tap)
-   ═══════════════════════════════════════════════════════════════ */
-  
-   /* ═══════════════════════════════════════════════════════════════
-   PREMIUM SOUND ENGINE - Professional Audio Design
-   Web Audio API with advanced synthesis, filters, and reverb
+    3  SOUND ENGINE
    ═══════════════════════════════════════════════════════════════ */
 class SoundEngine {
-  constructor() { 
-    this.ctx = null; 
+  constructor() {
+    this.ctx = null;
     this.on = true;
     this.masterGain = null;
     this.compressor = null;
   }
 
-  // ── init / resume audio context with master chain ──
   _ensure() {
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Master gain for volume control
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0.7;
-      
-      // Compressor for professional sound (prevents clipping)
       this.compressor = this.ctx.createDynamicsCompressor();
       this.compressor.threshold.value = -20;
       this.compressor.knee.value = 10;
       this.compressor.ratio.value = 4;
       this.compressor.attack.value = 0.003;
       this.compressor.release.value = 0.25;
-      
-      // Chain: masterGain → compressor → destination
       this.masterGain.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
     }
     return this.ctx;
   }
 
-  // ── call this on user gesture to unlock audio
   unlock() {
     if (!this.on) return;
     const ctx = this._ensure();
     if (ctx.state === "suspended") ctx.resume();
   }
 
-  // ── Advanced tone with filter and envelope ──
-  _advancedTone(freq, dur, type = "sine", vol = 0.15, startDelay = 0, filterFreq = null, detune = 0) {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime + startDelay;
-    
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    
-    // Optional filter for richer sound
-    if (filterFreq) {
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = filterFreq;
-      filter.Q.value = 1;
-      osc.connect(filter);
-      filter.connect(gainNode);
-    } else {
-      osc.connect(gainNode);
-    }
-    
-    gainNode.connect(this.masterGain);
-    
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
-    osc.detune.value = detune;
-    
-    // ADSR envelope
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(vol, now + 0.01); // Attack
-    gainNode.gain.exponentialRampToValueAtTime(vol * 0.7, now + dur * 0.3); // Decay
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + dur); // Release
-    
-    osc.start(now);
-    osc.stop(now + dur);
-  }
-
-  // ── Premium UI click (glass tap sound) ──
   click() {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
-    
-    // High frequency tap
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.connect(gain1);
     gain1.connect(this.masterGain);
-    
     osc1.frequency.setValueAtTime(2800, now);
     osc1.frequency.exponentialRampToValueAtTime(1200, now + 0.02);
-    osc1.type = 'sine';
-    
+    osc1.type = "sine";
     gain1.gain.setValueAtTime(0.12, now);
     gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-    
     osc1.start(now);
     osc1.stop(now + 0.06);
-    
-    // Low body thump
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.frequency.setValueAtTime(180, now);
-    osc2.type = 'sine';
-    
-    gain2.gain.setValueAtTime(0.08, now);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-    
-    osc2.start(now);
-    osc2.stop(now + 0.1);
   }
 
-  // ── Countdown tick (3, 2, 1) ──
   tick(n) {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
-    
     const freq = n === 1 ? 1400 : 880;
     const vol = n === 1 ? 0.25 : 0.18;
-    
-    // Bright metallic hit
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
-    
     osc.connect(filter);
     filter.connect(gain);
     gain.connect(this.masterGain);
-    
-    osc.type = 'triangle';
+    osc.type = "triangle";
     osc.frequency.setValueAtTime(freq, now);
-    
-    filter.type = 'bandpass';
+    filter.type = "bandpass";
     filter.frequency.setValueAtTime(freq * 1.5, now);
     filter.Q.value = 8;
-    
     gain.gain.setValueAtTime(vol, now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-    
     osc.start(now);
     osc.stop(now + 0.16);
-    
-    // Harmonic overtone for richness
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 2, now);
-    gain2.gain.setValueAtTime(vol * 0.3, now);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
-    
-    osc2.start(now);
-    osc2.stop(now + 0.11);
   }
 
-  // ── Correct answer (uplifting chord progression) ──
   correct() {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
-    
-    // Major chord: C-E-G with rich harmonics
-    const chord = [
-      { freq: 523.25, delay: 0,    vol: 0.15 },  // C5
-      { freq: 659.25, delay: 0.04, vol: 0.13 },  // E5
-      { freq: 783.99, delay: 0.08, vol: 0.12 },  // G5
-      { freq: 1046.5, delay: 0.12, vol: 0.10 }   // C6 (octave)
-    ];
-    
-    chord.forEach(note => {
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      
-      osc.connect(filter);
-      filter.connect(gain);
+      osc.connect(gain);
       gain.connect(this.masterGain);
-      
-      const t = now + note.delay;
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(note.freq, t);
-      
-      // Warm lowpass filter
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(note.freq * 3, t);
-      filter.Q.value = 1;
-      
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(note.vol, t + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
-      
-      osc.start(t);
-      osc.stop(t + 0.42);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+      gain.gain.setValueAtTime(0.15, now + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.08 + 0.3);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.35);
     });
   }
 
-  // ── Wrong answer (dissonant descending) ──
   wrong() {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
-    
-    // Dissonant descending notes
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    const filter1 = ctx.createBiquadFilter();
-    
-    osc1.connect(filter1);
-    filter1.connect(gain1);
-    gain1.connect(this.masterGain);
-    
-    osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(330, now);
-    osc1.frequency.exponentialRampToValueAtTime(220, now + 0.2);
-    
-    filter1.type = 'lowpass';
-    filter1.frequency.setValueAtTime(800, now);
-    filter1.Q.value = 2;
-    
-    gain1.gain.setValueAtTime(0.18, now);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
-    
-    osc1.start(now);
-    osc1.stop(now + 0.32);
-    
-    // Dissonant harmony
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.type = 'sawtooth';
-    osc2.frequency.setValueAtTime(315, now + 0.05); // Slightly detuned
-    osc2.frequency.exponentialRampToValueAtTime(210, now + 0.25);
-    
-    gain2.gain.setValueAtTime(0.14, now + 0.05);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    
-    osc2.start(now + 0.05);
-    osc2.stop(now + 0.37);
-  }
-
-  // ── God mode burst (epic ascending arpeggio) ──
-  godBurst() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // Epic ascending arpeggio with harmonics
-    const notes = [
-      { freq: 523.25, delay: 0     },  // C5
-      { freq: 659.25, delay: 0.05  },  // E5
-      { freq: 783.99, delay: 0.10  },  // G5
-      { freq: 987.77, delay: 0.15  },  // B5
-      { freq: 1046.5, delay: 0.20  },  // C6
-      { freq: 1318.5, delay: 0.25  },  // E6
-      { freq: 1568,   delay: 0.30  }   // G6
-    ];
-    
-    notes.forEach((note, i) => {
-      const vol = 0.15 - (i * 0.015);
-      
-      // Main note
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.masterGain);
-      
-      const t = now + note.delay;
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(note.freq, t);
-      
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(note.freq * 4, t);
-      filter.frequency.exponentialRampToValueAtTime(note.freq * 2, t + 0.3);
-      filter.Q.value = 1.5;
-      
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(vol, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-      
-      osc.start(t);
-      osc.stop(t + 0.36);
-      
-      // Harmonic shimmer
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(this.masterGain);
-      
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(note.freq * 2, t);
-      gain2.gain.setValueAtTime(vol * 0.3, t);
-      gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-      
-      osc2.start(t);
-      osc2.stop(t + 0.26);
-    });
-  }
-
-  // ── Reveal candle (subtle pop) ──
-  reveal() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(900, now + 0.03);
-    
-    filter.type = 'highpass';
-    filter.frequency.setValueAtTime(400, now);
-    filter.Q.value = 0.5;
-    
-    gain.gain.setValueAtTime(0.09, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
-    
-    osc.start(now);
-    osc.stop(now + 0.07);
-  }
-
-  // ── Candle animate pop (glass crystallization sound) ──
-  candlePop() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // High frequency crystallization
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    const filter1 = ctx.createBiquadFilter();
-    
-    osc1.connect(filter1);
-    filter1.connect(gain1);
-    gain1.connect(this.masterGain);
-    
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(1600, now);
-    osc1.frequency.exponentialRampToValueAtTime(1100, now + 0.04);
-    
-    filter1.type = 'bandpass';
-    filter1.frequency.setValueAtTime(1400, now);
-    filter1.Q.value = 4;
-    
-    gain1.gain.setValueAtTime(0.06, now);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-    
-    osc1.start(now);
-    osc1.stop(now + 0.09);
-    
-    // Low glass resonance
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(this.masterGain);
-    
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(280, now);
-    
-    gain2.gain.setValueAtTime(0.04, now);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-    
-    osc2.start(now);
-    osc2.stop(now + 0.13);
-  }
-
-  // ── Whoosh (screen transition) ──
-  whoosh() { 
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(80, now);
-    osc.frequency.exponentialRampToValueAtTime(1800, now + 0.28);
-    
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(300, now);
-    filter.frequency.exponentialRampToValueAtTime(2000, now + 0.28);
-    filter.Q.value = 3;
-    
-    gain.gain.setValueAtTime(0.16, now);
-    gain.gain.linearRampToValueAtTime(0.20, now + 0.1);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-    
-    osc.start(now);
-    osc.stop(now + 0.37);
-  }
-
-  // ── Tip tap (UI interaction) ──
-  tipTap() { 
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    [2200, 2900].forEach((f, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.connect(gain);
-      gain.connect(this.masterGain);
-      
-      const t = now + i * 0.04;
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, t);
-      
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.18, t + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-      
-      osc.start(t);
-      osc.stop(t + 0.13);
-    });
-  }
-
-  // ── Ticker ping (subtle notification) ──
-  tickerPing() {
-    if (!this.on) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
     osc.connect(gain);
     gain.connect(this.masterGain);
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1800, now);
-    
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
-    
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
     osc.start(now);
-    osc.stop(now + 0.05);
+    osc.stop(now + 0.4);
+  }
+
+  toggle() {
+    this.on = !this.on;
   }
 }
 
-// ── singleton instance ──
-const SND = new SoundEngine();
-
+const sound = new SoundEngine();
 
 /* ═══════════════════════════════════════════════════════════════
-    4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
-      Each factory returns:
-        { candles: OHLC[22], continuation: OHLC[10],
-          signal: 'buy'|'sell'|'hold', name: string, cat: string }
+    4  MARKET STRUCTURE GENERATOR
+    
+    This is the CORE of the redesign. Instead of generating isolated
+    patterns, we create realistic market structures with:
+    - Long context (40-80 candles)
+    - Multiple overlapping patterns
+    - Trend transitions
+    - Failed patterns and traps
+    - Natural decision points
    ═══════════════════════════════════════════════════════════════ */
 
-// ── micro-helpers ────────────────────────────────────────────
-const R  = (a,b) => a + Math.random()*(b-a);          // random float [a,b)
-const RI = (a,b) => Math.floor(R(a, b+1));            // random int   [a,b]
-const CL = (v,a,b) => Math.max(a, Math.min(b, v));   // clamp
-
-// Build one OHLC candle.  wU / wD = extra wick beyond body.
-function K(o, c, wU=0, wD=0) {
-  return { o:+o.toFixed(2), c:+c.toFixed(2),
-           h:+(Math.max(o,c)+Math.abs(wU)).toFixed(2),
-           l:+(Math.min(o,c)-Math.abs(wD)).toFixed(2) };
-}
-
-// Trending run: n candles from `start`, per-bar drift `slope ± vol`
-function TR(start, n, slope, vol=2) {
-  const a=[]; let p=start;
-  for(let i=0;i<n;i++){
-    const o=p; p+=slope+R(-vol,vol);
-    a.push(K(o, p, R(0,vol*.45), R(0,vol*.45)));
-  }
-  return a;
-}
-
-// Consolidation block around `base`
-function CO(base, n, rng=4) {
-  const a=[]; let p=base;
-  for(let i=0;i<n;i++){
-    const o=p+R(-rng*.25,rng*.25), c=o+R(-rng*.35,rng*.35);
-    p=c; a.push(K(o,c,R(.3,rng*.3),R(.3,rng*.3)));
-  }
-  return a;
-}
-
-// Pad / trim to exactly `n`
-function PAD(arr, n) {
-  const a=[...arr];
-  while(a.length<n) a.push({...a[a.length-1]});
-  return a.slice(0,n);
-}
-
-// ── 40+ PATTERN FACTORIES ─────────────────────────────────────
-// Bullish Continuation ─────
-function bullFlag() {
-  const pole=TR(100,6,3.8,1.1), top=pole[pole.length-1].c;
-  const flag=[]; let fp=top;
-  for(let i=0;i<8;i++){ fp+=R(-.55,.12); flag.push(K(fp+R(-.25,.25),fp,R(.2,.7),R(.2,.7))); }
-  return { candles:PAD([...pole,...flag,...CO(flag[flag.length-1].c,8,1.8)],22),
-           continuation:TR(top-.8,10,3.1,1.5), signal:'buy', name:'Bull Flag', cat:'Continuation' };
-}
-function highTightFlag() {
-  const spike=TR(100,4,5.2,.7), top=spike[spike.length-1].c;
-  const tight=CO(top-.6,7,1.1);
-  return { candles:PAD([...spike,...tight,...CO(tight[tight.length-1].c,11,1.4)],22),
-           continuation:TR(top,10,3.9,1.1), signal:'buy', name:'High Tight Flag', cat:'Continuation' };
-}
-function ascTriangle() {
-  const lead=TR(96,4,1,1.4); let sup=100; const res=108, tri=[];
-  for(let i=0;i<10;i++){ sup+=.44; const m=sup+(res-sup)*R(.2,.7);
-    tri.push(K(m+R(-1,1),m+R(-1,1),CL(res-m,.2,2.4),R(.2,1.1))); }
-  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.7)],22),
-           continuation:TR(res+.6,10,2.5,1.4), signal:'buy', name:'Ascending Triangle', cat:'Continuation' };
-}
-function cupHandle() {
-  const rim=108, left=TR(rim,3,-2.6,.8), cup=[];
-  for(let i=0;i<8;i++){ const d=6*(1-Math.sin((i/7)*Math.PI)); cup.push(K(rim-d+R(-.5,.5),rim-d+R(-.5,.5),R(.2,.8),R(.2,.8))); }
-  const hdl=[]; let hp=rim-1.7;
-  for(let i=0;i<5;i++){ hp+=R(-.4,.08); hdl.push(K(hp+R(-.18,.18),hp,R(.1,.4),R(.1,.4))); }
-  return { candles:PAD([...left,...cup,...hdl,...CO(hdl[hdl.length-1].c,6,1.1)],22),
-           continuation:TR(rim+.4,10,2.8,1.3), signal:'buy', name:'Cup & Handle', cat:'Continuation' };
-}
-function powerOf3() {
-  const drop=TR(108,3,-2.1,1), rng=CO(102,8,3.4);
-  const spring=[K(101,99.4,.2,1.1),K(99.1,101.6,.3,.4),K(101.6,103.2,.2,.3)];
-  return { candles:PAD([...drop,...rng,...spring,...CO(103.2,8,1.9)],22),
-           continuation:TR(104,10,3,1.4), signal:'buy', name:'Power of 3 Accum', cat:'Continuation' };
-}
-function wyckoffSpring() {
-  const setup=TR(106,4,-1.4,1), rng=CO(102,6,3.2);
-  const spr=[K(100.3,98.6,.2,.7),K(98.3,97.9,.4,.9),K(97.7,101.3,.15,.25)];
-  return { candles:PAD([...setup,...rng,...spr,...CO(101.3,9,1.9)],22),
-           continuation:TR(103,10,3.1,1.3), signal:'buy', name:'Wyckoff Spring', cat:'Continuation' };
-}
-function bullRect() {
-  const lead=TR(96,4,2.1,1.1), rect=CO(104,10,3.1);
-  return { candles:PAD([...lead,...rect,...CO(rect[rect.length-1].c,8,1.4)],22),
-           continuation:TR(107.2,10,2.7,1.4), signal:'buy', name:'Bullish Rectangle', cat:'Continuation' };
-}
-
-// Bearish Continuation ─────
-function bearFlag() {
-  const pole=TR(112,6,-3.8,1.1), bot=pole[pole.length-1].c;
-  const flag=[]; let fp=bot;
-  for(let i=0;i<8;i++){ fp+=R(-.12,.55); flag.push(K(fp+R(-.25,.25),fp,R(.2,.7),R(.2,.7))); }
-  return { candles:PAD([...pole,...flag,...CO(flag[flag.length-1].c,8,1.8)],22),
-           continuation:TR(bot+.8,10,-3.1,1.5), signal:'sell', name:'Bear Flag', cat:'Continuation' };
-}
-function descTriangle() {
-  const lead=TR(112,4,-1,1.4); let res=109; const sup=100, tri=[];
-  for(let i=0;i<10;i++){ res-=.42; const m=sup+(res-sup)*R(.2,.7);
-    tri.push(K(m+R(-1,1),m+R(-1,1),R(.2,1.1),CL(m-sup,.2,2.4))); }
-  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.7)],22),
-           continuation:TR(sup-.6,10,-2.5,1.4), signal:'sell', name:'Descending Triangle', cat:'Continuation' };
-}
-function bearRect() {
-  const lead=TR(112,4,-2.1,1.1), rect=CO(104,10,3.1);
-  return { candles:PAD([...lead,...rect,...CO(rect[rect.length-1].c,8,1.4)],22),
-           continuation:TR(100,10,-2.7,1.4), signal:'sell', name:'Bearish Rectangle', cat:'Continuation' };
-}
-function wyckoffUpthrust() {
-  const rise=TR(100,4,1.7,1), rng=CO(106,6,3.4);
-  const ut=[K(107.3,109.8,.25,.35),K(109.6,109.5,.7,.25),K(109.4,106.2,.15,.4)];
-  return { candles:PAD([...rise,...rng,...ut,...CO(106,9,1.9)],22),
-           continuation:TR(104,10,-2.9,1.3), signal:'sell', name:'Wyckoff Upthrust', cat:'Continuation' };
-}
-
-// Bullish Reversals ────────
-function invHS() {
-  const pre=TR(108,3,-1.7,.9);
-  const ls=[K(105,102.3,.7,1.4),K(102.6,104,.35,.5)];
-  const hd=[K(104,100.2,.3,1.6),K(100,99.4,.5,.9),K(99.1,102.6,.25,.7)];
-  const rs=[K(102.8,101.5,.5,.7),K(101.3,102.3,.3,1.4),K(102.5,103.6,.2,.35)];
-  return { candles:PAD([...pre,...ls,...hd,...rs,...CO(103.6,7,1.4)],22),
-           continuation:TR(105,10,2.7,1.3), signal:'buy', name:'Inv. Head & Shoulders', cat:'Reversal' };
-}
-function adamEve() {
-  const pre=TR(110,3,-2,.9);
-  const adam=[K(104,100.8,.4,.9),K(100.5,99.8,.7,.5),K(99.6,103.3,.2,.6)];
-  const mid=TR(103.3,3,.4,.9);
-  const eve=[]; for(let i=0;i<4;i++){ const p=100+2.2*(1-Math.cos((i/3)*Math.PI*.8)); eve.push(K(p+R(-.3,.3),p+R(-.3,.3),R(.15,.5),R(.15,.5))); }
-  return { candles:PAD([...pre,...adam,...mid,...eve,...CO(101.5,8,1.4)],22),
-           continuation:TR(104,10,2.5,1.4), signal:'buy', name:'Adam & Eve Double Bottom', cat:'Reversal' };
-}
-function dblBottom() {
-  const pre=TR(110,3,-1.9,.9), b1=TR(104,3,-1.7,.8), r1=TR(100.5,3,1.9,.8);
-  const b2=TR(103.4,3,-1.5,.8), rec=TR(100.5,4,1.7,.8);
-  return { candles:PAD([...pre,...b1,...r1,...b2,...rec,...CO(rec[rec.length-1].c,5,1.4)],22),
-           continuation:TR(104,10,2.4,1.5), signal:'buy', name:'Double Bottom', cat:'Reversal' };
-}
-function tripleBottom() {
-  const pre=[K(107,105,.5,.7)];
-  const b1=TR(105,2,-2.1,.6), r1=TR(102,2,1.9,.6);
-  const b2=TR(104,2,-2.3,.6), r2=TR(101.4,2,2.1,.6);
-  const b3=TR(104,2,-1.9,.6), r3=TR(102,3,1.7,.6);
-  return { candles:PAD([...pre,...b1,...r1,...b2,...r2,...b3,...r3,...CO(r3[r3.length-1].c,4,1.1)],22),
-           continuation:TR(105,10,2.7,1.3), signal:'buy', name:'Triple Bottom', cat:'Reversal' };
-}
-function roundBottom() {
-  const a=[]; for(let i=0;i<16;i++){ const p=100+7*(1-Math.cos((i/15)*Math.PI))/2; a.push(K(p+R(-.6,.6),p+R(-.6,.6),R(.2,.8),R(.2,.8))); }
-  return { candles:PAD([...a,...CO(a[a.length-1].c,6,1.1)],22),
-           continuation:TR(106.5,10,2.1,1.4), signal:'buy', name:'Rounding Bottom', cat:'Reversal' };
-}
-function morningStar() {
-  const pre=TR(108,5,-1.1,.9);
-  const star=[K(103,100.2,.7,1),K(99.9,99.5,.7,.5),K(99.3,102.8,.4,.8)];
-  return { candles:PAD([...pre,...star,...TR(102.8,6,.7,.9),...CO(106,6,1.4)],22),
-           continuation:TR(106,10,2.4,1.4), signal:'buy', name:'Morning Star', cat:'Reversal' };
-}
-function bullEngulf() {
-  const pre=TR(108,11,-0.9,1.1), last=pre[pre.length-1];
-  const eng=[K(last.c,last.c-1.9,.4,.7),K(last.c-2.2,last.c+1.4,.2,.4)];
-  return { candles:PAD([...pre,...eng,...CO(eng[eng.length-1].c,9,1.3)],22),
-           continuation:TR(eng[eng.length-1].c,10,2.1,1.4), signal:'buy', name:'Bullish Engulfing', cat:'Reversal' };
-}
-function liquiditySweepBull() {
-  const pre=TR(104,6,-0.6,1), sup=101;
-  // sweep below support then violent snap
-  const sweep=[K(101.2,100.4,.3,.7),K(100.2,99.5,.4,1.1),K(99.2,103.2,.15,.25)];
-  return { candles:PAD([...pre,...sweep,...CO(103.2,13,1.8)],22),
-           continuation:TR(104,10,2.8,1.3), signal:'buy', name:'Liquidity Sweep ↑', cat:'Reversal' };
-}
-function islandRevBull() {
-  const pre=TR(108,5,-1.3,1);
-  // gap-down island then gap-up escape
-  const gapDn=TR(103,4,-.4,.9);
-  const gapUp=TR(105.5,4,1.1,.9);
-  return { candles:PAD([...pre,...gapDn,...gapUp,...CO(gapUp[gapUp.length-1].c,9,1.5)],22),
-           continuation:TR(107,10,2.4,1.3), signal:'buy', name:'Island Reversal ↑', cat:'Reversal' };
-}
-
-// Bearish Reversals ────────
-function hs() {
-  const pre=TR(100,3,1.6,.9);
-  const ls=[K(103,104.8,.4,.8),K(104.6,103.2,.6,.4)];
-  const hd=[K(104,107.8,.25,.6),K(107.6,106.8,.4,1.3),K(107,103.8,.2,.4)];
-  const rs=[K(104,104.9,.6,.7),K(104.7,103,0.4,.6)];
-  return { candles:PAD([...pre,...ls,...hd,...rs,...CO(103,8,1.4)],22),
-           continuation:TR(101.5,10,-2.7,1.3), signal:'sell', name:'Head & Shoulders', cat:'Reversal' };
-}
-function dblTop() {
-  const pre=TR(98,3,1.9,.9), t1=TR(104,3,1.4,.8), d1=TR(107,3,-1.9,.8);
-  const t2=TR(104,3,1.6,.8), drp=TR(107,4,-1.1,.9);
-  return { candles:PAD([...pre,...t1,...d1,...t2,...drp,...CO(drp[drp.length-1].c,5,1.4)],22),
-           continuation:TR(103.5,10,-2.3,1.5), signal:'sell', name:'Double Top', cat:'Reversal' };
-}
-function tripleTop() {
-  const pre=[K(104,106,.4,.8)];
-  const t1=TR(106,2,.7,.6), d1=TR(107,2,-1.9,.6);
-  const t2=TR(104.5,2,1.4,.6), d2=TR(107,2,-1.9,.6);
-  const t3=TR(104.5,2,1.1,.6), d3=TR(107,3,-1.4,.6);
-  return { candles:PAD([...pre,...t1,...d1,...t2,...d2,...t3,...d3,...CO(d3[d3.length-1].c,4,1.1)],22),
-           continuation:TR(103,10,-2.5,1.3), signal:'sell', name:'Triple Top', cat:'Reversal' };
-}
-function roundTop() {
-  const a=[]; for(let i=0;i<16;i++){ const p=108-7*(1-Math.cos((i/15)*Math.PI))/2; a.push(K(p+R(-.6,.6),p+R(-.6,.6),R(.2,.8),R(.2,.8))); }
-  return { candles:PAD([...a,...CO(a[a.length-1].c,6,1.1)],22),
-           continuation:TR(101.5,10,-2.1,1.4), signal:'sell', name:'Rounding Top', cat:'Reversal' };
-}
-function eveningStar() {
-  const pre=TR(100,5,1.1,.9);
-  const star=[K(105,107.8,.7,1),K(108,107.5,.7,.5),K(107.7,104.2,.4,.8)];
-  return { candles:PAD([...pre,...star,...TR(104.2,6,-.7,.9),...CO(101,6,1.4)],22),
-           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Evening Star', cat:'Reversal' };
-}
-function bearEngulf() {
-  const pre=TR(100,11,0.9,1.1), last=pre[pre.length-1];
-  const eng=[K(last.c,last.c+1.9,.4,.7),K(last.c+2.2,last.c-1.4,.2,.4)];
-  return { candles:PAD([...pre,...eng,...CO(eng[eng.length-1].c,9,1.3)],22),
-           continuation:TR(eng[eng.length-1].c,10,-2.1,1.4), signal:'sell', name:'Bearish Engulfing', cat:'Reversal' };
-}
-function liquiditySweepBear() {
-  const pre=TR(104,6,0.6,1);
-  const sweep=[K(106.8,107.6,.3,.7),K(107.8,108.5,1.1,.4),K(108.7,104.8,.25,.15)];
-  return { candles:PAD([...pre,...sweep,...CO(104.8,13,1.8)],22),
-           continuation:TR(103,10,-2.8,1.3), signal:'sell', name:'Liquidity Sweep ↓', cat:'Reversal' };
-}
-function islandRevBear() {
-  const pre=TR(100,5,1.3,1);
-  const gapUp=TR(105,4,.4,.9);
-  const gapDn=TR(102.5,4,-1.1,.9);
-  return { candles:PAD([...pre,...gapUp,...gapDn,...CO(gapDn[gapDn.length-1].c,9,1.5)],22),
-           continuation:TR(99,10,-2.4,1.3), signal:'sell', name:'Island Reversal ↓', cat:'Reversal' };
-}
-
-// Neutral / Breakout Either-Way ─────
-function symTriangle() {
-  const lead=TR(100,4,1.2,1.4); let hi=108, lo=100;
-  const tri=[];
-  for(let i=0;i<10;i++){ hi-=.38; lo+=.38; const m=(hi+lo)/2+R(-1.5,1.5);
-    tri.push(K(m+R(-.6,.6),m+R(-.6,.6),CL(hi-m,.2,2),CL(m-lo,.2,2))); }
-  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.3)],22),
-           continuation:CO(tri[tri.length-1].c,10,2.8), signal:'hold', name:'Symmetrical Triangle', cat:'Neutral' };
-}
-function wedgeNeutral() {
-  const lead=TR(100,4,1,1.2); let hi=108, lo=102;
-  const wedge=[];
-  for(let i=0;i<10;i++){ hi-=.28; lo+=.22; const m=(hi+lo)/2+R(-1,1);
-    wedge.push(K(m+R(-.4,.4),m+R(-.4,.4),CL(hi-m,.2,1.5),CL(m-lo,.2,1.5))); }
-  return { candles:PAD([...lead,...wedge,...CO(wedge[wedge.length-1].c,8,1.4)],22),
-           continuation:CO(wedge[wedge.length-1].c,10,3.1), signal:'hold', name:'Narrowing Wedge', cat:'Neutral' };
-}
-function flatConsolidation() {
-  const lead=TR(104,5,.3,1.3);
-  const flat=CO(lead[lead.length-1].c,12,3);
-  return { candles:PAD([...lead,...flat,...CO(flat[flat.length-1].c,5,1.2)],22),
-           continuation:CO(flat[flat.length-1].c,10,2.6), signal:'hold', name:'Flat Consolidation', cat:'Neutral' };
-}
-function dojiCluster() {
-  const lead=TR(104,8,0.3,1.6);
-  const cluster=[]; for(let i=0;i<6;i++){ const p=lead[lead.length-1].c+R(-.5,.5); cluster.push(K(p,p+R(-.25,.25),R(.4,1.2),R(.4,1.2))); }
-  return { candles:PAD([...lead,...cluster,...CO(cluster[cluster.length-1].c,8,1.4)],22),
-           continuation:CO(cluster[cluster.length-1].c,10,2.4), signal:'hold', name:'Doji Cluster', cat:'Neutral' };
-}
-function insideBar() {
-  const lead=TR(104,9,0.5,1.4);
-  const mother=lead[lead.length-1];
-  const rng=mother.h-mother.l;
-  const inside=[]; for(let i=0;i<4;i++){
-    const mid=(mother.h+mother.l)/2+R(-rng*.2,rng*.2);
-    inside.push(K(mid+R(-.3,.3),mid+R(-.3,.3),R(.2,rng*.18),R(.2,rng*.18)));
-  }
-  return { candles:PAD([...lead,...inside,...CO(inside[inside.length-1].c,9,1.3)],22),
-           continuation:CO(inside[inside.length-1].c,10,2.5), signal:'hold', name:'Inside Bar Setup', cat:'Neutral' };
-}
-function priceChannel() {
-  const ch=[];
-  let lo=100, hi=108, p=(lo+hi)/2;
-  for(let i=0;i<18;i++){
-    const nextP = i%4<2 ? p+R(.5,1.4) : p+R(-1.4,-.5);
-    p = CL(nextP, lo+1, hi-1);
-    ch.push(K(p+R(-.5,.5),p+R(-.5,.5),R(.3,1),R(.3,1)));
-  }
-  return { candles:PAD([...ch,...CO(ch[ch.length-1].c,4,1.2)],22),
-           continuation:CO(ch[ch.length-1].c,10,2.8), signal:'hold', name:'Price Channel', cat:'Neutral' };
-}
-function rangeBreakFake() {
-  const rng=CO(104,12,3.4);
-  const spike=[K(rng[rng.length-1].c+1,108,.3,.5),K(108,109,.4,.3),K(108.8,104.5,.2,.6)];
-  return { candles:PAD([...rng,...spike,...CO(104.5,7,2.4)],22),
-           continuation:CO(104.5,10,3), signal:'hold', name:'Range Fakeout', cat:'Neutral' };
-}
-
-// More advanced / uncommon patterns ─────
-function threeWhiteSoldiers() {
-  const pre=TR(100,8,-0.6,1.2);
-  const soldiers=[K(99,101.8,.3,.5),K(101.5,104,.35,.4),K(103.8,106.5,.3,.4)];
-  return { candles:PAD([...pre,...soldiers,...CO(106.5,11,1.6)],22),
-           continuation:TR(107,10,2.4,1.4), signal:'buy', name:'Three White Soldiers', cat:'Reversal' };
-}
-function threeBlackCrows() {
-  const pre=TR(108,8,0.6,1.2);
-  const crows=[K(109,106.2,.5,.3),K(106.5,104,.4,.35),K(104.2,101.5,.4,.3)];
-  return { candles:PAD([...pre,...crows,...CO(101.5,11,1.6)],22),
-           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Three Black Crows', cat:'Reversal' };
-}
-function fallingKnife() {
-  const drop=TR(112,7,-3.2,.9);
-  const bounce=TR(drop[drop.length-1].c,4,1.8,1.1);
-  return { candles:PAD([...drop,...bounce,...CO(bounce[bounce.length-1].c,11,2.1)],22),
-           continuation:TR(bounce[bounce.length-1].c-1,10,-2.5,1.5), signal:'sell', name:'Falling Knife Bounce', cat:'Reversal' };
-}
-function parabolicBlow() {
-  const run=TR(100,6,1.6,.9);
-  const para=[]; let v=1.2;
-  for(let i=0;i<6;i++){ const o=run[run.length-1].c+(i>0?para[i-1].c-para[i-1].o:0)+v; v*=1.35;
-    para.push(K(o,o+R(1.5,3.5),R(.3,.9),R(.2,.5))); }
-  return { candles:PAD([...run,...para,...CO(para[para.length-1].c,10,3)],22),
-           continuation:TR(para[para.length-1].c,10,-3.2,2), signal:'sell', name:'Parabolic Blowoff', cat:'Reversal' };
-}
-function gapFillBull() {
-  const pre=TR(104,6,-.8,1);
-  const gap=TR(100,4,-1,1.2);
-  const fill=TR(98,6,1.3,1);
-  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
-           continuation:TR(fill[fill.length-1].c,10,2.3,1.4), signal:'buy', name:'Gap Fill ↑', cat:'Continuation' };
-}
-function gapFillBear() {
-  const pre=TR(104,6,.8,1);
-  const gap=TR(108,4,1,1.2);
-  const fill=TR(110,6,-1.3,1);
-  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
-           continuation:TR(fill[fill.length-1].c,10,-2.3,1.4), signal:'sell', name:'Gap Fill ↓', cat:'Continuation' };
-}
-
-// ── PATTERN POOL ──────────────────────────────────────────────
-const PATTERN_POOL = [
-  bullFlag, highTightFlag, ascTriangle, cupHandle, powerOf3, wyckoffSpring, bullRect,
-  bearFlag, descTriangle, bearRect, wyckoffUpthrust,
-  invHS, adamEve, dblBottom, tripleBottom, roundBottom, morningStar, bullEngulf, liquiditySweepBull, islandRevBull,
-  hs, dblTop, tripleTop, roundTop, eveningStar, bearEngulf, liquiditySweepBear, islandRevBear,
-  symTriangle, wedgeNeutral, flatConsolidation, dojiCluster, insideBar, priceChannel, rangeBreakFake,
-  threeWhiteSoldiers, threeBlackCrows, fallingKnife, parabolicBlow, gapFillBull, gapFillBear,
-];
-
-function getRandomPattern() { return PATTERN_POOL[RI(0, PATTERN_POOL.length - 1)](); }
-
-/* ═══════════════════════════════════════════════════════════════
-    6  ARCHETYPE ENGINE  (personality reveal based on playstyle)
-   ═══════════════════════════════════════════════════════════════ */
-const ARCHETYPES = [
-  { name:"Impulse Ape",        emoji:"🐒", cond: r => r.buyCount > 4,
-    roast:"Bro you BUY everything with a heartbeat. Your wallet is just Binance with extra steps and a prayer. You once bought a rug because it \"looked promising.\"" },
-  { name:"Paper Hands Ghost",  emoji:"👻", cond: r => r.sellCount > 4,
-    roast:"You sold BTC at $6k, ETH at $1k, and your last shred of self-respect at 2am on a Tuesday. Congratulations, you've single-handedly funded every whale's yacht." },
-  { name:"Zen Diamond Holder", emoji:"💎", cond: r => r.holdCount > 3 && r.correct > 4,
-    roast:"You held through 3 bear markets, 2 divorces, and a 99% drawdown — and somehow you're STILL not broke. Suspicious. Either enlightened or your wallet app is literally just broken." },
-  { name:"Panic Seller",       emoji:"😰", cond: r => r.sellCount > 2 && r.correct < 3,
-    roast:"Your strategy: chart goes red → you SELL → it pumps 300% → you cry into instant noodles → repeat. You are the liquidity. You ARE the exit. Whale food, but make it artisanal." },
-  { name:"Scalp King",         emoji:"⚡", cond: r => r.avgSpeed < 1800 && r.correct > 4,
-    roast:"Sub-2-second reflexes. Either you're a legit trader or you've been IV-dripping Monster since 2019. Your fingers are so fast they've filed for workers comp." },
-  { name:"The Analyst",        emoji:"📊", cond: r => r.correct >= 6,
-    roast:"6+ correct reads. OK so either you ACTUALLY studied charts — or — and hear me out — you've been selling trading courses to degens this whole time. Which is it? Don't answer." },
-  { name:"Whale Watcher",      emoji:"🐋", cond: r => r.holdCount >= 2 && r.correct >= 4,
-    roast:"You can smell a whale order block from 3 chains away. You lurk in whale wallets like a stalker in a Discord. Respect. Also, yes, that IS creepy. No we won't elaborate." },
-  { name:"Degen",              emoji:"🎰", cond: () => true,  // fallback
-    roast:"Your portfolio: 47 memecoins, a shitcoin called TOILET, and a single leveraged position held together by copium and prayers to Satoshi. Degen isn't your lifestyle. It's a clinical diagnosis." },
-];
-
-function getArchetype(stats) {
-  return ARCHETYPES.find(a => a.cond(stats)) || ARCHETYPES[ARCHETYPES.length - 1];
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
-   ═══════════════════════════════════════════════════════════════ */
-function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
-  if (!canvas) return;
-  const ctx    = canvas.getContext("2d");
-  const dpr    = window.devicePixelRatio || 1;
-  const W      = canvas.clientWidth;
-  const H      = canvas.clientHeight;
-  canvas.width = W * dpr;
-  canvas.height= H * dpr;
-  ctx.scale(dpr, dpr);
-
-  // ═══════════════════════════════════════════════════════════════
-  // ULTRA-MODERN MINIMALIST BACKGROUND
-  // Clean, sophisticated, Apple-level quality
-  // ═══════════════════════════════════════════════════════════════
-  
-  // Premium dark gradient - deep but rich
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#0a0a12");
-  bg.addColorStop(1, "#050508");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  // Minimal horizontal grid lines (subtle structure)
-  ctx.strokeStyle = "rgba(255,255,255,0.03)";
-  ctx.lineWidth = 1;
-  const gridCount = 5;
-  for(let i=1; i<gridCount; i++) {
-    const y = (H / gridCount) * i;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(W, y);
-    ctx.stroke();
+class MarketStructureGenerator {
+  constructor(difficulty = "medium") {
+    this.difficulty = difficulty;
+    this.config = DIFFICULTY_CONFIG[difficulty];
+    this.rng = Math.random;
   }
 
-  // God mode - clean premium glow
-  if(godMode) {
-    ctx.save();
-    const pulse = 0.6 + 0.4*Math.sin(Date.now()*0.003);
-    ctx.shadowColor = C.nGreen;
-    ctx.shadowBlur = 40;
-    ctx.strokeStyle = `rgba(0,255,170,${0.3 * pulse})`;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(4, 4, W-8, H-8);
-    ctx.restore();
+  // Seed for reproducibility (optional)
+  seed(s) {
+    let seed = s;
+    this.rng = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
   }
 
-  if (!candles || candles.length === 0 || revealCount === 0) return;
+  // Generate complete market structure with context
+  generate() {
+    const { contextSize } = this.config;
+    const totalCandles = contextSize + 15; // Extra for continuation
 
-  // ═══════════════════════════════════════════════════════════════
-  // CLEAN CHART RENDERING
-  // ═══════════════════════════════════════════════════════════════
-  
-  const allCandles = [...candles, ...(contCandles||[])];
-  if(allCandles.length === 0) return;
+    // Choose overall market regime
+    const regime = this._pickRegime();
 
-  // Price scale
-  let lo = Infinity, hi = -Infinity;
-  allCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
-  const pad = (hi - lo) * 0.08;
-  lo -= pad; hi += pad;
-  const priceH = hi - lo || 1;
+    // Build the structure in phases
+    const phases = this._buildPhases(regime, totalCandles);
 
-  const totalSlots = allCandles.length;
-  const slotW = W / totalSlots;
-  const bodyW = slotW * 0.7;
-  const gap = slotW * 0.15;
+    // Generate candles from phases
+    const candles = this._generateCandles(phases);
 
-  const toY = p => H - ((p - lo) / priceH) * H;
+    // Identify decision point
+    const decisionIndex = this._findDecisionPoint(candles, phases);
 
-  // ── Premium price label ──
-  let lastVisibleIdx = -1;
-  for(let i = allCandles.length - 1; i >= 0; i--) {
-    let alpha = 0;
-    if (i < candles.length) {
-      alpha = Math.max(0, Math.min(1, revealCount - i));
+    // Determine correct answer based on what happens next
+    const continuation = this._generateContinuation(candles, phases, decisionIndex);
+
+    // Package everything
+    return {
+      candles,
+      decisionIndex,
+      continuation,
+      signal: continuation.signal,
+      context: this._analyzeContext(candles, decisionIndex, phases),
+      pattern: continuation.pattern,
+      regime,
+    };
+  }
+
+  _pickRegime() {
+    const r = this.rng();
+    if (r < 0.25) return "uptrend";
+    if (r < 0.5) return "downtrend";
+    if (r < 0.75) return "range";
+    return "transition";
+  }
+
+  _buildPhases(regime, totalCandles) {
+    const phases = [];
+    let currentIndex = 0;
+
+    // Build context phases
+    if (regime === "uptrend") {
+      phases.push({
+        type: "trend",
+        direction: "up",
+        start: currentIndex,
+        length: Math.floor(20 + this.rng() * 15),
+        volatility: 0.015 + this.rng() * 0.01,
+      });
+      currentIndex += phases[phases.length - 1].length;
+
+      // Add pullback or consolidation
+      if (this.rng() < 0.7) {
+        phases.push({
+          type: "pullback",
+          direction: "down",
+          start: currentIndex,
+          length: Math.floor(8 + this.rng() * 10),
+          volatility: 0.012 + this.rng() * 0.008,
+        });
+        currentIndex += phases[phases.length - 1].length;
+      }
+
+      // Setup phase (where decision happens)
+      phases.push({
+        type: "setup",
+        subtype: this._pickSetupType("bullish"),
+        start: currentIndex,
+        length: Math.floor(12 + this.rng() * 8),
+        volatility: 0.01 + this.rng() * 0.008,
+      });
+    } else if (regime === "downtrend") {
+      phases.push({
+        type: "trend",
+        direction: "down",
+        start: currentIndex,
+        length: Math.floor(20 + this.rng() * 15),
+        volatility: 0.018 + this.rng() * 0.012,
+      });
+      currentIndex += phases[phases.length - 1].length;
+
+      // Rally
+      if (this.rng() < 0.7) {
+        phases.push({
+          type: "rally",
+          direction: "up",
+          start: currentIndex,
+          length: Math.floor(8 + this.rng() * 10),
+          volatility: 0.015 + this.rng() * 0.01,
+        });
+        currentIndex += phases[phases.length - 1].length;
+      }
+
+      // Setup phase
+      phases.push({
+        type: "setup",
+        subtype: this._pickSetupType("bearish"),
+        start: currentIndex,
+        length: Math.floor(12 + this.rng() * 8),
+        volatility: 0.012 + this.rng() * 0.01,
+      });
+    } else if (regime === "range") {
+      // Establish range
+      phases.push({
+        type: "range",
+        start: currentIndex,
+        length: Math.floor(25 + this.rng() * 20),
+        volatility: 0.01 + this.rng() * 0.008,
+      });
+      currentIndex += phases[phases.length - 1].length;
+
+      // Setup near edge
+      phases.push({
+        type: "setup",
+        subtype: this._pickSetupType("neutral"),
+        start: currentIndex,
+        length: Math.floor(10 + this.rng() * 8),
+        volatility: 0.008 + this.rng() * 0.006,
+      });
     } else {
-      const ci = i - candles.length;
-      alpha = Math.max(0, Math.min(1, continuationCount - ci));
+      // Transition: trend → opposite trend
+      const initialDir = this.rng() < 0.5 ? "up" : "down";
+      phases.push({
+        type: "trend",
+        direction: initialDir,
+        start: currentIndex,
+        length: Math.floor(15 + this.rng() * 12),
+        volatility: 0.015 + this.rng() * 0.01,
+      });
+      currentIndex += phases[phases.length - 1].length;
+
+      // Transition zone
+      phases.push({
+        type: "transition",
+        start: currentIndex,
+        length: Math.floor(12 + this.rng() * 10),
+        volatility: 0.01 + this.rng() * 0.008,
+      });
+      currentIndex += phases[phases.length - 1].length;
+
+      // New trend hint
+      phases.push({
+        type: "setup",
+        subtype: this._pickSetupType(initialDir === "up" ? "bearish" : "bullish"),
+        start: currentIndex,
+        length: Math.floor(10 + this.rng() * 8),
+        volatility: 0.012 + this.rng() * 0.01,
+      });
     }
-    if (alpha > 0.01) {
-      lastVisibleIdx = i;
-      break;
-    }
-  }
-  
-  if (lastVisibleIdx >= 0) {
-    const lastC = allCandles[lastVisibleIdx];
-    const lblY = toY(lastC.c);
-    const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
-    
-    ctx.save();
-    
-    // Clean pill background
-    const lblW = 62, lblH = 28;
-    ctx.fillStyle = "rgba(10,10,18,0.95)";
-    ctx.beginPath();
-    ctx.roundRect(W - lblW - 8, lblY - lblH/2, lblW, lblH, 14);
-    ctx.fill();
-    
-    // Subtle border
-    ctx.strokeStyle = lblColor + "30";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    
-    // Clean price text
-    ctx.fillStyle = lblColor;
-    ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText(lastC.c.toFixed(2), W - 18, lblY + 4.5);
-    
-    ctx.restore();
+
+    return phases;
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // ULTRA-CLEAN MODERN CANDLES
-  // Minimal depth, maximum clarity
-  // ═══════════════════════════════════════════════════════════════
-  
-  allCandles.forEach((c, i) => {
-    const x = i * slotW + gap/2;
-    const bull = c.c >= c.o;
+  _pickSetupType(bias) {
+    const { cleanRatio } = this.config;
+    const isClean = this.rng() < cleanRatio;
 
-    // Smooth alpha
-    let alpha = 0;
-    if (i < candles.length) {
-      alpha = Math.max(0, Math.min(1, revealCount - i));
+    const bullishSetups = [
+      "bull_flag",
+      "ascending_triangle",
+      "double_bottom",
+      "inverse_head_shoulders",
+      "cup_handle",
+    ];
+    const bearishSetups = [
+      "bear_flag",
+      "descending_triangle",
+      "double_top",
+      "head_shoulders",
+      "rising_wedge",
+    ];
+    const neutralSetups = ["symmetrical_triangle", "range_compression", "coil"];
+    const failedSetups = [
+      "failed_breakout",
+      "bull_trap",
+      "bear_trap",
+      "exhaustion",
+      "false_reversal",
+    ];
+
+    let pool = [];
+    if (bias === "bullish") {
+      pool = isClean ? bullishSetups : [...bullishSetups, ...failedSetups];
+    } else if (bias === "bearish") {
+      pool = isClean ? bearishSetups : [...bearishSetups, ...failedSetups];
     } else {
-      const ci = i - candles.length;
-      alpha = Math.max(0, Math.min(1, continuationCount - ci));
+      pool = isClean
+        ? neutralSetups
+        : [...neutralSetups, ...failedSetups, ...bullishSetups, ...bearishSetups];
     }
+
+    return pool[Math.floor(this.rng() * pool.length)];
+  }
+
+  _generateCandles(phases) {
+    const candles = [];
+    let currentPrice = 10000 + this.rng() * 5000; // Start somewhere in middle
+
+    for (const phase of phases) {
+      const phaseCandles = this._generatePhaseCandles(
+        phase,
+        currentPrice,
+        phase.length
+      );
+      candles.push(...phaseCandles);
+      currentPrice = phaseCandles[phaseCandles.length - 1].close;
+    }
+
+    return candles;
+  }
+
+  _generatePhaseCandles(phase, startPrice, count) {
+    const candles = [];
+    let price = startPrice;
+    const vol = phase.volatility;
+
+    if (phase.type === "trend") {
+      const drift = phase.direction === "up" ? 0.003 : -0.003;
+      for (let i = 0; i < count; i++) {
+        const bodySize = vol * price * (0.3 + this.rng() * 0.7);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.8);
+        const isGreen = this.rng() < (phase.direction === "up" ? 0.65 : 0.35);
+
+        price *= 1 + drift + (this.rng() - 0.5) * vol * 0.5;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (phase.type === "pullback" || phase.type === "rally") {
+      const drift = phase.direction === "up" ? 0.0015 : -0.0015;
+      for (let i = 0; i < count; i++) {
+        const bodySize = vol * price * (0.4 + this.rng() * 0.6);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.7);
+        const isGreen = this.rng() < (phase.direction === "up" ? 0.55 : 0.45);
+
+        price *= 1 + drift + (this.rng() - 0.5) * vol;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (phase.type === "range") {
+      const rangeHigh = price * (1 + vol * 3);
+      const rangeLow = price * (1 - vol * 3);
+      for (let i = 0; i < count; i++) {
+        // Mean reversion
+        if (price > rangeHigh * 0.95) price *= 0.998;
+        if (price < rangeLow * 1.05) price *= 1.002;
+
+        const bodySize = vol * price * (0.3 + this.rng() * 0.5);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.8);
+        const isGreen = this.rng() < 0.5;
+
+        price += (this.rng() - 0.5) * vol * price * 0.3;
+        price = Math.max(rangeLow, Math.min(rangeHigh, price));
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (phase.type === "setup") {
+      // Pattern-specific generation
+      const patternCandles = this._generatePatternCandles(
+        phase.subtype,
+        price,
+        count,
+        vol
+      );
+      candles.push(...patternCandles);
+    } else if (phase.type === "transition") {
+      // Choppy, uncertain
+      for (let i = 0; i < count; i++) {
+        const bodySize = vol * price * (0.5 + this.rng() * 0.8);
+        const wickSize = bodySize * (0.5 + this.rng() * 1.0);
+        const isGreen = this.rng() < 0.5;
+
+        price += (this.rng() - 0.5) * vol * price * 2;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    }
+
+    return candles;
+  }
+
+  _generatePatternCandles(subtype, startPrice, count, vol) {
+    const candles = [];
+    let price = startPrice;
+
+    // Simplified pattern generation (can be expanded)
+    if (subtype === "bull_flag") {
+      // Strong move up, then tight consolidation
+      for (let i = 0; i < count; i++) {
+        const isEarly = i < count * 0.4;
+        const drift = isEarly ? 0.004 : -0.0005;
+        const localVol = isEarly ? vol : vol * 0.6;
+
+        const bodySize = localVol * price * (0.3 + this.rng() * 0.5);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.6);
+        const isGreen = this.rng() < (isEarly ? 0.7 : 0.45);
+
+        price *= 1 + drift + (this.rng() - 0.5) * localVol * 0.5;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (subtype === "bear_flag") {
+      // Strong move down, then tight consolidation
+      for (let i = 0; i < count; i++) {
+        const isEarly = i < count * 0.4;
+        const drift = isEarly ? -0.004 : 0.0005;
+        const localVol = isEarly ? vol : vol * 0.6;
+
+        const bodySize = localVol * price * (0.3 + this.rng() * 0.5);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.6);
+        const isGreen = this.rng() < (isEarly ? 0.3 : 0.55);
+
+        price *= 1 + drift + (this.rng() - 0.5) * localVol * 0.5;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (subtype === "double_bottom") {
+      // Two similar lows
+      for (let i = 0; i < count; i++) {
+        const phase = i / count;
+        let drift = 0;
+        if (phase < 0.3) drift = -0.002;
+        else if (phase < 0.5) drift = 0.002;
+        else if (phase < 0.75) drift = -0.002;
+        else drift = 0.001;
+
+        const bodySize = vol * price * (0.3 + this.rng() * 0.5);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.7);
+        const isGreen = this.rng() < 0.5;
+
+        price *= 1 + drift + (this.rng() - 0.5) * vol * 0.5;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (subtype === "failed_breakout") {
+      // Looks like breakout, but fails
+      for (let i = 0; i < count; i++) {
+        const phase = i / count;
+        let drift = phase < 0.7 ? 0.002 : -0.003;
+
+        const bodySize = vol * price * (0.4 + this.rng() * 0.6);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.8);
+        const isGreen = this.rng() < (phase < 0.7 ? 0.6 : 0.3);
+
+        price *= 1 + drift + (this.rng() - 0.5) * vol;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else {
+      // Generic compression/coil
+      for (let i = 0; i < count; i++) {
+        const bodySize = vol * price * (0.3 + this.rng() * 0.4) * (1 - i / count * 0.5);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+        const isGreen = this.rng() < 0.5;
+
+        price += (this.rng() - 0.5) * vol * price * 0.3;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    }
+
+    return candles;
+  }
+
+  _findDecisionPoint(candles, phases) {
+    // Decision point is near the end of the last (setup) phase
+    const setupPhase = phases[phases.length - 1];
+    const setupEnd = setupPhase.start + setupPhase.length;
     
-    if (alpha <= 0.02) return;
+    // Pause 2-5 candles before the end
+    const offset = Math.floor(2 + this.rng() * 3);
+    return Math.max(setupPhase.start + 5, setupEnd - offset);
+  }
 
-    const bodyColor = bull ? C.bull : C.bear;
+  _generateContinuation(candles, phases, decisionIndex) {
+    const setupPhase = phases[phases.length - 1];
+    const subtype = setupPhase.subtype;
+
+    // Determine if pattern succeeds or fails
+    const shouldSucceed = this._shouldPatternSucceed(subtype);
+
+    const lastCandle = candles[decisionIndex];
+    const continuationCandles = [];
+    let price = lastCandle.close;
+    const vol = setupPhase.volatility;
+
+    // Generate 8-12 continuation candles
+    const contLength = Math.floor(8 + this.rng() * 4);
+
+    let signal = "HOLD";
+    let patternName = this._getPatternName(subtype);
+
+    if (shouldSucceed) {
+      if (
+        subtype.includes("bull") ||
+        subtype === "double_bottom" ||
+        subtype === "inverse_head_shoulders" ||
+        subtype === "cup_handle" ||
+        subtype === "ascending_triangle"
+      ) {
+        signal = "BUY";
+        // Strong upward continuation
+        for (let i = 0; i < contLength; i++) {
+          const drift = 0.004 + this.rng() * 0.002;
+          const bodySize = vol * price * (0.5 + this.rng() * 0.6);
+          const wickSize = bodySize * (0.2 + this.rng() * 0.4);
+          const isGreen = this.rng() < 0.75;
+
+          price *= 1 + drift + (this.rng() - 0.5) * vol * 0.3;
+
+          const open = price;
+          const close = isGreen ? open + bodySize : open - bodySize;
+          const high = Math.max(open, close) + wickSize * this.rng();
+          const low = Math.min(open, close) - wickSize * this.rng();
+
+          continuationCandles.push({ open, high, low, close });
+        }
+      } else if (
+        subtype.includes("bear") ||
+        subtype === "double_top" ||
+        subtype === "head_shoulders" ||
+        subtype === "rising_wedge" ||
+        subtype === "descending_triangle"
+      ) {
+        signal = "SELL";
+        // Strong downward continuation
+        for (let i = 0; i < contLength; i++) {
+          const drift = -0.004 - this.rng() * 0.002;
+          const bodySize = vol * price * (0.5 + this.rng() * 0.6);
+          const wickSize = bodySize * (0.2 + this.rng() * 0.4);
+          const isGreen = this.rng() < 0.25;
+
+          price *= 1 + drift + (this.rng() - 0.5) * vol * 0.3;
+
+          const open = price;
+          const close = isGreen ? open + bodySize : open - bodySize;
+          const high = Math.max(open, close) + wickSize * this.rng();
+          const low = Math.min(open, close) - wickSize * this.rng();
+
+          continuationCandles.push({ open, high, low, close });
+        }
+      } else {
+        // Neutral patterns - no clear direction (HOLD is correct)
+        signal = "HOLD";
+        for (let i = 0; i < contLength; i++) {
+          const bodySize = vol * price * (0.3 + this.rng() * 0.4);
+          const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+          const isGreen = this.rng() < 0.5;
+
+          price += (this.rng() - 0.5) * vol * price * 0.5;
+
+          const open = price;
+          const close = isGreen ? open + bodySize : open - bodySize;
+          const high = Math.max(open, close) + wickSize * this.rng();
+          const low = Math.min(open, close) - wickSize * this.rng();
+
+          continuationCandles.push({ open, high, low, close });
+        }
+      }
+    } else {
+      // Pattern fails - HOLD or opposite signal
+      signal = "HOLD";
+      patternName = "Failed " + patternName;
+
+      // Weak or opposite continuation
+      for (let i = 0; i < contLength; i++) {
+        const bodySize = vol * price * (0.3 + this.rng() * 0.5);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.8);
+        const isGreen = this.rng() < 0.5;
+
+        price += (this.rng() - 0.5) * vol * price;
+
+        const open = price;
+        const close = isGreen ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        continuationCandles.push({ open, high, low, close });
+      }
+    }
+
+    return {
+      candles: continuationCandles,
+      signal,
+      pattern: patternName,
+      succeeded: shouldSucceed,
+    };
+  }
+
+  _shouldPatternSucceed(subtype) {
+    const { cleanRatio } = this.config;
     
-    // Subtle depth for the last few candles only
-    const isRecent = i >= allCandles.length - 5;
-    const depthBoost = isRecent ? 0.15 : 0;
-    const finalAlpha = alpha * (0.85 + depthBoost);
+    // Failed patterns always fail
+    if (
+      subtype.includes("failed") ||
+      subtype.includes("trap") ||
+      subtype === "exhaustion"
+    ) {
+      return false;
+    }
+
+    // Clean patterns have higher success rate
+    return this.rng() < cleanRatio + 0.2;
+  }
+
+  _getPatternName(subtype) {
+    const names = {
+      bull_flag: "Bull Flag",
+      bear_flag: "Bear Flag",
+      ascending_triangle: "Ascending Triangle",
+      descending_triangle: "Descending Triangle",
+      double_bottom: "Double Bottom",
+      double_top: "Double Top",
+      inverse_head_shoulders: "Inverse Head & Shoulders",
+      head_shoulders: "Head & Shoulders",
+      cup_handle: "Cup & Handle",
+      rising_wedge: "Rising Wedge",
+      symmetrical_triangle: "Symmetrical Triangle",
+      range_compression: "Range Compression",
+      coil: "Coil",
+      failed_breakout: "Failed Breakout",
+      bull_trap: "Bull Trap",
+      bear_trap: "Bear Trap",
+      exhaustion: "Exhaustion Move",
+      false_reversal: "False Reversal",
+    };
+    return names[subtype] || "Pattern";
+  }
+
+  _analyzeContext(candles, decisionIndex, phases) {
+    const recentCandles = candles.slice(Math.max(0, decisionIndex - 20), decisionIndex);
+    const setupPhase = phases[phases.length - 1];
+
+    // Simple trend analysis
+    const firstPrice = recentCandles[0]?.close || candles[0].close;
+    const lastPrice = recentCandles[recentCandles.length - 1]?.close || candles[decisionIndex].close;
+    const pctChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+
+    let trendBias = "Neutral";
+    if (pctChange > 2) trendBias = "Bullish";
+    else if (pctChange < -2) trendBias = "Bearish";
+
+    // Volatility
+    let totalRange = 0;
+    recentCandles.forEach((c) => {
+      totalRange += (c.high - c.low) / c.close;
+    });
+    const avgRange = totalRange / recentCandles.length;
+    const volatility = avgRange > 0.015 ? "High" : avgRange > 0.008 ? "Medium" : "Low";
+
+    return {
+      trendBias,
+      volatility,
+      regime: phases[0]?.type || "unknown",
+      patternType: setupPhase.subtype,
+    };
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+    5  CHART RENDERER
     
-    const currentBodyW = bodyW - gap;
+    Handles windowed view, auto-scaling, and smooth scrolling
+   ═══════════════════════════════════════════════════════════════ */
 
-    ctx.save();
-    ctx.globalAlpha = finalAlpha;
+class ChartRenderer {
+  constructor(canvas, config) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.config = config;
+    this.windowStart = 0;
+    this.animationProgress = 0;
+  }
 
-    // ── MINIMAL WICK ──
-    const wickTop = toY(c.h);
-    const wickBot = toY(c.l);
-    
-    ctx.strokeStyle = bodyColor;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x + currentBodyW/2, wickTop);
-    ctx.lineTo(x + currentBodyW/2, wickBot);
-    ctx.stroke();
+  setDimensions(width, height) {
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = width * dpr;
+    this.canvas.height = height * dpr;
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
+    // Reset context and scale
+    this.ctx = this.canvas.getContext("2d");
+    this.ctx.scale(dpr, dpr);
+  }
 
-    // ── CLEAN MODERN BODY ──
-    const bodyTop = toY(Math.max(c.o, c.c));
-    const bodyBottom = toY(Math.min(c.o, c.c));
-    const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+  // Render all candles (no windowing)
+  renderAll(allCandles) {
+    const canvas = this.canvas;
+    const ctx = this.ctx;
+    const width = canvas.width / (window.devicePixelRatio || 1);
+    const height = canvas.height / (window.devicePixelRatio || 1);
 
-    // Solid fill with subtle gradient
-    const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
-    bodyGrad.addColorStop(0, bodyColor + "f0");
-    bodyGrad.addColorStop(1, bodyColor + "b8");
-    ctx.fillStyle = bodyGrad;
-    
-    // Rounded corners for modern look
-    ctx.beginPath();
-    ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
-    ctx.fill();
+    ctx.clearRect(0, 0, width, height);
 
-    // Clean border
-    ctx.strokeStyle = bodyColor;
+    if (allCandles.length === 0) return;
+
+    // Auto-scale Y-axis to ALL candles
+    let minPrice = Infinity;
+    let maxPrice = -Infinity;
+    allCandles.forEach((c) => {
+      minPrice = Math.min(minPrice, c.low);
+      maxPrice = Math.max(maxPrice, c.high);
+    });
+
+    const priceRange = maxPrice - minPrice;
+    const padding = priceRange * 0.1;
+    minPrice -= padding;
+    maxPrice += padding;
+
+    // Calculate candle width based on number of candles
+    const chartWidth = width - 60;
+    const candleWidth = Math.min(12, chartWidth / allCandles.length);
+    const bodyWidth = Math.max(1.5, candleWidth * 0.7);
+    const wickWidth = Math.max(0.5, bodyWidth * 0.2);
+
+    // Draw candles
+    allCandles.forEach((candle, i) => {
+      const x = 30 + i * candleWidth + candleWidth / 2;
+      const yHigh = height - 30 - ((candle.high - minPrice) / (maxPrice - minPrice)) * (height - 60);
+      const yLow = height - 30 - ((candle.low - minPrice) / (maxPrice - minPrice)) * (height - 60);
+      const yOpen = height - 30 - ((candle.open - minPrice) / (maxPrice - minPrice)) * (height - 60);
+      const yClose = height - 30 - ((candle.close - minPrice) / (maxPrice - minPrice)) * (height - 60);
+
+      const isGreen = candle.close >= candle.open;
+      const color = isGreen ? C.bull : C.bear;
+
+      // Wick
+      ctx.strokeStyle = color;
+      ctx.lineWidth = wickWidth;
+      ctx.beginPath();
+      ctx.moveTo(x, yHigh);
+      ctx.lineTo(x, yLow);
+      ctx.stroke();
+
+      // Body
+      ctx.fillStyle = color;
+      const bodyHeight = Math.abs(yClose - yOpen);
+      const bodyY = Math.min(yOpen, yClose);
+      ctx.fillRect(x - bodyWidth / 2, bodyY, bodyWidth, Math.max(0.5, bodyHeight));
+    });
+
+    // Grid lines
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
     ctx.lineWidth = 1;
-    ctx.stroke();
-    
-    // Subtle highlight on top edge
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
-    ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
-
-    // Premium glow on recent candles
-    if (isRecent && alpha > 0.9) {
-      ctx.shadowColor = bodyColor;
-      ctx.shadowBlur = 12;
-      ctx.strokeStyle = bodyColor + "80";
-      ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = 30 + (i / 4) * (height - 60);
+      ctx.beginPath();
+      ctx.moveTo(30, y);
+      ctx.lineTo(width - 30, y);
       ctx.stroke();
     }
 
-    ctx.restore();
-  });
+    // Price labels (right side)
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.font = "11px monospace";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < 5; i++) {
+      const price = minPrice + (i / 4) * (maxPrice - minPrice);
+      const y = height - 30 - (i / 4) * (height - 60);
+      ctx.fillText(price.toFixed(0), width - 5, y);
+    }
 
-  // Subtle ambient lighting
-  const ambientLight = ctx.createRadialGradient(W*0.5, H*0.3, 0, W*0.5, H*0.3, W*0.6);
-  ambientLight.addColorStop(0, "rgba(0,255,170,0.02)");
-  ambientLight.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = ambientLight;
-  ctx.fillRect(0, 0, W, H);
+    // Candle count label (bottom left)
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`${allCandles.length} candles`, 5, height - 5);
+  }
 
-  ctx.globalAlpha = 1;
+  // Render candles with windowed view (DEPRECATED - keeping for compatibility)
+  render(allCandles, windowStart, windowSize, isAnimating = false) {
+    this.renderAll(allCandles.slice(windowStart, windowStart + windowSize));
+  }
+
+  // Animate continuation reveal (DEPRECATED - now using renderAll)
+  renderContinuation(allCandles, windowStart, windowSize, continuationCandles, progress) {
+    const totalCandles = [...allCandles, ...continuationCandles.slice(0, Math.floor(progress * continuationCandles.length))];
+    this.renderAll(totalCandles);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    8  PARTICLE BURST  (perfect round / god mode)
-   ═══════════════════════════════════════════════════════════════ */
-function ParticleCanvas({ active, godMode }) {
-  const canvasRef = useRef(null);
-  const pRef      = useRef([]);
-  const rafRef    = useRef(null);
-
-  const spawn = useCallback((count, colors) => {
-    const cx = window.innerWidth/2, cy = window.innerHeight/2;
-    for(let i=0;i<count;i++) {
-      const angle = (Math.PI*2/count)*i + R(-0.3,0.3);
-      const speed = R(80,220);
-      pRef.current.push({
-        x:cx, y:cy,
-        vx: Math.cos(angle)*speed,
-        vy: Math.sin(angle)*speed,
-        life: 1,
-        decay: R(0.012, 0.028),
-        size: R(3,7),
-        color: colors[RI(0,colors.length-1)],
-        rot: R(0,Math.PI*2),
-        rotV: R(-4,4),
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    if(active) {
-      const cols = godMode
-        ? [C.nGreen, C.nBlue, "#fff", C.nPurple, C.nPink]
-        : [C.nGreen, C.nBlue, "#fff"];
-      spawn(godMode ? 80 : 48, cols);
-    }
-  }, [active, godMode, spawn]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if(!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let running = true;
-
-    function loop() {
-      if(!running) return;
-      canvas.width  = window.innerWidth  * (window.devicePixelRatio||1);
-      canvas.height = window.innerHeight * (window.devicePixelRatio||1);
-      ctx.scale(window.devicePixelRatio||1, window.devicePixelRatio||1);
-      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
-
-      pRef.current = pRef.current.filter(p => p.life > 0);
-      pRef.current.forEach(p => {
-        p.x += p.vx * 0.016;
-        p.y += p.vy * 0.016;
-        p.vy += 60; // gravity
-        p.vx *= 0.99;
-        p.life -= p.decay;
-        p.rot += p.rotV * 0.016;
-
-        ctx.save();
-        ctx.globalAlpha = p.life;
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot);
-        ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 8;
-        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
-        ctx.restore();
-      });
-      rafRef.current = requestAnimationFrame(loop);
-    }
-    loop();
-    return () => { running = false; cancelAnimationFrame(rafRef.current); };
-  }, []);
-
-  return <canvas ref={canvasRef} style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:200, width:"100vw", height:"100vh" }} />;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    9  GLASS UI PRIMITIVES
+    6  UI COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
 
-// Specular highlight that follows pointer
-function useSpecular() {
-  const [pos, setPos] = useState({ x:50, y:0 });
-  useEffect(() => {
-    const onMove = e => {
-      const t = e.touches?.[0] || e;
-      setPos({ x: (t.clientX / window.innerWidth)*100, y: (t.clientY / window.innerHeight)*100 });
-    };
-    window.addEventListener("mousemove", onMove, { passive:true });
-    window.addEventListener("touchmove", onMove, { passive:true });
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("touchmove", onMove); };
-  }, []);
-  return pos;
-}
-
-function GlassPanel({ children, style={}, className="" }) {
-  return (
-    <div className={className} style={{
-      background: "linear-gradient(135deg, rgba(20,20,38,0.62) 0%, rgba(14,14,26,0.78) 100%)",
-      backdropFilter: "blur(48px) saturate(1.8)",
-      WebkitBackdropFilter: "blur(48px) saturate(1.8)",
+const GlassPanel = ({ children, style, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      background: C.glass,
       border: `1px solid ${C.glassBr}`,
-      borderRadius: 28,
-      boxShadow: "0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 0 60px rgba(0,255,170,0.04)",
-      ...style
-    }}>
-      {children}
-    </div>
-  );
-}
+      borderRadius: 18,
+      backdropFilter: "blur(20px)",
+      padding: "12px 16px",
+      ...style,
+    }}
+  >
+    {children}
+  </div>
+);
 
-function GlassButton({ children, onClick, color=C.nGreen, disabled=false, style={} }) {
-  const [pressed, setPressed] = useState(false);
+const GlassButton = ({ children, onClick, color, disabled, style }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    style={{
+      background: disabled ? C.glass : `linear-gradient(135deg, ${color}22, ${color}11)`,
+      border: `1.5px solid ${disabled ? C.glassBr : color}55`,
+      borderRadius: 16,
+      padding: "12px 24px",
+      color: disabled ? "rgba(255,255,255,0.3)" : "#fff",
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: disabled ? "not-allowed" : "pointer",
+      backdropFilter: "blur(16px)",
+      transition: "all 0.2s",
+      ...style,
+    }}
+    onMouseEnter={(e) => {
+      if (!disabled) {
+        e.target.style.transform = "translateY(-1px)";
+        e.target.style.boxShadow = `0 6px 20px ${color}33`;
+      }
+    }}
+    onMouseLeave={(e) => {
+      if (!disabled) {
+        e.target.style.transform = "translateY(0)";
+        e.target.style.boxShadow = "none";
+      }
+    }}
+  >
+    {children}
+  </button>
+);
+
+const TimerBar = ({ timeLeft, totalTime }) => {
+  const pct = (timeLeft / totalTime) * 100;
+  const isLow = pct < 30;
   return (
-    <button
-      onMouseDown={()=>setPressed(true)} onMouseUp={()=>setPressed(false)}
-      onTouchStart={e=>{e.preventDefault();setPressed(true);}}
-      onTouchEnd={e=>{e.preventDefault();setPressed(false);onClick?.();}}
-      onClick={onClick}
-      disabled={disabled}
+    <div
       style={{
-        background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`,
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        border: `1px solid ${color}40`,
-        borderRadius: 20,
-        color: color,
-        fontFamily: "'SF Mono', 'Fira Code', monospace",
-        fontWeight: 700,
-        fontSize: 15,
-        letterSpacing: "0.04em",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.4 : 1,
-        transform: pressed ? "scale(0.94)" : "scale(1)",
-        transition: "transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease",
-        boxShadow: pressed
-          ? `0 2px 12px ${color}30, inset 0 1px 0 ${color}22`
-          : `0 4px 24px ${color}18, inset 0 1px 0 ${color}25`,
-        padding: "14px 28px",
-        outline: "none",
-        ...style
+        height: 6,
+        background: C.glass,
+        borderRadius: 8,
+        overflow: "hidden",
+        border: `1px solid ${C.glassBr}`,
       }}
     >
-      {children}
-    </button>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-    11  COUNTDOWN OVERLAY  (3-2-1 glass shatter) - CHART ANIMATES BEHIND
-   ═══════════════════════════════════════════════════════════════ */
-function Countdown({ onDone, initialRevealProgress }) {
-  const [num, setNum]       = useState(3);
-  const [shatter, setShatter] = useState(false);
-  const [exit, setExit]     = useState(false);
-
-  useEffect(() => {
-    SND.tick(3);
-    haptic([25]);
-    if(num > 1) {
-      const t = setTimeout(() => { SND.tick(num-1); haptic([25]); setNum(n=>n-1); }, 900);
-      return () => clearTimeout(t);
-    } else {
-      // after "1" show briefly then shatter
-      const t1 = setTimeout(() => setShatter(true), 600);
-      const t2 = setTimeout(() => { setExit(true); }, 900);
-      const t3 = setTimeout(onDone, 1050);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-    }
-  }, [num, onDone]);
-
-  // shatter fragments (CSS)
-  const frags = useMemo(() => Array.from({length:12}, (_,i) => ({
-    id:i, angle: (i/12)*360, dist: R(40,160), delay: i*30
-  })), []);
-
-  return (
-    <div style={{ position:"fixed", inset:0, zIndex:250, display:"flex", alignItems:"center", justifyContent:"center",
-      background:"rgba(6,6,12,0.72)", backdropFilter:"blur(12px)" }}>
-      {!shatter ? (
-        <div style={{ position:"relative" }}>
-          {/* outer glass ring */}
-          <div style={{ width:140, height:140, borderRadius:"50%",
-            background:"linear-gradient(135deg, rgba(20,20,40,0.7), rgba(14,14,26,0.9))",
-            border:`2px solid ${C.nGreen}50`,
-            boxShadow:`0 0 40px ${C.nGreen}25, inset 0 0 30px rgba(0,255,170,0.06)`,
-            display:"flex", alignItems:"center", justifyContent:"center",
-            animation:"ringPulse 0.9s ease-out" }}>
-            <span style={{ fontSize: 72, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace",
-              color: num===1 ? C.nPink : C.nGreen,
-              textShadow: `0 0 30px ${num===1?C.nPink:C.nGreen}`,
-              animation:"numPop 0.35s cubic-bezier(0.34,1.56,0.64,1)" }}>
-              {num}
-            </span>
-          </div>
-        </div>
-      ) : (
-        // shatter fragments
-        <div style={{ position:"relative", width:140, height:140 }}>
-          {frags.map(f => (
-            <div key={f.id} style={{
-              position:"absolute", left:"50%", top:"50%",
-              width: R(15,40), height: R(10,28),
-              background:`linear-gradient(${f.angle}deg, ${C.nGreen}44, ${C.nPurple}22)`,
-              border: `1px solid ${C.nGreen}30`,
-              borderRadius: R(2,6),
-              transform: exit
-                ? `translate(${Math.cos(f.angle*Math.PI/180)*f.dist}px, ${Math.sin(f.angle*Math.PI/180)*f.dist}px) rotate(${f.angle}deg) scale(0)`
-                : "translate(-50%,-50%) scale(1)",
-              opacity: exit ? 0 : 1,
-              transition: `transform 0.35s cubic-bezier(0.55,0,1,1) ${f.delay}ms, opacity 0.3s ease ${f.delay+100}ms`,
-            }} />
-          ))}
-        </div>
-      )}
+      <div
+        style={{
+          height: "100%",
+          width: `${pct}%`,
+          background: isLow
+            ? `linear-gradient(90deg, ${C.nPink}, ${C.bear})`
+            : `linear-gradient(90deg, ${C.nGreen}, ${C.nBlue})`,
+          transition: "width 0.1s linear",
+          boxShadow: isLow ? `0 0 12px ${C.nPink}88` : `0 0 12px ${C.nGreen}55`,
+        }}
+      />
     </div>
   );
-}
+};
 
-/* ═══════════════════════════════════════════════════════════════
-    12  TIMER BAR  (liquid progress, pulse when low)
-   ═══════════════════════════════════════════════════════════════ */
-function TimerBar({ timeLeft, totalTime }) {
-  const pct    = (timeLeft / totalTime) * 100;
-  const isLow  = timeLeft < 1200;
-  const color  = isLow ? C.nPink : timeLeft < 2200 ? C.nAmber : C.nGreen;
+const DecisionButtons = ({ onChoose, disabled }) => (
+  <div style={{ display: "flex", gap: 10 }}>
+    <GlassButton
+      onClick={() => onChoose("BUY")}
+      disabled={disabled}
+      color={C.bull}
+      style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
+    >
+      📈 BUY
+    </GlassButton>
+    <GlassButton
+      onClick={() => onChoose("HOLD")}
+      disabled={disabled}
+      color={C.neut}
+      style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
+    >
+      ⏸️ HOLD
+    </GlassButton>
+    <GlassButton
+      onClick={() => onChoose("SELL")}
+      disabled={disabled}
+      color={C.bear}
+      style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
+    >
+      📉 SELL
+    </GlassButton>
+  </div>
+);
 
-  return (
-    <div style={{ width:"100%", height:5, background:"rgba(255,255,255,0.07)", borderRadius:3, overflow:"hidden",
-      boxShadow: isLow ? `0 0 12px ${C.nPink}60` : "none", transition:"box-shadow 0.3s" }}>
-      <div style={{
-        width:`${pct}%`, height:"100%", borderRadius:3,
-        background:`linear-gradient(90deg, ${color}, ${color}bb)`,
-        boxShadow:`0 0 8px ${color}50`,
-        transition: "width 0.08s linear, background 0.4s ease",
-      }} />
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    13  DECISION BUTTONS
-   ═══════════════════════════════════════════════════════════════ */
-function DecisionButtons({ onChoose, disabled }) {
-  return (
-    <div style={{ display:"flex", gap:12, width:"100%", maxWidth:380, margin:"0 auto" }}>
-      <GlassButton onClick={()=>onChoose("sell")} color={C.bear} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
-        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BEARISH</div>
-        <div style={{ fontSize:18 }}>📉 SELL</div>
-      </GlassButton>
-      <GlassButton onClick={()=>onChoose("hold")} color={C.neut} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
-        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>NEUTRAL</div>
-        <div style={{ fontSize:18 }}>⏸️ HOLD</div>
-      </GlassButton>
-      <GlassButton onClick={()=>onChoose("buy")} color={C.bull} disabled={disabled} style={{ flex:1, padding:"16px 8px" }}>
-        <div style={{ fontSize:11, opacity:0.7, marginBottom:2 }}>BULLISH</div>
-        <div style={{ fontSize:18 }}>📈 BUY</div>
-      </GlassButton>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    14  OUTCOME CARD  (per-round feedback)
-   ═══════════════════════════════════════════════════════════════ */
-function OutcomeCard({ correct, points, streak, patternName, choice, signal, onNext, godMode }) {
-  const labelMap = { buy:"📈 BUY", sell:"📉 SELL", hold:"⏸️ HOLD" };
-  return (
-    <GlassPanel style={{ padding:18, textAlign:"center", position:"relative", overflow:"hidden" }}>
-      {/* top accent bar */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
-        background: correct ? `linear-gradient(90deg, ${C.nGreen}, ${C.nBlue})` : `linear-gradient(90deg, ${C.nPink}, ${C.nPurple})` }} />
-
-      <div style={{ fontSize:36, marginBottom:4 }}>{correct ? "✅" : "❌"}</div>
-      <div style={{ fontSize:15, fontWeight:700, fontFamily:"monospace", color: correct ? C.nGreen : C.nPink }}>
-        {correct ? `+${points} pts` : "No points"}
+const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onNext, context }) => (
+  <GlassPanel style={{ padding: "16px 20px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+      <div
+        style={{
+          fontSize: 32,
+          width: 50,
+          height: 50,
+          borderRadius: "50%",
+          background: correct
+            ? `radial-gradient(circle, ${C.nGreen}33, transparent)`
+            : `radial-gradient(circle, ${C.nPink}33, transparent)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {correct ? "✓" : "✗"}
       </div>
-
-      {/* pattern + signals */}
-      <div style={{ marginTop:10, fontSize:12, color:"rgba(255,255,255,0.55)", fontFamily:"monospace" }}>
-        Pattern: <span style={{ color:"#fff" }}>{patternName}</span>
-      </div>
-      <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6, fontSize:12, fontFamily:"monospace" }}>
-        <span>You: <span style={{ color: choice==="buy" ? C.bull : choice==="sell" ? C.bear : C.neut }}>{labelMap[choice] || "⏱ Timeout"}</span></span>
-        <span>Correct: <span style={{ color: signal==="buy" ? C.bull : signal==="sell" ? C.bear : C.neut }}>{labelMap[signal]}</span></span>
-      </div>
-
-      {streak > 1 && correct && (
-        <div style={{ marginTop:8, fontSize:13, color:C.nPurple, fontFamily:"monospace" }}>🔥 {streak} streak! ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length-1)].toFixed(1)}</div>
-      )}
-
-      {godMode && correct && (
-        <div style={{ marginTop:4, fontSize:11, color:C.nGreen, fontFamily:"monospace", animation:"pulse 0.8s infinite" }}>⚡ GOD MODE ACTIVE</div>
-      )}
-
-      <GlassButton onClick={onNext} color={C.nGreen} style={{ marginTop:14, width:"100%", justifyContent:"center" }}>
-        Next Round →
-      </GlassButton>
-    </GlassPanel>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    15  FINAL VERDICT  (end-of-game stats + archetype reveal)
-   ═══════════════════════════════════════════════════════════════ */
-function FinalVerdict({ stats, onRestart, onLeaderboard, onShare }) {
-  const arch = getArchetype(stats);
-  const stars = "⭐".repeat(Math.round((stats.correct/ROUNDS)*5)) + "☆".repeat(5 - Math.round((stats.correct/ROUNDS)*5));
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16, padding:"0 16px", maxWidth:420, margin:"0 auto" }}>
-      {/* archetype card */}
-      <GlassPanel style={{ padding:"28px 24px", width:"100%", textAlign:"center", position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:3,
-          background:`linear-gradient(90deg, ${C.nGreen}, ${C.nPurple}, ${C.nPink})` }} />
-        <div style={{ fontSize:11, textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:"monospace", marginBottom:6 }}>Your Trading Archetype</div>
-        <div style={{ fontSize:48 }}>{arch.emoji}</div>
-        <div style={{ fontSize:22, fontWeight:800, fontFamily:"'SF Mono','Fira Code',monospace", color:"#fff", marginTop:4 }}>{arch.name}</div>
-        <div style={{ fontSize:18, marginTop:6 }}>{stars}</div>
-        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:"monospace", fontStyle:"italic", marginTop:10, lineHeight:1.5, maxWidth:300, margin:"10px auto 0" }}>
-          "{arch.roast}"
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: correct ? C.nGreen : C.nPink,
+            marginBottom: 2,
+          }}
+        >
+          {correct ? "Correct!" : "Incorrect"}
         </div>
-      </GlassPanel>
-
-      {/* stats row */}
-      <GlassPanel style={{ padding:"16px 20px", width:"100%", display:"flex", justifyContent:"space-around" }}>
-        {[
-          { value:stats.totalScore, label:"Score", color:C.nGreen },
-          { value:`${stats.correct}/${ROUNDS}`, label:"Correct", color:C.nBlue },
-          { value:`${stats.avgSpeed}ms`, label:"Avg Speed", color:C.nPurple },
-          { value:`×${stats.maxStreak}`, label:"Best Streak", color:C.nPink },
-        ].map(s => (
-          <div key={s.label} style={{ textAlign:"center" }}>
-            <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>{s.value}</div>
-            <div style={{ fontSize:9, color:"rgba(255,255,255,0.38)", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
-          </div>
-        ))}
-      </GlassPanel>
-
-      {/* action buttons */}
-      <div style={{ display:"flex", gap:10, width:"100%", maxWidth:380 }}>
-        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex:2, justifyContent:"center" }}>🔄 Play Again</GlassButton>
-        <GlassButton onClick={onShare}   color={C.nPurple} style={{ flex:1, justifyContent:"center" }}>📤 Share</GlassButton>
-      </div>
-      <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ width:"100%", maxWidth:380, justifyContent:"center" }}>
-        🏆 Leaderboard
-      </GlassButton>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    16  LEADERBOARD  (localStorage)
-   ═══════════════════════════════════════════════════════════════ */
-const LB_KEY = "reflexglass_lb_v2";
-function loadLB() { try { return JSON.parse(localStorage.getItem(LB_KEY)) || []; } catch(_){ return []; } }
-function saveLB(arr) { try { localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0,50))); } catch(_){} }
-
-function addToLeaderboard(name, stats) {
-  const lb = loadLB();
-  const arch = getArchetype(stats);
-  lb.push({ name, score:stats.totalScore, avgSpeed:stats.avgSpeed, correct:stats.correct,
-            archetype:arch.name, emoji:arch.emoji, ts:Date.now() });
-  lb.sort((a,b) => b.score - a.score);
-  saveLB(lb);
-  return lb;
-}
-
-function Leaderboard({ onClose, currentName }) {
-  const lb = useMemo(() => loadLB(), []);
-  return (
-    <div style={{ maxWidth:420, margin:"0 auto", padding:"0 16px" }}>
-      <GlassPanel style={{ padding:24 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-          <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>🏆 Leaderboard</div>
-          <GlassButton onClick={onClose} color="rgba(255,255,255,0.5)" style={{ padding:"6px 14px", fontSize:12 }}>✕</GlassButton>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}>
+          You chose {choice} • Signal was {signal}
         </div>
-        {lb.length === 0 ? (
-          <div style={{ textAlign:"center", color:"rgba(255,255,255,0.3)", fontSize:13, fontFamily:"monospace", padding:24 }}>
-            No entries yet. Play a round!
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", color: C.nGreen }}>
+          +{points}
+        </div>
+        {streak > 0 && (
+          <div style={{ fontSize: 11, color: C.nPurple }}>🔥 {streak} streak</div>
+        )}
+      </div>
+    </div>
+
+    {/* Context explanation */}
+    {context && (
+      <div
+        style={{
+          fontSize: 12,
+          color: "rgba(255,255,255,0.6)",
+          marginBottom: 12,
+          padding: "10px 12px",
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: 10,
+          borderLeft: `3px solid ${correct ? C.nGreen : C.nPink}55`,
+        }}
+      >
+        <div style={{ marginBottom: 6, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>
+          {correct ? "Why it worked:" : "Why it failed:"}
+        </div>
+        {correct ? (
+          <div>
+            • Pattern confirmed with strong follow-through
+            <br />• {context.trendBias} trend bias supported the move
+            <br />• {context.volatility} volatility allowed clean development
           </div>
         ) : (
-          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-            {lb.slice(0,15).map((e,i) => {
-              const medal = i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
-              const isMe  = e.name === currentName;
-              return (
-                <div key={i} style={{
-                  display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderRadius:14,
-                  background: isMe ? `${C.nGreen}12` : "rgba(255,255,255,0.03)",
-                  border: isMe ? `1px solid ${C.nGreen}28` : "1px solid rgba(255,255,255,0.05)",
-                }}>
-                  <span style={{ width:24, textAlign:"center", fontSize:14 }}>{medal || `${i+1}.`}</span>
-                  <span style={{ fontSize:15 }}>{e.emoji}</span>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.85)", fontFamily:"monospace", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                      {e.name} <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", fontWeight:400 }}>{e.archetype}</span>
-                    </div>
-                  </div>
-                  <div style={{ textAlign:"right" }}>
-                    <div style={{ fontSize:15, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{e.score}</div>
-                    <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)" }}>{e.avgSpeed}ms avg</div>
-                  </div>
-                </div>
-              );
-            })}
+          <div>
+            {signal === "HOLD" ? (
+              <>
+                • Pattern lacked confirmation or clear direction
+                <br />• Patience rewarded - no clear edge to trade
+                <br />• Context suggested waiting for better setup
+              </>
+            ) : (
+              <>
+                • Pattern failed to follow through as expected
+                <br />• Context ({context.trendBias} bias) conflicted with setup
+                <br />• Better to avoid low-quality setups
+              </>
+            )}
           </div>
         )}
-      </GlassPanel>
+      </div>
+    )}
+
+    <GlassButton onClick={onNext} color={C.nBlue} style={{ width: "100%", padding: "14px 0" }}>
+      Next Round →
+    </GlassButton>
+  </GlassPanel>
+);
+
+const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => (
+  <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
+    <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
+    <div
+      style={{
+        fontSize: 48,
+        fontWeight: 900,
+        fontFamily: "monospace",
+        background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        marginBottom: 20,
+      }}
+    >
+      {stats.totalScore.toLocaleString()}
     </div>
-  );
-}
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: 12,
+        marginBottom: 20,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+          ACCURACY
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen }}>
+          {stats.accuracy}%
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+          CORRECT
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue }}>
+          {stats.correct}/{stats.total}
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+          BEST STREAK
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple }}>
+          {stats.bestStreak}
+        </div>
+      </div>
+    </div>
+
+    <div style={{ display: "flex", gap: 10 }}>
+      <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "14px 0" }}>
+        Play Again
+      </GlassButton>
+      <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "14px 0" }}>
+        Leaderboard
+      </GlassButton>
+    </div>
+  </GlassPanel>
+);
 
 /* ═══════════════════════════════════════════════════════════════
-    17  SHARE CARD  (SVG rendered to data-URL → open share sheet)
-   ═══════════════════════════════════════════════════════════════ */
-function generateShareSVG(stats) {
-  const arch = getArchetype(stats);
-  const stars = "⭐".repeat(Math.round((stats.correct/ROUNDS)*5)) + "☆".repeat(5 - Math.round((stats.correct/ROUNDS)*5));
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="280" viewBox="0 0 480 280">
-    <defs>
-      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0f0f1a"/><stop offset="100%" stop-color="#06060c"/></linearGradient>
-      <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="rgba(20,20,40,0.7)"/><stop offset="100%" stop-color="rgba(14,14,26,0.9)"/></linearGradient>
-      <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
-      <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <rect width="480" height="280" fill="url(#bg)"/>
-    <!-- ambient orbs -->
-    <circle cx="80"  cy="60"  r="90"  fill="#00ffaa" opacity="0.06" filter="url(#blur)"/>
-    <circle cx="420" cy="220" r="70"  fill="#a855f7" opacity="0.07" filter="url(#blur)"/>
-    <circle cx="350" cy="40"  r="50"  fill="#ff4d94" opacity="0.05" filter="url(#blur)"/>
-    <!-- glass card -->
-    <rect x="24" y="24" width="432" height="232" rx="24" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" opacity="0.9"/>
-    <!-- top accent line -->
-    <rect x="24" y="24" width="432" height="3" rx="2" fill="url(#topAccent)"/>
-    <defs><linearGradient id="topAccent" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00ffaa"/><stop offset="50%" stop-color="#a855f7"/><stop offset="100%" stop-color="#ff4d94"/></linearGradient></defs>
-    <!-- title -->
-    <text x="240" y="58" text-anchor="middle" fill="#00ffaa" font-family="monospace" font-size="11" font-weight="700" letter-spacing="3" filter="url(#glow)">REFLEX GLASS</text>
-    <!-- archetype -->
-    <text x="240" y="100" text-anchor="middle" fill="white" font-family="monospace" font-size="26" font-weight="800">${arch.emoji} ${arch.name}</text>
-    <!-- stars -->
-    <text x="240" y="132" text-anchor="middle" font-size="18">${stars}</text>
-    <!-- stats -->
-    <text x="80"  y="180" text-anchor="middle" fill="#00ffaa" font-family="monospace" font-size="22" font-weight="800">${stats.totalScore}</text>
-    <text x="80"  y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">SCORE</text>
-    <text x="200" y="180" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-size="22" font-weight="800">${stats.correct}/${ROUNDS}</text>
-    <text x="200" y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">CORRECT</text>
-    <text x="320" y="180" text-anchor="middle" fill="#a855f7" font-family="monospace" font-size="22" font-weight="800">${stats.avgSpeed}ms</text>
-    <text x="320" y="198" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="9">AVG SPEED</text>
-    <!-- roast -->
-    <text x="240" y="238" text-anchor="middle" fill="rgba(255,255,255,0.32)" font-family="monospace" font-size="9" font-style="italic">"${arch.roast.slice(0,62)}…"</text>
-  </svg>`;
-}
-
-function triggerShare(stats, playerName) {
-  const svg  = generateShareSVG(stats);
-  
-  // Create a canvas to render the SVG
-  const canvas = document.createElement('canvas');
-  canvas.width = 480;
-  canvas.height = 280;
-  const ctx = canvas.getContext('2d');
-  
-  // Create an image from SVG
-  const img = new Image();
-  const svgBlob = new Blob([svg], {type:"image/svg+xml;charset=utf-8"});
-  const url = URL.createObjectURL(svgBlob);
-  
-  img.onload = function() {
-    // Draw the SVG onto canvas
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
-    
-    // Convert canvas to blob
-    canvas.toBlob(async function(blob) {
-      if (!blob) return;
-      
-      const file = new File([blob], "reflex-glass-score.png", { type: "image/png" });
-      
-      // Try Web Share API with the image
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: "Reflex Glass",
-            text: `I scored ${stats.totalScore} — ${getArchetype(stats).name} 🔥`,
-            files: [file]
-          });
-        } catch(err) {
-          // If share fails, download the image
-          downloadImage(blob);
-        }
-      } else {
-        // Fallback: download the image
-        downloadImage(blob);
-      }
-    }, 'image/png');
-  };
-  
-  img.src = url;
-}
-
-function downloadImage(blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'reflex-glass-score.png';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    18  NAME INPUT (first-time / before leaderboard)
-   ═══════════════════════════════════════════════════════════════ */
-const NAME_KEY = "reflexglass_name_v2";
-function loadName() { try { return localStorage.getItem(NAME_KEY) || ""; } catch(_){ return ""; } }
-
-function NameInput({ onSubmit }) {
-  const [val, setVal] = useState(loadName());
-  const save = () => {
-    const n = val.trim() || "Anonymous";
-    try { localStorage.setItem(NAME_KEY, n); } catch(_){}
-    onSubmit(n);
-  };
-  return (
-    <GlassPanel style={{ padding:28, maxWidth:340, margin:"0 auto", textAlign:"center" }}>
-      <div style={{ fontSize:14, color:"rgba(255,255,255,0.55)", fontFamily:"monospace", marginBottom:12 }}>Enter your trader name</div>
-      <input value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()} maxLength={22}
-        placeholder="e.g. SatoshiGains"
-        style={{ width:"100%", padding:"12px 16px", borderRadius:16, border:`1px solid ${C.glassBr}`,
-          background:"rgba(255,255,255,0.06)", color:"#fff", fontSize:15, fontFamily:"monospace",
-          outline:"none", textAlign:"center", boxSizing:"border-box" }} />
-      <GlassButton onClick={save} color={C.nGreen} style={{ marginTop:14, width:"100%", justifyContent:"center" }}>Continue →</GlassButton>
-    </GlassPanel>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    20  TIP / DONATION PANEL  (USDC on Base via sendTransaction)
-        Uses raw ERC-20 transfer calldata — no wagmi contract hooks needed.
-        Caller must supply sendTransaction (wagmi useWriteContract or
-        equivalent) via the global hook wired in main.jsx / provider.
+    7  MAIN APP COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 
-// ── config ──────────────────────────────────────────────────────
-const DONATION_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";           // ← replace with your Base address
-const USDC_BASE        = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // Base mainnet USDC
-const TIPS = [
-  { amount: 0.5, label: "☕ 0.5 USDC" },
-  { amount: 1,   label: "🍔 1 USDC"   },
-  { amount: 5,   label: "🚀 5 USDC"   },
-];
+export default function App() {
+  // ── State ──
+  const [screen, setScreen] = useState("home");
+  const [difficulty, setDifficulty] = useState("medium");
+  const [round, setRound] = useState(0);
+  const [scores, setScores] = useState([]);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [roundStats, setRoundStats] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(DECISION_MS);
+  const [choice, setChoice] = useState(null);
+  const [structure, setStructure] = useState(null);
+  const [windowStart, setWindowStart] = useState(0);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [countdownNum, setCountdownNum] = useState(3);
+  const [revealProgress, setRevealProgress] = useState(0);
 
-// parseUnits for USDC (6 decimals) — inline, no viem dep required here
-function parseUSDC(usdAmount) {
-  return BigInt(Math.round(usdAmount * 1e6));
-}
+  // ── Refs ──
+  const chartRef = useRef(null);
+  const rendererRef = useRef(null);
+  const timerRef = useRef(null);
+  const animFrameRef = useRef(null);
 
-// Build raw ERC-20 transfer(address,uint256) calldata
-function buildTransferData(to, amount) {
-  const selector = "0xa9059cbb";                            // transfer(address,uint256)
-  const addr     = to.slice(2).toLowerCase().padStart(64, "0");
-  const amt      = amount.toString(16).padStart(64, "0");
-  return selector + addr + amt;
-}
-
-function TipPanel() {
-  const [status, setStatus] = useState("idle");             // idle | loading | success | error
-  const [errMsg, setErrMsg] = useState("");
-
-  const sendTip = async (usdAmount) => {
-    setStatus("loading");
-    SND.tipTap();
-    haptic([30]);
-    try {
-      // Try wagmi's sendTransaction if available on window (injected by provider)
-      // Fallback: open MetaMask / Coinbase wallet via window.ethereum directly
-      const amount = parseUSDC(usdAmount);
-      const data   = buildTransferData(DONATION_ADDRESS, amount);
-
-      if (window.__reflexSendTx) {
-        // If the host app injected a sendTransaction helper (recommended)
-        await window.__reflexSendTx({ to: USDC_BASE, data });
-      } else if (window.ethereum) {
-        // Direct provider fallback
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        await window.ethereum.request({
-          method: "eth_sendTransaction",
-          params: [{ from: accounts[0], to: USDC_BASE, data }],
-        });
-      } else {
-        throw new Error("No wallet connected");
-      }
-      setStatus("success");
-      SND.tipTap();
-      haptic([40, 20, 60]);
-      setTimeout(() => setStatus("idle"), 3200);
-    } catch (e) {
-      setErrMsg(e.message || "Transaction failed");
-      setStatus("error");
-      setTimeout(() => setStatus("idle"), 2800);
+  // ── Initialize renderer ──
+  useEffect(() => {
+    if (chartRef.current) {
+      rendererRef.current = new ChartRenderer(
+        chartRef.current,
+        DIFFICULTY_CONFIG[difficulty]
+      );
+      const updateSize = () => {
+        const rect = chartRef.current.getBoundingClientRect();
+        rendererRef.current.setDimensions(rect.width, rect.height);
+      };
+      updateSize();
+      window.addEventListener("resize", updateSize);
+      return () => window.removeEventListener("resize", updateSize);
     }
-  };
+  }, [difficulty]);
 
-  return (
-    <GlassPanel style={{ padding:"18px 20px", maxWidth:380, width:"100%", margin:"0 auto", position:"relative", overflow:"hidden" }}>
-      {/* subtle gradient top accent */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, height:2,
-        background:`linear-gradient(90deg, transparent, ${C.nAmber}, ${C.nPink}, transparent)` }} />
+  // ── Start new game ──
+  const startGame = useCallback(() => {
+    sound.unlock();
+    setShowCountdown(true);
+    setCountdownNum(3);
 
-      {/* header */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-        <span style={{ fontSize:18 }}>💛</span>
-        <div>
-          <div style={{ fontSize:13, fontWeight:700, fontFamily:"monospace", color:"rgba(255,255,255,0.82)" }}>Support the dev</div>
-          <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)", fontFamily:"monospace" }}>Buy me a coffee · or a yacht · who's counting</div>
+    let count = 3;
+    const countInterval = setInterval(() => {
+      if (count === 1) {
+        clearInterval(countInterval);
+        sound.tick(1);
+        setTimeout(() => {
+          setShowCountdown(false);
+          initializeRound(0);
+        }, 300);
+      } else {
+        sound.tick(count);
+        count--;
+        setCountdownNum(count);
+      }
+    }, 1000);
+  }, [difficulty]);
+
+  // ── Initialize round ──
+  const initializeRound = useCallback(
+    (roundNum) => {
+      const generator = new MarketStructureGenerator(difficulty);
+      generator.seed(Date.now() + roundNum * 12345); // Deterministic variety
+      const newStructure = generator.generate();
+
+      setStructure(newStructure);
+      setRound(roundNum);
+      setChoice(null);
+      setTimeLeft(DECISION_MS);
+      setScreen("building");
+      setRevealProgress(0);
+      setWindowStart(0);
+
+      // Animate the market structure building up
+      let currentCandle = 0;
+      const buildInterval = setInterval(() => {
+        currentCandle++;
+        setWindowStart(currentCandle);
+
+        // When we reach the decision point, pause and start timer
+        if (currentCandle >= newStructure.decisionIndex) {
+          clearInterval(buildInterval);
+          setScreen("playing");
+
+          // Start decision timer
+          const startTime = Date.now();
+          if (timerRef.current) clearInterval(timerRef.current);
+          timerRef.current = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, DECISION_MS - elapsed);
+            setTimeLeft(remaining);
+
+            if (remaining === 0) {
+              clearInterval(timerRef.current);
+              handleChoice("TIMEOUT");
+            }
+          }, 50);
+        }
+      }, 50); // Show 1 candle every 50ms = ~20 candles/second
+    },
+    [difficulty]
+  );
+
+  // ── Handle user choice ──
+  const handleChoice = useCallback(
+    (userChoice) => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      haptic([30, 20, 30]);
+      sound.click();
+
+      setChoice(userChoice);
+      setScreen("revealing");
+
+      // Animate continuation reveal
+      let progress = 0;
+      const animate = () => {
+        progress += 0.02;
+        setRevealProgress(progress);
+
+        if (progress < 1) {
+          animFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          // Reveal complete - show outcome
+          const correct =
+            userChoice === structure.signal || (userChoice === "TIMEOUT" && structure.signal === "HOLD");
+          const newStreak = correct ? streak + 1 : 0;
+          const multiplier = STREAK_MULT[Math.min(newStreak, STREAK_MULT.length - 1)];
+          const points = correct ? Math.round(BASE_SCORE * multiplier) : 0;
+
+          setStreak(newStreak);
+          setBestStreak(Math.max(bestStreak, newStreak));
+          setScores([...scores, points]);
+          setRoundStats([...roundStats, { correct, choice: userChoice }]);
+
+          if (correct) sound.correct();
+          else sound.wrong();
+
+          setScreen("outcome");
+        }
+      };
+      animate();
+    },
+    [structure, streak, bestStreak, scores, roundStats]
+  );
+
+  // ── Advance to next round ──
+  const advanceRound = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (round + 1 >= ROUNDS) {
+      setScreen("verdict");
+    } else {
+      initializeRound(round + 1);
+    }
+  }, [round, initializeRound]);
+
+  // ── Render chart ──
+  useEffect(() => {
+    if (!chartRef.current || !structure) return;
+
+    // Ensure renderer is initialized
+    if (!rendererRef.current) {
+      rendererRef.current = new ChartRenderer(
+        chartRef.current,
+        DIFFICULTY_CONFIG[difficulty]
+      );
+      const rect = chartRef.current.getBoundingClientRect();
+      rendererRef.current.setDimensions(rect.width, rect.height);
+    }
+
+    if (screen === "building" || screen === "playing") {
+      // Show all candles up to current point (building animation or at decision)
+      const visibleCandles = structure.candles.slice(0, windowStart + 1);
+      rendererRef.current.renderAll(visibleCandles);
+    } else if (screen === "revealing" || screen === "outcome") {
+      // Show decision point + continuation
+      const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
+      const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
+      const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
+      rendererRef.current.renderAll(allCandles);
+    }
+  }, [structure, windowStart, difficulty, screen, revealProgress]);
+
+  // ── Compute stats ──
+  const computeStats = useCallback(() => {
+    const totalScore = scores.reduce((a, b) => a + b, 0);
+    const correct = roundStats.filter((r) => r.correct).length;
+    const total = roundStats.length;
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    return { totalScore, correct, total, accuracy, bestStreak };
+  }, [scores, roundStats, bestStreak]);
+
+  // ── Home screen ──
+  const renderHome = () => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "calc(100dvh - 80px)",
+        padding: "20px",
+        gap: 20,
+      }}
+    >
+      <div style={{ textAlign: "center", marginBottom: 10 }}>
+        <div
+          style={{
+            fontSize: 48,
+            fontWeight: 900,
+            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple}, ${C.nPink})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: 8,
+            lineHeight: 1,
+          }}
+        >
+          REFLEX GLASS
+        </div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em" }}>
+          Context-Aware Pattern Trainer
         </div>
       </div>
 
-      {/* tip buttons */}
-      {status === "idle" && (
-        <div style={{ display:"flex", gap:8 }}>
-          {TIPS.map(t => (
-            <GlassButton key={t.amount} onClick={() => sendTip(t.amount)} color={C.nAmber}
-              style={{ flex:1, justifyContent:"center", padding:"10px 6px", fontSize:13 }}>
-              {t.label}
+      <GlassPanel style={{ padding: "20px", maxWidth: 380 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>
+          Master pattern recognition in realistic market conditions. Learn when to trade and when
+          to wait. Focus on context, not memorization.
+        </div>
+      </GlassPanel>
+
+      {/* Difficulty selector */}
+      <div style={{ width: "100%", maxWidth: 380 }}>
+        <div
+          style={{
+            fontSize: 12,
+            color: "rgba(255,255,255,0.5)",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Select Difficulty
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {["easy", "medium", "hard"].map((d) => (
+            <GlassButton
+              key={d}
+              onClick={() => setDifficulty(d)}
+              color={difficulty === d ? C.nGreen : C.glassBr}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                background:
+                  difficulty === d
+                    ? `linear-gradient(135deg, ${C.nGreen}33, ${C.nGreen}11)`
+                    : C.glass,
+                border: `1.5px solid ${difficulty === d ? C.nGreen : C.glassBr}`,
+              }}
+            >
+              {d.toUpperCase()}
             </GlassButton>
           ))}
         </div>
-      )}
-
-      {/* loading state */}
-      {status === "loading" && (
-        <div style={{ textAlign:"center", padding:"12px 0" }}>
-          <div style={{ fontSize:22, animation:"pulse 0.7s ease infinite" }}>⏳</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)", fontFamily:"monospace", marginTop:4 }}>Confirm in wallet…</div>
-        </div>
-      )}
-
-      {/* success */}
-      {status === "success" && (
-        <div style={{ textAlign:"center", padding:"10px 0" }}>
-          <div style={{ fontSize:28 }}>🎉</div>
-          <div style={{ fontSize:13, fontWeight:700, color:C.nGreen, fontFamily:"monospace", marginTop:2 }}>Thank you, legend!</div>
-          <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:"monospace", marginTop:2 }}>You just made the dev's day</div>
-        </div>
-      )}
-
-      {/* error */}
-      {status === "error" && (
-        <div style={{ textAlign:"center", padding:"10px 0" }}>
-          <div style={{ fontSize:22 }}>⚠️</div>
-          <div style={{ fontSize:11, color:C.nPink, fontFamily:"monospace", marginTop:3 }}>{errMsg}</div>
-          <GlassButton onClick={() => setStatus("idle")} color="rgba(255,255,255,0.4)" style={{ marginTop:6, padding:"5px 16px", fontSize:11 }}>Retry</GlassButton>
-        </div>
-      )}
-
-      {/* USDC badge */}
-      <div style={{ marginTop:10, textAlign:"center" }}>
-        <span style={{ fontSize:9, color:"rgba(255,255,255,0.2)", fontFamily:"monospace" }}>
-          USDC on Base · {DONATION_ADDRESS.slice(0,6)}…{DONATION_ADDRESS.slice(-4)}
-        </span>
-      </div>
-    </GlassPanel>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-    19  ROOT APP  —  STATE MACHINE + GAME LOOP
-        States: "name" | "home" | "countdown" | "playing" | "revealing" | "outcome" | "verdict" | "leaderboard"
-   ═══════════════════════════════════════════════════════════════ */
-export default function App() {
-  // ── state ──
-  const [screen, setScreen]               = useState(loadName() ? "home" : "name");
-  const [playerName, setPlayerName]       = useState(loadName());
-  const [round, setRound]                 = useState(0);        // 0-based
-  const [pattern, setPattern]             = useState(null);     // current pattern object
-  const [timeLeft, setTimeLeft]           = useState(DECISION_MS);
-  const [choice, setChoice]               = useState(null);
-  const [streak, setStreak]               = useState(0);
-  const [scores, setScores]               = useState([]);       // per-round score
-  const [roundStats, setRoundStats]       = useState([]);       // {correct, speedMs, choice, signal}
-  const [contProgress, setContProgress]   = useState(0);        // 0 → 10 (animated candle count)
-  const [initialRevealProgress, setInitialRevealProgress] = useState(0); // 0 → 22 (initial candles animation)
-  const [particleBurst, setParticleBurst] = useState(false);
-  const [godMode, setGodMode]             = useState(false);
-  const [screenPulse, setScreenPulse]     = useState(false);    // low-time shake
-  const [showCountdown, setShowCountdown] = useState(false);    // countdown 3-2-1 indítása előtt
-  const [countdownNum, setCountdownNum]   = useState(3);        // countdown szám
-  const [usedPatterns, setUsedPatterns]   = useState([]);       // használt pattern-ek nevei
-
-  // refs
-  const chartRef      = useRef(null);
-  const timerRef      = useRef(null);
-  const contAnimRef   = useRef(null);
-  const initialAnimRef = useRef(null);
-  const rafChartRef   = useRef(null);
-  const choiceTimeRef = useRef(null);       // ms when choice was made
-
-  // ── derived ──
-  const isPlaying = screen === "playing";
-
-  // ── Initial candles reveal animation during countdown ──
-  useEffect(() => {
-    if (screen !== "playing" || !pattern || showCountdown) {
-      cancelAnimationFrame(initialAnimRef.current);
-      return;
-    }
-    
-    setInitialRevealProgress(0);
-    const startTime = Date.now();
-    const duration = 2700; // 2.7 seconds (during 3-2-1 countdown)
-    let lastSoundedCandle = -1; // Track which candle we last played sound for
-    
-    function animate() {
-      const elapsed = Date.now() - startTime;
-      const pct = Math.min(elapsed / duration, 1);
-      // ease-out cubic for smooth animation
-      const eased = 1 - Math.pow(1 - pct, 3);
-      const newProgress = eased * 22;
-      setInitialRevealProgress(newProgress);
-      
-      // Play sound effect when each new candle appears
-      const currentCandle = Math.floor(newProgress);
-      if (currentCandle > lastSoundedCandle && currentCandle < 22) {
-        lastSoundedCandle = currentCandle;
-        // Play sound every 3rd candle to avoid overwhelming audio
-        if (currentCandle % 3 === 0) {
-          SND.candlePop();
-        }
-      }
-      
-      if (pct < 1) {
-        initialAnimRef.current = requestAnimationFrame(animate);
-      } else {
-        setInitialRevealProgress(22);
-      }
-    }
-    
-    initialAnimRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(initialAnimRef.current);
-  }, [screen, pattern, showCountdown]);
-
-  // ── chart RAF loop (redraws every frame for smooth candle reveal) ──
-  useEffect(() => {
-    if (!pattern || !chartRef.current) return;
-    
-    let running = true;
-
-    function loop() {
-      if (!running) return;
-
-      // Draw during countdown (with initial animation), playing, revealing, or outcome
-      if (screen === "playing" || screen === "revealing" || screen === "outcome") {
-        const revealCount = initialRevealProgress ;
-        const contCount = screen === "revealing" || screen === "outcome" ? contProgress : 0;
-        
-        drawChart(
-          chartRef.current,
-          pattern.candles,
-          revealCount,
-          contCount,
-          pattern.continuation,
-          godMode
-        );
-      }
-
-      rafChartRef.current = requestAnimationFrame(loop);
-    }
-
-    loop();
-
-    return () => {
-      running = false;
-      cancelAnimationFrame(rafChartRef.current);
-    };
-  }, [pattern, screen, contProgress, initialRevealProgress, godMode]);
-
-  // ── low-time haptic pulse ──
-  useEffect(() => {
-    if(isPlaying && timeLeft <= 500 && timeLeft > 0) {
-      haptic([40, 30, 40]);
-      setScreenPulse(true);
-    } else {
-      setScreenPulse(false);
-    }
-  }, [isPlaying, timeLeft]);
-
-  // ── countdown timer (3-2-1 before playing state) ──
-  useEffect(() => {
-    if(!showCountdown) return;
-    
-    setCountdownNum(3);
-    SND.tick(3);
-    haptic([30]);
-    
-    const timer1 = setTimeout(() => {
-      setCountdownNum(2);
-      SND.tick(2);
-      haptic([30]);
-    }, 1000);
-    
-    const timer2 = setTimeout(() => {
-      setCountdownNum(1);
-      SND.tick(1);
-      haptic([30]);
-    }, 2000);
-    
-    const timer3 = setTimeout(() => {
-      setShowCountdown(false);
-      setScreen("playing");
-    }, 3000);
-    
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
-  }, [showCountdown]);
-
-  // ── countdown timer (playing state) ──
-  useEffect(() => {
-    if(!isPlaying) { clearInterval(timerRef.current); return; }
-    setTimeLeft(DECISION_MS);
-    choiceTimeRef.current = Date.now();
-    const start = Date.now();
-    timerRef.current = setInterval(() => {
-      const rem = DECISION_MS - (Date.now() - start);
-      if(rem <= 0) {
-        clearInterval(timerRef.current);
-        setTimeLeft(0);
-        // timeout = wrong answer
-        handleChoice(null);
-      } else {
-        setTimeLeft(rem);
-      }
-    }, 60);
-    return () => clearInterval(timerRef.current);
-  }, [isPlaying]); // eslint-disable-line
-
-  // ── continuation candle wave-reveal animation ──
-  useEffect(() => {
-    if(screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
-    setContProgress(0);
-    const startTime = Date.now();
-    const duration  = 900; // ms for all 10 candles
-    let lastSoundedContCandle = -1;
-    
-    function animate() {
-      const elapsed = Date.now() - startTime;
-      const pct     = Math.min(elapsed / duration, 1);
-      // ease-out cubic
-      const eased   = 1 - Math.pow(1 - pct, 3);
-      const newProgress = eased * 10;
-      setContProgress(newProgress);
-      
-      // Play sound when continuation candles appear
-      const currentContCandle = Math.floor(newProgress);
-      if (currentContCandle > lastSoundedContCandle && currentContCandle < 10) {
-        lastSoundedContCandle = currentContCandle;
-        // Play every 2nd candle for continuation (faster pace)
-        if (currentContCandle % 2 === 0) {
-          SND.candlePop();
-        }
-      }
-      
-      if(pct < 1) {
-        contAnimRef.current = requestAnimationFrame(animate);
-      } else {
-        setContProgress(10);
-        // after reveal completes → show outcome
-        setTimeout(() => setScreen("outcome"), 200);
-      }
-    }
-    contAnimRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(contAnimRef.current);
-  }, [screen]);
-
-  // ── GAME ACTIONS ──
-
-  // 1️⃣ játék indítás → pattern ELŐRE létrejön
-  const startGame = useCallback(() => {
-    // Első pattern generálása
-    const p = getRandomPattern();
-    setPattern(p);
-    setUsedPatterns([p.name]); // Inicializáljuk a használt pattern-ekkel
-
-    setRound(0);
-    setScores([]);
-    setRoundStats([]);
-    setStreak(0);
-    setGodMode(false);
-    setChoice(null);
-    setContProgress(0);
-    setInitialRevealProgress(0);
-
-    // Countdown indítása
-    setShowCountdown(true);
-  }, []);
-
-
-
-
-  // 3️⃣ választás kezelése
-  const handleChoice = useCallback((ch) => {
-    if (choice !== null) return;
-
-    clearInterval(timerRef.current);
-
-    const speedMs =
-      choiceTimeRef.current
-        ? Date.now() - choiceTimeRef.current
-        : DECISION_MS;
-
-    choiceTimeRef.current = null;
-    setChoice(ch);
-
-    const correct = ch === pattern.signal;
-    haptic(correct ? [30, 20, 30] : [80]);
-
-    if (correct) {
-      SND.correct();
-
-      const mult = STREAK_MULT[Math.min(streak + 1, STREAK_MULT.length - 1)];
-      const speedBonus = Math.round(
-        (1 - speedMs / DECISION_MS) * BASE_SCORE * 0.5
-      );
-      const pts = Math.round((BASE_SCORE + speedBonus) * mult);
-
-      setScores(p => [...p, pts]);
-      setRoundStats(p => [
-        ...p,
-        { correct: true, speedMs, choice: ch, signal: pattern.signal }
-      ]);
-
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-
-      setParticleBurst(true);
-      setTimeout(() => setParticleBurst(false), 600);
-
-      if (newStreak >= 6 && !godMode) {
-        setGodMode(true);
-        SND.godBurst();
-        haptic([50, 30, 50, 30, 50]);
-      }
-    } else {
-      SND.wrong();
-      setScores(p => [...p, 0]);
-      setRoundStats(p => [
-        ...p,
-        { correct: false, speedMs, choice: ch, signal: pattern.signal }
-      ]);
-      setStreak(0);
-    }
-
-    setScreen("revealing");
-  }, [choice, pattern, streak, godMode]);
-
-
-  // 4️⃣ következő kör
-  const advanceRound = useCallback(() => {
-    const nextRound = round + 1;
-
-    if (nextRound >= ROUNDS) {
-      const stats = computeStats();
-      addToLeaderboard(playerName, stats);
-      setScreen("verdict");
-    } else {
-      // Generálunk új pattern-t, ami még nem volt használva
-      let p = getRandomPattern();
-      let attempts = 0;
-      while (usedPatterns.includes(p.name) && attempts < 50) {
-        p = getRandomPattern();
-        attempts++;
-      }
-      
-      setPattern(p);
-      setUsedPatterns(prev => [...prev, p.name]);
-
-      setRound(nextRound);
-      setChoice(null);
-      setContProgress(0);
-      setInitialRevealProgress(0);
-
-      // Következő körnél NEM mutatunk countdownt
-      setScreen("playing");
-    }
-  }, [round, playerName, usedPatterns]);
-
-
-  // 5️⃣ statisztika
-  function computeStats() {
-    const totalScore = scores.reduce((a, b) => a + b, 0);
-    const correct = roundStats.filter(r => r.correct).length;
-    const buyCount = roundStats.filter(r => r.choice === "buy").length;
-    const sellCount = roundStats.filter(r => r.choice === "sell").length;
-    const holdCount = roundStats.filter(r => r.choice === "hold").length;
-
-    const speeds = roundStats.map(r => r.speedMs);
-    const avgSpeed = speeds.length
-      ? Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length)
-      : 0;
-
-    let maxStreak = 0, cur = 0;
-    roundStats.forEach(r => {
-      if (r.correct) {
-        cur++;
-        maxStreak = Math.max(maxStreak, cur);
-      } else {
-        cur = 0;
-      }
-    });
-
-    return { totalScore, correct, buyCount, sellCount, holdCount, avgSpeed, maxStreak };
-  }
-
-  // ── RENDER ──
-
-  // global styles injected once
-  useEffect(() => {
-    const tag = document.createElement("style");
-    tag.textContent = `
-      * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-      html, body { margin:0; padding:0; height:100%; overflow:hidden; }
-      body { background:${C.bg1}; color:#fff; font-family:"SF Pro","Helvetica Neue",sans-serif; }
-      @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-      @keyframes ringPulse { 0%{transform:scale(0.6);opacity:0} 100%{transform:scale(1);opacity:1} }
-      @keyframes numPop { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
-      @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-      input::placeholder { color:rgba(255,255,255,0.28); }
-      input:focus { box-shadow: 0 0 0 2px ${C.nGreen}40 !important; }
-      ::-webkit-scrollbar { width:4px; }
-      ::-webkit-scrollbar-track { background:transparent; }
-      ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:2px; }
-    `;
-    document.head.appendChild(tag);
-    return () => document.head.removeChild(tag);
-  }, []);
-
-  // ── SCREEN RENDERERS ──
-
-  const renderHome = () => (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"100%", gap:24, padding:24 }}>
-      {/* logo */}
-      <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
-          background:`linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
-          textShadow:"none", filter:"drop-shadow(0 0 24px rgba(0,255,170,0.3))" }}>
-          REFLEX
-        </div>
-        <div style={{ fontSize:48, fontWeight:900, fontFamily:"'SF Mono','Fira Code',monospace", letterSpacing:"-1px",
-          background:`linear-gradient(135deg, ${C.nPurple} 0%, ${C.nPink} 100%)`,
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
-          filter:"drop-shadow(0 0 18px rgba(168,85,247,0.35))", marginTop:-8 }}>
-          GLASS
-        </div>
-        <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", letterSpacing:"0.24em", textTransform:"uppercase", marginTop:4, fontFamily:"monospace" }}>
-          Chart Pattern Reflex Trainer
-        </div>
       </div>
 
-      {/* info card */}
-      <GlassPanel style={{ padding:20, maxWidth:340, width:"100%", textAlign:"center" }}>
-        <div style={{ display:"flex", justifyContent:"center", gap:20 }}>
-          {[
-            { icon:"📊", label:"40+", sub:"Patterns" },
-            { icon:"⚡", label:"4s", sub:"Decision" },
-            { icon:"🔥", label:"×4", sub:"Max Streak" },
-          ].map(item => (
-            <div key={item.label} style={{ flex:1, textAlign:"center" }}>
-              <div style={{ fontSize:20 }}>{item.icon}</div>
-              <div style={{ fontSize:16, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{item.label}</div>
-              <div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.06em" }}>{item.sub}</div>
-            </div>
-          ))}
-        </div>
-      </GlassPanel>
-
-      {/* CTA */}
-      <GlassButton onClick={startGame} color={C.nGreen} style={{ padding:"18px 56px", fontSize:18, position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
-          backgroundSize:"200% 100%", animation:"shimmer 2.2s linear infinite", pointerEvents:"none" }} />
-        Start Trading
+      <GlassButton
+        onClick={startGame}
+        color={C.nGreen}
+        style={{ padding: "18px 56px", fontSize: 18, position: "relative", overflow: "hidden" }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+            backgroundSize: "200% 100%",
+            animation: "shimmer 2.2s linear infinite",
+            pointerEvents: "none",
+          }}
+        />
+        Start Training
       </GlassButton>
 
-      {/* leaderboard link */}
-      <GlassButton onClick={()=>setScreen("leaderboard")} color={C.nBlue} style={{ padding:"10px 24px", fontSize:13 }}>
-        🏆 Leaderboard
-      </GlassButton>
-
-      <div style={{ fontSize:10, color:"rgba(255,255,255,0.22)", fontFamily:"monospace", textAlign:"center", maxWidth:300 }}>
-        Base Mini App · Works in Warpcast · {playerName && `Playing as ${playerName}`}
+      <div
+        style={{
+          fontSize: 10,
+          color: "rgba(255,255,255,0.22)",
+          fontFamily: "monospace",
+          textAlign: "center",
+          maxWidth: 300,
+        }}
+      >
+        Learn when NOT to trade • {ROUNDS} rounds • Context matters
       </div>
     </div>
   );
 
-
-
-
-
+  // ── Playing screen ──
   const renderPlaying = () => (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", gap:10, padding:"10px 12px" }}>
-      {/* header row */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:2 }}>
-        <GlassPanel style={{ padding:"6px 14px", borderRadius:16 }}>
-          <span style={{ fontSize:12, fontFamily:"monospace", color:"rgba(255,255,255,0.5)" }}>Round </span>
-          <span style={{ fontSize:14, fontWeight:800, fontFamily:"monospace", color:C.nGreen }}>{round+1}<span style={{ color:"rgba(255,255,255,0.28)", fontWeight:400 }}>/{ROUNDS}</span></span>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        gap: 10,
+        padding: "10px 12px",
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <GlassPanel style={{ padding: "6px 14px", borderRadius: 16 }}>
+          <span style={{ fontSize: 12, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>
+            Round{" "}
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "monospace", color: C.nGreen }}>
+            {round + 1}
+            <span style={{ color: "rgba(255,255,255,0.28)", fontWeight: 400 }}>/{ROUNDS}</span>
+          </span>
         </GlassPanel>
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          {streak > 0 && (
-            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nPurple}35` }}>
-              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nPurple }}>🔥 ×{STREAK_MULT[Math.min(streak+1, STREAK_MULT.length-1)].toFixed(1)}</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {screen === "building" && (
+            <GlassPanel style={{ padding: "5px 11px", borderRadius: 16, border: `1px solid ${C.nBlue}35` }}>
+              <span style={{ fontSize: 12, fontFamily: "monospace", color: C.nBlue }}>
+                📊 Building context...
+              </span>
             </GlassPanel>
           )}
-          {godMode && (
-            <GlassPanel style={{ padding:"5px 11px", borderRadius:16, border:`1px solid ${C.nGreen}45`,
-              background:`linear-gradient(135deg, ${C.nGreen}15, ${C.nBlue}10)` }}>
-              <span style={{ fontSize:12, fontFamily:"monospace", color:C.nGreen }}>⚡ GOD MODE</span>
+          {streak > 0 && screen !== "building" && (
+            <GlassPanel style={{ padding: "5px 11px", borderRadius: 16, border: `1px solid ${C.nPurple}35` }}>
+              <span style={{ fontSize: 12, fontFamily: "monospace", color: C.nPurple }}>
+                🔥 ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length - 1)].toFixed(1)}
+              </span>
             </GlassPanel>
           )}
         </div>
       </div>
 
-      {/* timer */}
-      <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
+      {/* Timer - only show when playing */}
+      {screen === "playing" && <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />}
 
-      {/* chart */}
-      <div style={{ flex:1, minHeight:0, position:"relative" }}>
-        <canvas ref={chartRef} style={{ width:"100%", height:"100%", borderRadius:20, display:"block" }} />
-        {/* pattern name watermark */}
-        {screen === "outcome" && pattern && (
-          <div style={{ position:"absolute", top:12, right:14, fontSize:10, fontFamily:"monospace",
-            color:"rgba(255,255,255,0.18)", background:"rgba(6,6,12,0.6)", padding:"3px 8px", borderRadius:8,
-            backdropFilter:"blur(8px)" }}>
-            {pattern.name}
+      {/* Chart */}
+      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+        <canvas
+          ref={chartRef}
+          style={{ width: "100%", height: "100%", borderRadius: 20, display: "block" }}
+        />
+        {screen === "outcome" && structure && (
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 14,
+              fontSize: 10,
+              fontFamily: "monospace",
+              color: "rgba(255,255,255,0.18)",
+              background: "rgba(6,6,12,0.6)",
+              padding: "3px 8px",
+              borderRadius: 8,
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            {structure.continuation.pattern}
           </div>
         )}
       </div>
 
-      {/* decision / outcome */}
-      <div style={{ paddingBottom:8 }}>
+      {/* Decision / Outcome */}
+      <div style={{ paddingBottom: 8 }}>
+        {screen === "building" && (
+          <div style={{ textAlign: "center", padding: "20px", color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+            Watching market develop...
+          </div>
+        )}
         {screen === "playing" && <DecisionButtons onChoose={handleChoice} disabled={false} />}
         {screen === "outcome" && (
           <OutcomeCard
-            correct={roundStats[roundStats.length-1]?.correct}
-            points={scores[scores.length-1]}
+            correct={roundStats[roundStats.length - 1]?.correct}
+            points={scores[scores.length - 1]}
             streak={streak}
-            patternName={pattern?.name}
+            patternName={structure?.continuation.pattern}
             choice={choice}
-            signal={pattern?.signal}
+            signal={structure?.signal}
             onNext={advanceRound}
-            godMode={godMode}
+            context={structure?.context}
           />
         )}
       </div>
     </div>
   );
 
+  // ── Verdict screen ──
   const renderVerdict = () => (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", justifyContent:"center", padding:16, gap:14 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        justifyContent: "center",
+        padding: 16,
+        gap: 14,
+      }}
+    >
       <FinalVerdict
         stats={computeStats()}
         onRestart={startGame}
-        onLeaderboard={()=>setScreen("leaderboard")}
-        onShare={()=>triggerShare(computeStats(), playerName)}
+        onLeaderboard={() => setScreen("leaderboard")}
       />
-      <TipPanel />
     </div>
   );
 
+  // ── Countdown overlay ──
   const renderCountdown = () => (
-    <div style={{ 
-      position: "fixed",
-      inset: 0,
-      zIndex: 300,
-      background: `radial-gradient(ellipse at 50% 50%, ${C.bg2}dd 0%, ${C.bg1}f5 100%)`,
-      backdropFilter: "blur(20px)",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center"
-    }}>
-      {/* Ambient glow behind number */}
-      <div style={{
-        position: "absolute",
-        width: 400,
-        height: 400,
-        borderRadius: "50%",
-        background: `radial-gradient(circle, ${C.nGreen}25 0%, transparent 70%)`,
-        filter: "blur(80px)",
-        animation: "pulse 1s ease-in-out infinite"
-      }} />
-      
-      {/* Pulsing ring - synchronized with number */}
-      <div style={{
-        position: "absolute",
-        width: 280,
-        height: 280,
-        borderRadius: "50%",
-        border: `6px solid ${C.nGreen}50`,
-        animation: "ringPulse 1s ease-out infinite"
-      }} />
-      
-      {/* The number - now also pulsing */}
-      <div 
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 300,
+        background: `radial-gradient(ellipse at 50% 50%, ${C.bg2}dd 0%, ${C.bg1}f5 100%)`,
+        backdropFilter: "blur(20px)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, ${C.nGreen}25 0%, transparent 70%)`,
+          filter: "blur(80px)",
+          animation: "pulse 1s ease-in-out infinite",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          width: 280,
+          height: 280,
+          borderRadius: "50%",
+          border: `6px solid ${C.nGreen}50`,
+          animation: "ringPulse 1s ease-out infinite",
+        }}
+      />
+      <div
         key={countdownNum}
-        style={{ 
-          fontSize: 200, 
-          fontWeight: 900, 
+        style={{
+          fontSize: 200,
+          fontWeight: 900,
           fontFamily: "'SF Mono','Fira Code',monospace",
           background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
           WebkitBackgroundClip: "text",
@@ -2340,67 +1673,80 @@ export default function App() {
           animation: "ringPulse 1s ease-out infinite",
           position: "relative",
           zIndex: 1,
-          lineHeight: 1
-        }}>
+          lineHeight: 1,
+        }}
+      >
         {countdownNum}
-      </div>
-      
-      {/* Small text below */}
-      <div style={{
-        fontSize: 14,
-        color: "rgba(255,255,255,0.4)",
-        fontFamily: "monospace",
-        letterSpacing: "0.2em",
-        textTransform: "uppercase",
-        marginTop: 40,
-        position: "relative",
-        zIndex: 1
-      }}>
-    
       </div>
     </div>
   );
 
-  // ── MAIN RETURN ──
+  // ── Main render ──
   return (
-    <div style={{ width:"100vw", height:"100dvh", overflowY:"auto", overflowX:"hidden",
-      background:`radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
-      position:"relative" }}>
-
-      {/* ambient orbs (background atmosphere) */}
-      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0 }}>
-        <div style={{ position:"absolute", top:"10%",  left:"15%", width:220, height:220, borderRadius:"50%", background:`radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`, filter:"blur(40px)" }} />
-        <div style={{ position:"absolute", top:"60%", right:"10%", width:180, height:180, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`, filter:"blur(36px)" }} />
-        <div style={{ position:"absolute", bottom:"15%", left:"40%", width:140, height:140, borderRadius:"50%", background:`radial-gradient(circle, ${C.nPink}09 0%, transparent 70%)`, filter:"blur(30px)" }} />
+    <div
+      style={{
+        width: "100vw",
+        height: "100dvh",
+        overflowY: "auto",
+        overflowX: "hidden",
+        background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
+        position: "relative",
+      }}
+    >
+      {/* Ambient orbs */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        <div
+          style={{
+            position: "absolute",
+            top: "10%",
+            left: "15%",
+            width: 220,
+            height: 220,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`,
+            filter: "blur(40px)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: "60%",
+            right: "10%",
+            width: 180,
+            height: 180,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`,
+            filter: "blur(36px)",
+          }}
+        />
       </div>
 
-
-      {/* particle layer */}
-      <ParticleCanvas active={particleBurst} godMode={godMode} />
-
-      {/* screen pulse overlay (low time warning) */}
-      {screenPulse && (
-        <div style={{ position:"fixed", inset:0, zIndex:198, pointerEvents:"none",
-          boxShadow:`inset 0 0 60px ${C.nPink}55`, borderRadius:0, transition:"opacity 0.15s" }} />
-      )}
-
-      {/* main content (below ticker) */}
-      <div style={{ position:"relative", zIndex:1, paddingTop:34, minHeight:"calc(100dvh - 34px)",
-        display:"flex", flexDirection:"column" }}>
-
-        {screen === "name"        && <NameInput onSubmit={n=>{ setPlayerName(n); setScreen("home"); }} />}
-        {screen === "home"        && renderHome()}
-        {(screen==="playing" || screen==="revealing" || screen==="outcome") && renderPlaying()}
-        {screen === "verdict"     && renderVerdict()}
-        {screen === "leaderboard" && (
-          <div style={{ paddingTop:20 }}>
-            <Leaderboard onClose={()=>setScreen(round>=ROUNDS?"verdict":"home")} currentName={playerName} />
-          </div>
-        )}
+      {/* Main content */}
+      <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh" }}>
+        {screen === "home" && renderHome()}
+        {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
+          renderPlaying()}
+        {screen === "verdict" && renderVerdict()}
       </div>
-      
-      {/* Countdown overlay - appears above everything */}
+
+      {/* Countdown overlay */}
       {showCountdown && renderCountdown()}
+
+      {/* Animations */}
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        @keyframes ringPulse {
+          0% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1.15); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
