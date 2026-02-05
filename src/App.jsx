@@ -1517,7 +1517,7 @@ export default function App() {
         targetFps = isMobile ? 40 : 60;
       }
       
-      const minFrameTime = 1000 / targetFps;
+      const minFrameTime = 200 / targetFps;
 
       const render = (timestamp) => {
         // Throttle to target FPS
