@@ -1658,20 +1658,19 @@ export default function App() {
     setCountdownNum(3);
     sound.tick(3);
 
-    let count = 2;
-    const countInterval = setInterval(() => {
-      setCountdownNum(count);
-      sound.tick(count);
+    setTimeout(() => {
+      setCountdownNum(2);
+      sound.tick(2);
       
-      if (count === 1) {
-        clearInterval(countInterval);
+      setTimeout(() => {
+        setCountdownNum(1);
+        sound.tick(1);
+        
         setTimeout(() => {
           setShowCountdown(false);
           initializeRound(0);
-        }, 1000); // Wait 1 second after showing "1" before starting
-      }
-      
-      count--;
+        }, 1000);
+      }, 1000);
     }, 1000);
   }, [initializeRound]);
 
