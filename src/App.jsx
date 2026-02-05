@@ -776,220 +776,221 @@ class MarketStructureGenerator {
 
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   5. CHART RENDERER
+    /* ═══════════════════════════════════════════════════════════════
+      5. CHART RENDERER
 
-   Mobile-first, structure-preserving chart renderer
-   ═══════════════════════════════════════════════════════════════ */
+      Mobile-first, structure-preserving chart renderer – improved for mobile
+      ═══════════════════════════════════════════════════════════════ */
 
-class ChartRenderer {
-  constructor(canvas, config) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
-    this.config = config;
-  }
+    class ChartRenderer {
+      constructor(canvas, config) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext("2d");
+        this.config = config;
+      }
 
-  isMobile(width) {
-    return width < 520;
-  }
+      isMobile(width) {
+        return width < 520;
+      }
 
-  setDimensions(width) {
-    const dpr = window.devicePixelRatio || 1;
-    const mobile = this.isMobile(width);
+      setDimensions(width) {
+        const dpr = window.devicePixelRatio || 1;
+        const mobile = this.isMobile(width);
 
-    // 🔑 CRITICAL: taller canvas on mobile
-    const height = mobile
-      ? Math.floor(window.innerHeight * 0.65)
-      : 440;
+        // taller canvas on mobile
+        const height = mobile
+          ? Math.floor(window.innerHeight * 0.65)
+          : 440;
 
-    this.canvas.width = width * dpr;
-    this.canvas.height = height * dpr;
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+        this.canvas.style.width = `${width}px`;
+        this.canvas.style.height = `${height}px`;
 
-    this.ctx = this.canvas.getContext("2d");
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
+        this.ctx = this.canvas.getContext("2d");
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
 
-  renderAll(allCandles) {
-    const ctx = this.ctx;
-    const dpr = window.devicePixelRatio || 1;
-    const width = this.canvas.width / dpr;
-    const height = this.canvas.height / dpr;
+      renderAll(allCandles) {
+        const ctx = this.ctx;
+        const dpr = window.devicePixelRatio || 1;
+        const width = this.canvas.width / dpr;
+        const height = this.canvas.height / dpr;
 
-    ctx.clearRect(0, 0, width, height);
-    if (!allCandles || allCandles.length === 0) return;
+        ctx.clearRect(0, 0, width, height);
+        if (!allCandles || allCandles.length === 0) return;
 
-    /* ───────── PLATFORM LOGIC ───────── */
-    const mobile = this.isMobile(width);
-    const MAX_VISIBLE = mobile ? 36 : 48;
+        /* ───────── PLATFORM LOGIC ───────── */
+        const mobile = this.isMobile(width);
+        const MAX_VISIBLE = mobile ? 32 : 36;           // több gyertya mobilon
 
-    const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
-    const visible = allCandles.slice(startIdx);
+        const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
+        const visible = allCandles.slice(startIdx);
 
-    /* ───────── Y SCALE (STABLE, VISIBLE ONLY) ───────── */
-    let minPrice = Infinity;
-    let maxPrice = -Infinity;
+        /* ───────── Y SCALE (STABLE, VISIBLE ONLY) ───────── */
+        let minPrice = Infinity;
+        let maxPrice = -Infinity;
 
-    const SCALE_LOOKBACK = mobile ? 10 : 6;
-    const scaleSource = allCandles.slice(
-      Math.max(0, startIdx - SCALE_LOOKBACK),
-      startIdx + visible.length
-    );
+        const SCALE_LOOKBACK = mobile ? 16 : 6;         // hosszabb lookback → nyugodtabb skála mobilon
+        const scaleSource = allCandles.slice(
+          Math.max(0, startIdx - SCALE_LOOKBACK),
+          startIdx + visible.length
+        );
 
-    scaleSource.forEach(c => {
-      minPrice = Math.min(minPrice, c.low);
-      maxPrice = Math.max(maxPrice, c.high);
-    });
+        scaleSource.forEach(c => {
+          minPrice = Math.min(minPrice, c.low);
+          maxPrice = Math.max(maxPrice, c.high);
+        });
 
+        let range = maxPrice - minPrice || 1;
 
-    let range = maxPrice - minPrice || 1;
+        // prevent micro-compression on mobile
+        const MIN_RANGE = mobile ? 4 : 3;
+        if (range < MIN_RANGE) {
+          const pad = (MIN_RANGE - range) / 2;
+          minPrice -= pad;
+          maxPrice += pad;
+          range = maxPrice - minPrice;
+        }
 
-    // 🔑 prevent micro-compression on mobile
-    const MIN_RANGE = mobile ? 4 : 3;
-    if (range < MIN_RANGE) {
-      const pad = (MIN_RANGE - range) / 2;
-      minPrice -= pad;
-      maxPrice += pad;
-      range = maxPrice - minPrice;
+        const pad = mobile ? 0.08 : 0.06;
+        minPrice -= range * pad;
+        maxPrice += range * pad;
+
+        const toY = price =>
+          height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
+
+        /* ───────── LAYOUT ───────── */
+        const gap = mobile ? 2 : 2;                     // kisebb gap mobilon
+        const leftPadding  = mobile ? 16 : 30;
+        const rightPadding = mobile ? 80 : 30;          // hely a price pill-nek
+
+        const bodyWidth = mobile
+          ? Math.max(6, Math.floor((width - leftPadding - rightPadding) / MAX_VISIBLE) - gap)
+          : 8;
+
+        const slotWidth = bodyWidth + gap;
+
+        /* ───────── GRID ───────── */
+        ctx.strokeStyle = "rgba(255,255,255,0.04)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const y = 50 + (i / 4) * (height - 100);
+          ctx.beginPath();
+          ctx.moveTo(leftPadding, y);
+          ctx.lineTo(width - rightPadding + 10, y);
+          ctx.stroke();
+        }
+
+        /* ───────── PRICE LABELS ───────── */
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.font = mobile
+          ? "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          : "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+
+        for (let i = 0; i < 5; i++) {
+          const price = minPrice + (i / 4) * (maxPrice - minPrice);
+          ctx.fillText(price.toFixed(0), width - rightPadding + 10, toY(price));
+        }
+
+        /* ───────── LAST PRICE PILL ───────── */
+        const last = visible.at(-1);
+        if (last) {
+          const y = toY(last.close);
+          const col = last.close >= last.open ? C.bull : C.bear;
+
+          const w = mobile ? 64 : 62;                   // kicsit kisebb mobilon
+          const h = mobile ? 30 : 28;
+
+          ctx.save();
+          ctx.fillStyle = "rgba(10,10,18,0.95)";
+          ctx.beginPath();
+          ctx.roundRect(width - w - 8, y - h / 2, w, h, 14);
+          ctx.fill();
+
+          ctx.strokeStyle = col + "30";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.fillStyle = col;
+          ctx.font = mobile
+            ? "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+            : "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+          ctx.fillText(last.close.toFixed(2), width - 18, y + 5);
+          ctx.restore();
+        }
+
+        /* ───────── CANDLES ───────── */
+        visible.forEach((c, i) => {
+          const x = leftPadding + i * slotWidth + gap / 2;
+          const bull = c.close >= c.open;
+          const col = bull ? C.bull : C.bear;
+
+          ctx.save();
+
+          // Wick
+          ctx.strokeStyle = col;
+          ctx.lineWidth = mobile ? 1.8 : 1.5;           // vékonyabb wick mobilon
+          ctx.beginPath();
+          ctx.moveTo(x + bodyWidth / 2, toY(c.high));
+          ctx.lineTo(x + bodyWidth / 2, toY(c.low));
+          ctx.stroke();
+
+          // Body
+          const top = toY(Math.max(c.open, c.close));
+          const bot = toY(Math.min(c.open, c.close));
+          const h = Math.max(bot - top, mobile ? 4 : 2);
+
+          const grad = ctx.createLinearGradient(x, top, x, top + h);
+          grad.addColorStop(0, col + "f0");
+          grad.addColorStop(1, col + "b8");
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.roundRect(x, top, bodyWidth, h, mobile ? 2 : 1.5);
+          ctx.fill();
+
+          ctx.strokeStyle = col;
+          ctx.lineWidth = mobile ? 1.5 : 1;             // vékonyabb body outline mobilon
+          ctx.stroke();
+
+          ctx.restore();
+        });
+
+        /* ───────── AMBIENT LIGHT ───────── */
+        const glow = ctx.createRadialGradient(
+          width * 0.5, height * 0.3, 0,
+          width * 0.5, height * 0.3, width * 0.6
+        );
+        glow.addColorStop(0, "rgba(0,255,170,0.02)");
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        /* ───────── DEBUG INFO ───────── */
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = "#fff";
+        ctx.font = "10px monospace";
+        ctx.fillText(
+          `${visible.length}/${allCandles.length} candles`,
+          10,
+          height - 10
+        );
+        ctx.globalAlpha = 1;
+      }
+
+      // Backward compatibility
+      render(allCandles, windowStart, windowSize) {
+        this.renderAll(allCandles.slice(windowStart, windowStart + windowSize));
+      }
+
+      renderContinuation(allCandles, windowStart, windowSize, continuation, progress) {
+        const count = Math.floor(progress * continuation.length);
+        this.renderAll([...allCandles, ...continuation.slice(0, count)]);
+      }
     }
-
-    const pad = mobile ? 0.08 : 0.06;
-    minPrice -= range * pad;
-    maxPrice += range * pad;
-
-
-    const toY = price =>
-      height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
-
-    /* ───────── LAYOUT ───────── */
-    const gap = mobile ? 4 : 2;
-    const bodyWidth = mobile
-      ? Math.max(10, Math.floor((width - 60) / MAX_VISIBLE) - gap)
-      : 8;
-
-    const slotWidth = bodyWidth + gap;
-
-    /* ───────── GRID ───────── */
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
-      const y = 50 + (i / 4) * (height - 100);
-      ctx.beginPath();
-      ctx.moveTo(30, y);
-      ctx.lineTo(width - 30, y);
-      ctx.stroke();
-    }
-
-    /* ───────── PRICE LABELS ───────── */
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.font = mobile
-      ? "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-      : "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-
-    for (let i = 0; i < 5; i++) {
-      const price = minPrice + (i / 4) * (maxPrice - minPrice);
-      ctx.fillText(price.toFixed(0), width - 8, toY(price));
-    }
-
-    /* ───────── LAST PRICE PILL ───────── */
-    const last = visible.at(-1);
-    if (last) {
-      const y = toY(last.close);
-      const col = last.close >= last.open ? C.bull : C.bear;
-
-      const w = mobile ? 70 : 62;
-      const h = mobile ? 32 : 28;
-
-      ctx.save();
-      ctx.fillStyle = "rgba(10,10,18,0.95)";
-      ctx.beginPath();
-      ctx.roundRect(width - w - 8, y - h / 2, w, h, 14);
-      ctx.fill();
-
-      ctx.strokeStyle = col + "30";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.fillStyle = col;
-      ctx.font = mobile
-        ? "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        : "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-      ctx.fillText(last.close.toFixed(2), width - 18, y + 5);
-      ctx.restore();
-    }
-
-    /* ───────── CANDLES ───────── */
-    visible.forEach((c, i) => {
-      const x = 30 + i * slotWidth + gap / 2;
-      const bull = c.close >= c.open;
-      const col = bull ? C.bull : C.bear;
-
-      ctx.save();
-
-      // Wick
-      ctx.strokeStyle = col;
-      ctx.lineWidth = mobile ? 2.5 : 1.5;
-      ctx.beginPath();
-      ctx.moveTo(x + bodyWidth / 2, toY(c.high));
-      ctx.lineTo(x + bodyWidth / 2, toY(c.low));
-      ctx.stroke();
-
-      // Body
-      const top = toY(Math.max(c.open, c.close));
-      const bot = toY(Math.min(c.open, c.close));
-      const h = Math.max(bot - top, mobile ? 4 : 2);
-
-      const grad = ctx.createLinearGradient(x, top, x, top + h);
-      grad.addColorStop(0, col + "f0");
-      grad.addColorStop(1, col + "b8");
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.roundRect(x, top, bodyWidth, h, mobile ? 2 : 1.5);
-      ctx.fill();
-
-      ctx.strokeStyle = col;
-      ctx.lineWidth = mobile ? 2 : 1;
-      ctx.stroke();
-
-      ctx.restore();
-    });
-
-    /* ───────── AMBIENT LIGHT ───────── */
-    const glow = ctx.createRadialGradient(
-      width * 0.5, height * 0.3, 0,
-      width * 0.5, height * 0.3, width * 0.6
-    );
-    glow.addColorStop(0, "rgba(0,255,170,0.02)");
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, width, height);
-
-    /* ───────── DEBUG INFO ───────── */
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = "#fff";
-    ctx.font = "10px monospace";
-    ctx.fillText(
-      `${visible.length}/${allCandles.length} candles`,
-      10,
-      height - 10
-    );
-    ctx.globalAlpha = 1;
-  }
-
-  // Backward compatibility
-  render(allCandles, windowStart, windowSize) {
-    this.renderAll(allCandles.slice(windowStart, windowStart + windowSize));
-  }
-
-  renderContinuation(allCandles, windowStart, windowSize, continuation, progress) {
-    const count = Math.floor(progress * continuation.length);
-    this.renderAll([...allCandles, ...continuation.slice(0, count)]);
-  }
-}
 
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
