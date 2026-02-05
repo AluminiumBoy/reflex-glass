@@ -326,7 +326,7 @@ class MarketStructureGenerator {
 
   _buildContext(setupType, contextSize) {
     const candles = [];
-    let price = 10000 + this.rng() * 5000;
+    let price = 1000 + this.rng() * 500;
 
     // Determine context regime based on setup type
     let regime, bias;
@@ -777,9 +777,10 @@ class MarketStructureGenerator {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    5  CHART RENDERER
-    
-    Handles windowed view, auto-scaling, and smooth scrolling
+   5. CHART RENDERER
+
+   Handles windowed view, auto-scaling, and smooth scrolling
+   Mobile-safe, structure-preserving version
    ═══════════════════════════════════════════════════════════════ */
 
 class ChartRenderer {
@@ -787,8 +788,10 @@ class ChartRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.config = config;
-    this.windowStart = 0;
-    this.animationProgress = 0;
+  }
+
+  isMobile(width) {
+    return width < 520;
   }
 
   setDimensions(width, height) {
@@ -797,53 +800,51 @@ class ChartRenderer {
     this.canvas.height = height * dpr;
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
-    // Reset context and scale
     this.ctx = this.canvas.getContext("2d");
-    this.ctx.scale(dpr, dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  // Render all candles with PREMIUM MODERN STYLE (no windowing, scrolling animation)
-  renderAll(allCandles, scrollOffset = 0) {
-    const canvas = this.canvas;
+  renderAll(allCandles) {
     const ctx = this.ctx;
-    const width = canvas.width / (window.devicePixelRatio || 1);
-    const height = canvas.height / (window.devicePixelRatio || 1);
+    const dpr = window.devicePixelRatio || 1;
+    const width = this.canvas.width / dpr;
+    const height = this.canvas.height / dpr;
 
     ctx.clearRect(0, 0, width, height);
+    if (!allCandles || allCandles.length === 0) return;
 
-    if (allCandles.length === 0) return;
+    /* ───────── PLATFORM / WINDOW LOGIC ───────── */
+    const mobile = this.isMobile(width);
+    const MAX_VISIBLE = mobile ? 14 : 32;
 
-    // Auto-scale Y-axis to ALL candles
+    const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
+    const visibleCandles = allCandles.slice(startIdx);
+
+    /* ───────── Y SCALE (VISIBLE ONLY) ───────── */
     let minPrice = Infinity;
     let maxPrice = -Infinity;
-    allCandles.forEach((c) => {
+
+    visibleCandles.forEach(c => {
       minPrice = Math.min(minPrice, c.low);
       maxPrice = Math.max(maxPrice, c.high);
     });
 
-    const priceRange = maxPrice - minPrice;
-    const padding = priceRange * 0.12;
-    minPrice -= padding;
-    maxPrice += padding;
+    const range = maxPrice - minPrice || 1;
+    minPrice -= range * 0.15;
+    maxPrice += range * 0.15;
 
-    // Helper to convert price to Y coordinate
-    const toY = (price) => {
-      return height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
-    };
+    const toY = price =>
+      height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
 
-    // Calculate candle layout with MOBILE-RESPONSIVE sizing
-    const isMobile = width < 500;
-    const gap = isMobile ? 4 : 2; // More space on mobile
-    const targetBodyWidth = isMobile ? 16 : 8; // DOUBLE WIDTH on mobile! (16px vs 8px)
-    const slotWidth = targetBodyWidth + gap;
-    const totalWidth = allCandles.length * slotWidth;
-    
-    // Scrolling: show last N candles, earlier ones scroll left
-    const visibleWidth = width - 60;
-    const maxVisible = Math.floor(visibleWidth / slotWidth);
-    const startIdx = Math.max(0, allCandles.length - maxVisible);
-    
-    // Grid lines - subtle
+    /* ───────── LAYOUT ───────── */
+    const gap = mobile ? 4 : 2;
+    const bodyWidth = mobile
+      ? Math.max(10, Math.floor((width - 60) / MAX_VISIBLE) - gap)
+      : 8;
+
+    const slotWidth = bodyWidth + gap;
+
+    /* ───────── GRID ───────── */
     ctx.strokeStyle = "rgba(255,255,255,0.04)";
     ctx.lineWidth = 1;
     for (let i = 0; i < 5; i++) {
@@ -854,139 +855,113 @@ class ChartRenderer {
       ctx.stroke();
     }
 
-    // Price labels (right side) - responsive font size
+    /* ───────── PRICE LABELS ───────── */
     ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.font = isMobile ? "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" : "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.font = mobile
+      ? "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+      : "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
+
     for (let i = 0; i < 5; i++) {
       const price = minPrice + (i / 4) * (maxPrice - minPrice);
-      const y = toY(price);
-      ctx.fillText(price.toFixed(0), width - 8, y);
+      ctx.fillText(price.toFixed(0), width - 8, toY(price));
     }
 
-    // Last price label - premium pill (bigger on mobile)
-    if (allCandles.length > 0) {
-      const lastCandle = allCandles[allCandles.length - 1];
-      const lblY = toY(lastCandle.close);
-      const lblColor = lastCandle.close >= lastCandle.open ? C.bull : C.bear;
-      
+    /* ───────── LAST PRICE PILL ───────── */
+    const last = visibleCandles.at(-1);
+    if (last) {
+      const y = toY(last.close);
+      const col = last.close >= last.open ? C.bull : C.bear;
+
+      const w = mobile ? 70 : 62;
+      const h = mobile ? 32 : 28;
+
       ctx.save();
-      
-      // Clean pill background (larger on mobile)
-      const lblW = isMobile ? 70 : 62;
-      const lblH = isMobile ? 32 : 28;
       ctx.fillStyle = "rgba(10,10,18,0.95)";
       ctx.beginPath();
-      ctx.roundRect(width - lblW - 8, lblY - lblH/2, lblW, lblH, 14);
+      ctx.roundRect(width - w - 8, y - h / 2, w, h, 14);
       ctx.fill();
-      
-      // Subtle border
-      ctx.strokeStyle = lblColor + "30";
+
+      ctx.strokeStyle = col + "30";
       ctx.lineWidth = 1;
       ctx.stroke();
-      
-      // Clean price text (bigger font on mobile)
-      ctx.fillStyle = lblColor;
-      ctx.font = isMobile ? "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" : "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText(lastCandle.close.toFixed(2), width - (isMobile ? 20 : 18), lblY + 5);
-      
+
+      ctx.fillStyle = col;
+      ctx.font = mobile
+        ? "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        : "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      ctx.fillText(last.close.toFixed(2), width - 18, y + 5);
       ctx.restore();
     }
 
-    // ULTRA-CLEAN MODERN CANDLES
-    allCandles.forEach((candle, i) => {
-      // Scrolling position calculation
-      const localIdx = i - startIdx;
-      if (localIdx < 0) return; // Off screen left
-      
-      const x = 30 + localIdx * slotWidth + gap/2;
-      const isBull = candle.close >= candle.open;
-      const bodyColor = isBull ? C.bull : C.bear;
-      
-      const currentBodyW = targetBodyWidth - gap;
-      const isRecent = i >= allCandles.length - 5;
+    /* ───────── CANDLES ───────── */
+    visibleCandles.forEach((c, i) => {
+      const x = 30 + i * slotWidth + gap / 2;
+      const bull = c.close >= c.open;
+      const col = bull ? C.bull : C.bear;
 
       ctx.save();
 
-      // THICK VISIBLE WICK on mobile
-      const wickTop = toY(candle.high);
-      const wickBot = toY(candle.low);
-      
-      ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = isMobile ? 3 : 1.5; // SUPER thick wick on mobile (3px!)
+      // Wick
+      ctx.strokeStyle = col;
+      ctx.lineWidth = mobile ? 2.5 : 1.5;
       ctx.beginPath();
-      ctx.moveTo(x + currentBodyW/2, wickTop);
-      ctx.lineTo(x + currentBodyW/2, wickBot);
+      ctx.moveTo(x + bodyWidth / 2, toY(c.high));
+      ctx.lineTo(x + bodyWidth / 2, toY(c.low));
       ctx.stroke();
 
-      // CLEAN MODERN BODY
-      const bodyTop = toY(Math.max(candle.open, candle.close));
-      const bodyBottom = toY(Math.min(candle.open, candle.close));
-      const bodyHeight = Math.max(bodyBottom - bodyTop, isMobile ? 4 : 2); // Taller minimum on mobile
+      // Body
+      const top = toY(Math.max(c.open, c.close));
+      const bot = toY(Math.min(c.open, c.close));
+      const h = Math.max(bot - top, mobile ? 4 : 2);
 
-      // Solid fill with subtle gradient
-      const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
-      bodyGrad.addColorStop(0, bodyColor + "f0");
-      bodyGrad.addColorStop(1, bodyColor + "b8");
-      ctx.fillStyle = bodyGrad;
-      
-      // Rounded corners for modern look
+      const grad = ctx.createLinearGradient(x, top, x, top + h);
+      grad.addColorStop(0, col + "f0");
+      grad.addColorStop(1, col + "b8");
+
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, isMobile ? 2 : 1.5);
+      ctx.roundRect(x, top, bodyWidth, h, mobile ? 2 : 1.5);
       ctx.fill();
 
-      // Clean border - thicker on mobile
-      ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = isMobile ? 2 : 1; // DOUBLE thickness on mobile
+      ctx.strokeStyle = col;
+      ctx.lineWidth = mobile ? 2 : 1;
       ctx.stroke();
-      
-      // Subtle highlight on top edge
-      if (currentBodyW > 8) { // Only show if candle is wide enough (always on mobile)
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
-        const highlightPadding = isMobile ? 3 : 2;
-        ctx.fillRect(x + highlightPadding, bodyTop + 1, currentBodyW - highlightPadding * 2, isMobile ? 2 : 1);
-      }
-
-      // Premium glow on recent candles
-      if (isRecent) {
-        ctx.shadowColor = bodyColor;
-        ctx.shadowBlur = isMobile ? 14 : 12;
-        ctx.strokeStyle = bodyColor + "80";
-        ctx.lineWidth = isMobile ? 1.5 : 1;
-        ctx.stroke();
-      }
 
       ctx.restore();
     });
 
-    // Subtle ambient lighting
-    const ambientLight = ctx.createRadialGradient(width*0.5, height*0.3, 0, width*0.5, height*0.3, width*0.6);
-    ambientLight.addColorStop(0, "rgba(0,255,170,0.02)");
-    ambientLight.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = ambientLight;
+    /* ───────── AMBIENT ───────── */
+    const glow = ctx.createRadialGradient(
+      width * 0.5, height * 0.3, 0,
+      width * 0.5, height * 0.3, width * 0.6
+    );
+    glow.addColorStop(0, "rgba(0,255,170,0.02)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
     ctx.fillRect(0, 0, width, height);
 
-    // Candle count label (bottom left)
+    /* ───────── DEBUG INFO ───────── */
     ctx.globalAlpha = 0.3;
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillStyle = "#fff";
     ctx.font = "10px monospace";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(`${allCandles.length} candles`, 10, height - 10);
+    ctx.fillText(
+      `${visibleCandles.length}/${allCandles.length} candles`,
+      10,
+      height - 10
+    );
     ctx.globalAlpha = 1;
   }
 
-  // Render candles with windowed view (DEPRECATED - keeping for compatibility)
-  render(allCandles, windowStart, windowSize, isAnimating = false) {
+  // Backward compatibility
+  render(allCandles, windowStart, windowSize) {
     this.renderAll(allCandles.slice(windowStart, windowStart + windowSize));
   }
 
-  // Animate continuation reveal (DEPRECATED - now using renderAll)
-  renderContinuation(allCandles, windowStart, windowSize, continuationCandles, progress) {
-    const totalCandles = [...allCandles, ...continuationCandles.slice(0, Math.floor(progress * continuationCandles.length))];
-    this.renderAll(totalCandles);
+  renderContinuation(allCandles, windowStart, windowSize, continuation, progress) {
+    const count = Math.floor(progress * continuation.length);
+    this.renderAll([...allCandles, ...continuation.slice(0, count)]);
   }
 }
 
