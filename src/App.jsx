@@ -1477,7 +1477,7 @@ export default function App() {
 
       // Throttled render függvény létrehozása (csak egyszer fusson le)
       const isMobile = window.innerWidth < 520;
-      const throttleDelay = isMobile ? 120 : 60;  // mobilon kb. 8 fps, asztali kb. 16 fps
+      const throttleDelay = isMobile ? 300 : 80;  // mobilon kb. 8 fps, asztali kb. 16 fps
 
       const throttledRender = throttle((candles) => {
         if (rendererRef.current) {
