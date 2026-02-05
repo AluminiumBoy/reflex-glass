@@ -536,624 +536,385 @@ const SND = new SoundEngine();
 
 
 /* ═══════════════════════════════════════════════════════════════
-    4  REALISTIC PATTERN LIBRARY - 3 PHASE STRUCTURE
-      Each pattern returns:
-        { 
-          context: OHLC[25-35],      // Market context before pattern
-          setup: OHLC[18-25],        // The actual pattern to recognize  
-          continuation: OHLC[15-25], // What happens after decision
-          signal: 'buy'|'sell'|'hold', 
-          name: string, 
-          cat: string,
-          difficulty: 1-5,           // Pattern clarity
-          trap: boolean              // Is this a fake/failed pattern?
-        }
+    4  PROCEDURAL CHART PATTERN LIBRARY  (40+ patterns)
+      Each factory returns:
+        { candles: OHLC[22], continuation: OHLC[10],
+          signal: 'buy'|'sell'|'hold', name: string, cat: string }
    ═══════════════════════════════════════════════════════════════ */
 
-// ── MICRO-HELPERS ────────────────────────────────────────────
-const R  = (a,b) => a + Math.random()*(b-a);          
-const RI = (a,b) => Math.floor(R(a, b+1));            
-const CL = (v,a,b) => Math.max(a, Math.min(b, v));   
+// ── micro-helpers ────────────────────────────────────────────
+const R  = (a,b) => a + Math.random()*(b-a);          // random float [a,b)
+const RI = (a,b) => Math.floor(R(a, b+1));            // random int   [a,b]
+const CL = (v,a,b) => Math.max(a, Math.min(b, v));   // clamp
 
+// Build one OHLC candle.  wU / wD = extra wick beyond body.
 function K(o, c, wU=0, wD=0) {
   return { o:+o.toFixed(2), c:+c.toFixed(2),
            h:+(Math.max(o,c)+Math.abs(wU)).toFixed(2),
            l:+(Math.min(o,c)-Math.abs(wD)).toFixed(2) };
 }
 
-// Trend: upward or downward movement
-function TREND(start, bars, slope, vol=2) {
-  const candles = []; 
-  let p = start;
-  for(let i=0; i<bars; i++) {
-    const o = p;
-    p += slope + R(-vol, vol);
-    candles.push(K(o, p, R(0, vol*0.5), R(0, vol*0.5)));
+// Trending run: n candles from `start`, per-bar drift `slope ± vol`
+function TR(start, n, slope, vol=2) {
+  const a=[]; let p=start;
+  for(let i=0;i<n;i++){
+    const o=p; p+=slope+R(-vol,vol);
+    a.push(K(o, p, R(0,vol*.45), R(0,vol*.45)));
   }
-  return candles;
+  return a;
 }
 
-// Range: sideways consolidation
-function RANGE(center, bars, width=4) {
-  const candles = []; 
-  let p = center;
-  for(let i=0; i<bars; i++) {
-    const o = p + R(-width*0.3, width*0.3);
-    const c = o + R(-width*0.4, width*0.4);
-    p = c;
-    candles.push(K(o, c, R(0.2, width*0.3), R(0.2, width*0.3)));
+// Consolidation block around `base`
+function CO(base, n, rng=4) {
+  const a=[]; let p=base;
+  for(let i=0;i<n;i++){
+    const o=p+R(-rng*.25,rng*.25), c=o+R(-rng*.35,rng*.35);
+    p=c; a.push(K(o,c,R(.3,rng*.3),R(.3,rng*.3)));
   }
-  return candles;
+  return a;
 }
 
-// Compression: tightening range
-function COMPRESSION(start, bars, initialWidth, finalWidth) {
-  const candles = [];
-  let p = start;
-  for(let i=0; i<bars; i++) {
-    const pct = i / (bars - 1);
-    const width = initialWidth + (finalWidth - initialWidth) * pct;
-    const o = p + R(-width*0.3, width*0.3);
-    const c = o + R(-width*0.4, width*0.4);
-    p = c;
-    candles.push(K(o, c, R(0.1, width*0.25), R(0.1, width*0.25)));
-  }
-  return candles;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PATTERN FACTORIES - REALISTIC 3-PHASE STRUCTURE
-// ═══════════════════════════════════════════════════════════════
-
-// ── CLEAN BULLISH PATTERNS ──────────────────────────────────
-
-function bullFlag_clean() {
-  const context = [
-    ...RANGE(100, 12, 3),
-    ...TREND(100, 8, 3.5, 1.2)  // Strong uptrend
-  ];
-  const poleTop = context[context.length-1].c;
-  
-  const setup = TREND(poleTop, 20, -0.3, 0.8);  // Tight pullback
-  const setupEnd = setup[setup.length-1].c;
-  
-  const continuation = TREND(setupEnd, 20, 3.2, 1.5);  // Breakout up
-  
-  return { 
-    context, setup, continuation,
-    signal: 'buy', 
-    name: 'Bull Flag',
-    cat: 'Continuation',
-    difficulty: 1,
-    trap: false
-  };
-}
-
-function ascTriangle_clean() {
-  const resistance = 110;
-  const context = [
-    ...TREND(95, 15, 0.8, 1.5),  // Mild uptrend
-    ...RANGE(105, 12, 4)
-  ];
-  
-  let support = 102;
-  const setup = [];
-  for(let i=0; i<20; i++) {
-    support += 0.35;  // Rising lows
-    const mid = support + (resistance - support) * R(0.3, 0.8);
-    const wickUp = Math.max(0, resistance - mid - R(0, 1.5));
-    setup.push(K(mid + R(-0.8, 0.8), mid + R(-0.8, 0.8), wickUp, R(0.2, 1)));
-  }
-  
-  const continuation = TREND(resistance + 1, 18, 2.8, 1.4);
-  
-  return {
-    context, setup, continuation,
-    signal: 'buy',
-    name: 'Ascending Triangle',
-    cat: 'Continuation',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-function cupHandle_clean() {
-  const rim = 108;
-  const context = [
-    ...TREND(100, 10, 0.6, 1.2),
-    ...TREND(106, 8, 0.2, 0.8)
-  ];
-  
-  // Cup formation
-  const cupDepth = 8;
-  const cup = [];
-  for(let i=0; i<15; i++) {
-    const angle = (i / 14) * Math.PI;
-    const depth = cupDepth * Math.sin(angle);
-    const price = rim - depth;
-    cup.push(K(price + R(-0.6, 0.6), price + R(-0.6, 0.6), R(0.3, 1), R(0.3, 1)));
-  }
-  
-  // Handle pullback
-  const handle = TREND(rim - 1, 8, -0.25, 0.6);
-  
-  const setup = [...cup, ...handle];
-  const continuation = TREND(rim + 0.5, 18, 2.5, 1.3);
-  
-  return {
-    context, setup, continuation,
-    signal: 'buy',
-    name: 'Cup & Handle',
-    cat: 'Reversal',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-// ── CLEAN BEARISH PATTERNS ──────────────────────────────────
-
-function bearFlag_clean() {
-  const context = [
-    ...RANGE(110, 12, 3),
-    ...TREND(110, 8, -3.5, 1.2)  // Strong downtrend
-  ];
-  const poleBot = context[context.length-1].c;
-  
-  const setup = TREND(poleBot, 20, 0.3, 0.8);  // Tight bounce
-  const setupEnd = setup[setup.length-1].c;
-  
-  const continuation = TREND(setupEnd, 20, -3.2, 1.5);  // Breakdown
-  
-  return {
-    context, setup, continuation,
-    signal: 'sell',
-    name: 'Bear Flag',
-    cat: 'Continuation',
-    difficulty: 1,
-    trap: false
-  };
-}
-
-function descTriangle_clean() {
-  const support = 100;
-  const context = [
-    ...TREND(115, 15, -0.8, 1.5),
-    ...RANGE(105, 12, 4)
-  ];
-  
-  let resistance = 108;
-  const setup = [];
-  for(let i=0; i<20; i++) {
-    resistance -= 0.35;  // Falling highs
-    const mid = support + (resistance - support) * R(0.3, 0.8);
-    const wickDown = Math.max(0, mid - support - R(0, 1.5));
-    setup.push(K(mid + R(-0.8, 0.8), mid + R(-0.8, 0.8), R(0.2, 1), wickDown));
-  }
-  
-  const continuation = TREND(support - 1, 18, -2.8, 1.4);
-  
-  return {
-    context, setup, continuation,
-    signal: 'sell',
-    name: 'Descending Triangle',
-    cat: 'Continuation',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-function headShoulders_clean() {
-  const neckline = 100;
-  const context = TREND(95, 25, 0.4, 1.2);
-  
-  const setup = [];
-  // Left shoulder
-  setup.push(...TREND(100, 4, 1.5, 0.8));
-  setup.push(...TREND(106, 4, -1.5, 0.8));
-  // Head
-  setup.push(...TREND(103, 5, 2.2, 1));
-  setup.push(...TREND(111, 5, -2.2, 1));
-  // Right shoulder
-  setup.push(...TREND(101, 4, 1.4, 0.8));
-  setup.push(...TREND(106, 4, -1.4, 0.8));
-  
-  const continuation = TREND(neckline - 1, 20, -2.5, 1.5);
-  
-  return {
-    context, setup, continuation,
-    signal: 'sell',
-    name: 'Head & Shoulders',
-    cat: 'Reversal',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-// ── TRAP/FAILED PATTERNS ────────────────────────────────────
-
-function bullFlag_trap() {
-  const context = [
-    ...RANGE(100, 12, 3),
-    ...TREND(100, 8, 3.5, 1.2)
-  ];
-  const poleTop = context[context.length-1].c;
-  
-  const setup = TREND(poleTop, 20, -0.3, 0.8);
-  const setupEnd = setup[setup.length-1].c;
-  
-  // FAILS: breaks down instead
-  const continuation = TREND(setupEnd, 20, -2.5, 1.5);
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',  // Should NOT buy - it's a trap!
-    name: 'Failed Bull Flag',
-    cat: 'Trap',
-    difficulty: 3,
-    trap: true
-  };
-}
-
-function fakeBreakout_bull() {
-  const resistance = 110;
-  const context = [
-    ...TREND(95, 15, 0.8, 1.5),
-    ...RANGE(105, 15, 4)
-  ];
-  
-  const setup = [];
-  // Looks like it's breaking up
-  setup.push(...TREND(108, 8, 1.2, 1));
-  setup.push(K(resistance + 0.5, resistance + 1.2, 0.3, 0.2));  // Fake breakout
-  setup.push(K(resistance + 0.8, resistance - 0.5, 0.2, 0.4));  // Rejection
-  setup.push(...RANGE(resistance - 2, 8, 2));
-  
-  const continuation = TREND(105, 18, -2.2, 1.5);  // Falls back
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',
-    name: 'False Breakout',
-    cat: 'Trap',
-    difficulty: 4,
-    trap: true
-  };
-}
-
-function weakFollowthrough_bull() {
-  const context = [
-    ...RANGE(100, 15, 3),
-    ...TREND(100, 10, 2.5, 1.2)
-  ];
-  
-  const setup = TREND(108, 20, -0.25, 0.7);
-  const setupEnd = setup[setup.length-1].c;
-  
-  // Breaks up but weak - chop instead of rally
-  const continuation = RANGE(setupEnd + 2, 20, 3);
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',  // Not strong enough
-    name: 'Weak Breakout',
-    cat: 'Trap',
-    difficulty: 3,
-    trap: true
-  };
-}
-
-// ── AMBIGUOUS / HOLD PATTERNS ───────────────────────────────
-
-function range_consolidation() {
-  const context = TREND(95, 25, 0.3, 1.5);
-  const setup = RANGE(105, 22, 5);
-  const continuation = RANGE(105, 20, 5);  // Stays in range
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',
-    name: 'Consolidation Range',
-    cat: 'Neutral',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-function choppy_mess() {
-  const context = RANGE(100, 20, 4);
-  
-  const setup = [];
-  let p = 102;
-  for(let i=0; i<20; i++) {
-    p += R(-2, 2);
-    setup.push(K(p + R(-1.5, 1.5), p + R(-1.5, 1.5), R(0.5, 2), R(0.5, 2)));
-  }
-  
-  const continuation = [];
-  for(let i=0; i<18; i++) {
-    p += R(-2, 2);
-    continuation.push(K(p + R(-1.5, 1.5), p + R(-1.5, 1.5), R(0.5, 2), R(0.5, 2)));
-  }
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',
-    name: 'Choppy Market',
-    cat: 'Neutral',
-    difficulty: 1,
-    trap: false
-  };
-}
-
-// ── MORE BULLISH PATTERNS ───────────────────────────────────
-
-function doubleBottom_clean() {
-  const support = 98;
-  const context = TREND(105, 20, -0.3, 1.2);
-  
-  const setup = [];
-  // First bottom
-  setup.push(...TREND(102, 5, -0.8, 0.6));
-  setup.push(K(support + 0.2, support, 0.3, 0.8));
-  setup.push(...TREND(support, 4, 1.2, 0.8));
-  // Rally
-  setup.push(...TREND(103, 4, 0.3, 0.8));
-  // Second bottom
-  setup.push(...TREND(105, 5, -1, 0.6));
-  setup.push(K(support + 0.3, support + 0.1, 0.2, 0.7));
-  setup.push(...TREND(support + 0.5, 4, 1.5, 0.9));
-  
-  const continuation = TREND(104, 18, 2.5, 1.4);
-  
-  return {
-    context, setup, continuation,
-    signal: 'buy',
-    name: 'Double Bottom',
-    cat: 'Reversal',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-function breakoutRetest_bull() {
-  const resistance = 108;
-  const context = [
-    ...TREND(95, 12, 0.5, 1.2),
-    ...RANGE(105, 15, 3.5)
-  ];
-  
-  const setup = [];
-  // Breakout
-  setup.push(...TREND(resistance - 1, 5, 1.4, 0.8));
-  setup.push(K(resistance + 0.5, resistance + 1.5, 0.4, 0.2));
-  // Pullback to retest
-  setup.push(...TREND(resistance + 1.5, 8, -0.5, 0.7));
-  setup.push(K(resistance + 0.2, resistance + 0.5, 0.3, 0.8));
-  // Bounce
-  setup.push(...TREND(resistance + 0.6, 5, 0.8, 0.6));
-  
-  const continuation = TREND(resistance + 3, 18, 2.2, 1.3);
-  
-  return {
-    context, setup, continuation,
-    signal: 'buy',
-    name: 'Breakout Retest',
-    cat: 'Continuation',
-    difficulty: 3,
-    trap: false
-  };
-}
-
-function inversHeadShoulders() {
-  const neckline = 108;
-  const context = TREND(115, 25, -0.4, 1.2);
-  
-  const setup = [];
-  // Left shoulder
-  setup.push(...TREND(108, 4, -1.5, 0.8));
-  setup.push(...TREND(102, 4, 1.5, 0.8));
-  // Head
-  setup.push(...TREND(105, 5, -2.2, 1));
-  setup.push(...TREND(97, 5, 2.2, 1));
-  // Right shoulder
-  setup.push(...TREND(107, 4, -1.4, 0.8));
-  setup.push(...TREND(102, 4, 1.4, 0.8));
-  
-  const continuation = TREND(neckline + 1, 20, 2.5, 1.5);
-  
-  return {
-    context, setup, continuation,
-    signal: 'buy',
-    name: 'Inverse Head & Shoulders',
-    cat: 'Reversal',
-    difficulty: 3,
-    trap: false
-  };
-}
-
-// ── MORE BEARISH PATTERNS ────────────────────────────────────
-
-function doubleTop_clean() {
-  const resistance = 112;
-  const context = TREND(105, 20, 0.3, 1.2);
-  
-  const setup = [];
-  // First top
-  setup.push(...TREND(108, 5, 0.8, 0.6));
-  setup.push(K(resistance - 0.2, resistance, 0.8, 0.3));
-  setup.push(...TREND(resistance, 4, -1.2, 0.8));
-  // Dip
-  setup.push(...TREND(107, 4, -0.3, 0.8));
-  // Second top
-  setup.push(...TREND(105, 5, 1, 0.6));
-  setup.push(K(resistance - 0.3, resistance - 0.1, 0.7, 0.2));
-  setup.push(...TREND(resistance - 0.5, 4, -1.5, 0.9));
-  
-  const continuation = TREND(106, 18, -2.5, 1.4);
-  
-  return {
-    context, setup, continuation,
-    signal: 'sell',
-    name: 'Double Top',
-    cat: 'Reversal',
-    difficulty: 2,
-    trap: false
-  };
-}
-
-function breakdownRetest_bear() {
-  const support = 102;
-  const context = [
-    ...TREND(115, 12, -0.5, 1.2),
-    ...RANGE(105, 15, 3.5)
-  ];
-  
-  const setup = [];
-  // Breakdown
-  setup.push(...TREND(support + 1, 5, -1.4, 0.8));
-  setup.push(K(support - 0.5, support - 1.5, 0.2, 0.4));
-  // Rally to retest
-  setup.push(...TREND(support - 1.5, 8, 0.5, 0.7));
-  setup.push(K(support - 0.2, support - 0.5, 0.8, 0.3));
-  // Rejection
-  setup.push(...TREND(support - 0.6, 5, -0.8, 0.6));
-  
-  const continuation = TREND(support - 3, 18, -2.2, 1.3);
-  
-  return {
-    context, setup, continuation,
-    signal: 'sell',
-    name: 'Breakdown Retest',
-    cat: 'Continuation',
-    difficulty: 3,
-    trap: false
-  };
-}
-
-// ── MORE TRAP PATTERNS ───────────────────────────────────────
-
-function bearTrap() {
-  const support = 100;
-  const context = [
-    ...TREND(110, 15, -0.4, 1.3),
-    ...RANGE(103, 12, 3)
-  ];
-  
-  const setup = [];
-  // Looks like breakdown
-  setup.push(...TREND(102, 6, -1.2, 0.8));
-  setup.push(K(support - 0.5, support - 1.5, 0.2, 0.6));  // Fakeout
-  setup.push(K(support - 1.2, support + 0.5, 0.3, 0.2));  // Sharp reversal
-  setup.push(...TREND(support + 1, 8, 1.5, 1));
-  
-  const continuation = TREND(106, 18, 2.8, 1.5);  // Rallies instead
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',  // Don't short the breakdown - it's a trap!
-    name: 'Bear Trap',
-    cat: 'Trap',
-    difficulty: 4,
-    trap: true
-  };
-}
-
-function bullTrap() {
-  const resistance = 110;
-  const context = [
-    ...TREND(100, 15, 0.4, 1.3),
-    ...RANGE(107, 12, 3)
-  ];
-  
-  const setup = [];
-  // Looks like breakout
-  setup.push(...TREND(108, 6, 1.2, 0.8));
-  setup.push(K(resistance + 0.5, resistance + 1.5, 0.6, 0.2));  // Fakeout
-  setup.push(K(resistance + 1.2, resistance - 0.5, 0.2, 0.3));  // Sharp rejection
-  setup.push(...TREND(resistance - 1, 8, -1.5, 1));
-  
-  const continuation = TREND(104, 18, -2.8, 1.5);  // Falls instead
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',  // Don't buy the breakout - it's a trap!
-    name: 'Bull Trap',
-    cat: 'Trap',
-    difficulty: 4,
-    trap: true
-  };
-}
-
-function lateEntry_bull() {
-  const context = [
-    ...RANGE(100, 15, 3),
-    ...TREND(100, 8, 3, 1.1)
-  ];
-  
-  // Already extended, late to the party
-  const setup = TREND(115, 20, 1.8, 1.5);
-  
-  // Small continuation then reversal
-  const continuation = [
-    ...TREND(125, 6, 0.8, 1.2),
-    ...TREND(128, 12, -2, 1.5)
-  ];
-  
-  return {
-    context, setup, continuation,
-    signal: 'hold',  // Too late, already extended
-    name: 'Late Entry',
-    cat: 'Trap',
-    difficulty: 3,
-    trap: true
-  };
-}
-
-// ── PATTERN POOL ────────────────────────────────────────────
-
-const PATTERN_POOL = [
-  // Clean bullish (easy-medium)
-  { fn: bullFlag_clean, weight: 3 },
-  { fn: ascTriangle_clean, weight: 2 },
-  { fn: cupHandle_clean, weight: 2 },
-  { fn: doubleBottom_clean, weight: 2 },
-  { fn: breakoutRetest_bull, weight: 2 },
-  { fn: inversHeadShoulders, weight: 1 },
-  
-  // Clean bearish (easy-medium)
-  { fn: bearFlag_clean, weight: 3 },
-  { fn: descTriangle_clean, weight: 2 },
-  { fn: headShoulders_clean, weight: 2 },
-  { fn: doubleTop_clean, weight: 2 },
-  { fn: breakdownRetest_bear, weight: 2 },
-  
-  // Traps (medium-hard)
-  { fn: bullFlag_trap, weight: 2 },
-  { fn: fakeBreakout_bull, weight: 2 },
-  { fn: weakFollowthrough_bull, weight: 2 },
-  { fn: bearTrap, weight: 2 },
-  { fn: bullTrap, weight: 2 },
-  { fn: lateEntry_bull, weight: 1 },
-  
-  // Hold patterns (medium)
-  { fn: range_consolidation, weight: 2 },
-  { fn: choppy_mess, weight: 1 }
-];
-
-function getRandomPattern() {
-  const totalWeight = PATTERN_POOL.reduce((sum, p) => sum + p.weight, 0);
-  let rand = Math.random() * totalWeight;
-  
-  for(const p of PATTERN_POOL) {
-    if(rand < p.weight) return p.fn();
-    rand -= p.weight;
-  }
-  
-  return PATTERN_POOL[0].fn();
+// Pad / trim to exactly `n`
+function PAD(arr, n) {
+  const a=[...arr];
+  while(a.length<n) a.push({...a[a.length-1]});
+  return a.slice(0,n);
 }
 
 // ── 40+ PATTERN FACTORIES ─────────────────────────────────────
 // Bullish Continuation ─────
+function bullFlag() {
+  const pole=TR(100,6,3.8,1.1), top=pole[pole.length-1].c;
+  const flag=[]; let fp=top;
+  for(let i=0;i<8;i++){ fp+=R(-.55,.12); flag.push(K(fp+R(-.25,.25),fp,R(.2,.7),R(.2,.7))); }
+  return { candles:PAD([...pole,...flag,...CO(flag[flag.length-1].c,8,1.8)],22),
+           continuation:TR(top-.8,10,3.1,1.5), signal:'buy', name:'Bull Flag', cat:'Continuation' };
+}
+function highTightFlag() {
+  const spike=TR(100,4,5.2,.7), top=spike[spike.length-1].c;
+  const tight=CO(top-.6,7,1.1);
+  return { candles:PAD([...spike,...tight,...CO(tight[tight.length-1].c,11,1.4)],22),
+           continuation:TR(top,10,3.9,1.1), signal:'buy', name:'High Tight Flag', cat:'Continuation' };
+}
+function ascTriangle() {
+  const lead=TR(96,4,1,1.4); let sup=100; const res=108, tri=[];
+  for(let i=0;i<10;i++){ sup+=.44; const m=sup+(res-sup)*R(.2,.7);
+    tri.push(K(m+R(-1,1),m+R(-1,1),CL(res-m,.2,2.4),R(.2,1.1))); }
+  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.7)],22),
+           continuation:TR(res+.6,10,2.5,1.4), signal:'buy', name:'Ascending Triangle', cat:'Continuation' };
+}
+function cupHandle() {
+  const rim=108, left=TR(rim,3,-2.6,.8), cup=[];
+  for(let i=0;i<8;i++){ const d=6*(1-Math.sin((i/7)*Math.PI)); cup.push(K(rim-d+R(-.5,.5),rim-d+R(-.5,.5),R(.2,.8),R(.2,.8))); }
+  const hdl=[]; let hp=rim-1.7;
+  for(let i=0;i<5;i++){ hp+=R(-.4,.08); hdl.push(K(hp+R(-.18,.18),hp,R(.1,.4),R(.1,.4))); }
+  return { candles:PAD([...left,...cup,...hdl,...CO(hdl[hdl.length-1].c,6,1.1)],22),
+           continuation:TR(rim+.4,10,2.8,1.3), signal:'buy', name:'Cup & Handle', cat:'Continuation' };
+}
+function powerOf3() {
+  const drop=TR(108,3,-2.1,1), rng=CO(102,8,3.4);
+  const spring=[K(101,99.4,.2,1.1),K(99.1,101.6,.3,.4),K(101.6,103.2,.2,.3)];
+  return { candles:PAD([...drop,...rng,...spring,...CO(103.2,8,1.9)],22),
+           continuation:TR(104,10,3,1.4), signal:'buy', name:'Power of 3 Accum', cat:'Continuation' };
+}
+function wyckoffSpring() {
+  const setup=TR(106,4,-1.4,1), rng=CO(102,6,3.2);
+  const spr=[K(100.3,98.6,.2,.7),K(98.3,97.9,.4,.9),K(97.7,101.3,.15,.25)];
+  return { candles:PAD([...setup,...rng,...spr,...CO(101.3,9,1.9)],22),
+           continuation:TR(103,10,3.1,1.3), signal:'buy', name:'Wyckoff Spring', cat:'Continuation' };
+}
+function bullRect() {
+  const lead=TR(96,4,2.1,1.1), rect=CO(104,10,3.1);
+  return { candles:PAD([...lead,...rect,...CO(rect[rect.length-1].c,8,1.4)],22),
+           continuation:TR(107.2,10,2.7,1.4), signal:'buy', name:'Bullish Rectangle', cat:'Continuation' };
+}
+
+// Bearish Continuation ─────
+function bearFlag() {
+  const pole=TR(112,6,-3.8,1.1), bot=pole[pole.length-1].c;
+  const flag=[]; let fp=bot;
+  for(let i=0;i<8;i++){ fp+=R(-.12,.55); flag.push(K(fp+R(-.25,.25),fp,R(.2,.7),R(.2,.7))); }
+  return { candles:PAD([...pole,...flag,...CO(flag[flag.length-1].c,8,1.8)],22),
+           continuation:TR(bot+.8,10,-3.1,1.5), signal:'sell', name:'Bear Flag', cat:'Continuation' };
+}
+function descTriangle() {
+  const lead=TR(112,4,-1,1.4); let res=109; const sup=100, tri=[];
+  for(let i=0;i<10;i++){ res-=.42; const m=sup+(res-sup)*R(.2,.7);
+    tri.push(K(m+R(-1,1),m+R(-1,1),R(.2,1.1),CL(m-sup,.2,2.4))); }
+  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.7)],22),
+           continuation:TR(sup-.6,10,-2.5,1.4), signal:'sell', name:'Descending Triangle', cat:'Continuation' };
+}
+function bearRect() {
+  const lead=TR(112,4,-2.1,1.1), rect=CO(104,10,3.1);
+  return { candles:PAD([...lead,...rect,...CO(rect[rect.length-1].c,8,1.4)],22),
+           continuation:TR(100,10,-2.7,1.4), signal:'sell', name:'Bearish Rectangle', cat:'Continuation' };
+}
+function wyckoffUpthrust() {
+  const rise=TR(100,4,1.7,1), rng=CO(106,6,3.4);
+  const ut=[K(107.3,109.8,.25,.35),K(109.6,109.5,.7,.25),K(109.4,106.2,.15,.4)];
+  return { candles:PAD([...rise,...rng,...ut,...CO(106,9,1.9)],22),
+           continuation:TR(104,10,-2.9,1.3), signal:'sell', name:'Wyckoff Upthrust', cat:'Continuation' };
+}
+
+// Bullish Reversals ────────
+function invHS() {
+  const pre=TR(108,3,-1.7,.9);
+  const ls=[K(105,102.3,.7,1.4),K(102.6,104,.35,.5)];
+  const hd=[K(104,100.2,.3,1.6),K(100,99.4,.5,.9),K(99.1,102.6,.25,.7)];
+  const rs=[K(102.8,101.5,.5,.7),K(101.3,102.3,.3,1.4),K(102.5,103.6,.2,.35)];
+  return { candles:PAD([...pre,...ls,...hd,...rs,...CO(103.6,7,1.4)],22),
+           continuation:TR(105,10,2.7,1.3), signal:'buy', name:'Inv. Head & Shoulders', cat:'Reversal' };
+}
+function adamEve() {
+  const pre=TR(110,3,-2,.9);
+  const adam=[K(104,100.8,.4,.9),K(100.5,99.8,.7,.5),K(99.6,103.3,.2,.6)];
+  const mid=TR(103.3,3,.4,.9);
+  const eve=[]; for(let i=0;i<4;i++){ const p=100+2.2*(1-Math.cos((i/3)*Math.PI*.8)); eve.push(K(p+R(-.3,.3),p+R(-.3,.3),R(.15,.5),R(.15,.5))); }
+  return { candles:PAD([...pre,...adam,...mid,...eve,...CO(101.5,8,1.4)],22),
+           continuation:TR(104,10,2.5,1.4), signal:'buy', name:'Adam & Eve Double Bottom', cat:'Reversal' };
+}
+function dblBottom() {
+  const pre=TR(110,3,-1.9,.9), b1=TR(104,3,-1.7,.8), r1=TR(100.5,3,1.9,.8);
+  const b2=TR(103.4,3,-1.5,.8), rec=TR(100.5,4,1.7,.8);
+  return { candles:PAD([...pre,...b1,...r1,...b2,...rec,...CO(rec[rec.length-1].c,5,1.4)],22),
+           continuation:TR(104,10,2.4,1.5), signal:'buy', name:'Double Bottom', cat:'Reversal' };
+}
+function tripleBottom() {
+  const pre=[K(107,105,.5,.7)];
+  const b1=TR(105,2,-2.1,.6), r1=TR(102,2,1.9,.6);
+  const b2=TR(104,2,-2.3,.6), r2=TR(101.4,2,2.1,.6);
+  const b3=TR(104,2,-1.9,.6), r3=TR(102,3,1.7,.6);
+  return { candles:PAD([...pre,...b1,...r1,...b2,...r2,...b3,...r3,...CO(r3[r3.length-1].c,4,1.1)],22),
+           continuation:TR(105,10,2.7,1.3), signal:'buy', name:'Triple Bottom', cat:'Reversal' };
+}
+function roundBottom() {
+  const a=[]; for(let i=0;i<16;i++){ const p=100+7*(1-Math.cos((i/15)*Math.PI))/2; a.push(K(p+R(-.6,.6),p+R(-.6,.6),R(.2,.8),R(.2,.8))); }
+  return { candles:PAD([...a,...CO(a[a.length-1].c,6,1.1)],22),
+           continuation:TR(106.5,10,2.1,1.4), signal:'buy', name:'Rounding Bottom', cat:'Reversal' };
+}
+function morningStar() {
+  const pre=TR(108,5,-1.1,.9);
+  const star=[K(103,100.2,.7,1),K(99.9,99.5,.7,.5),K(99.3,102.8,.4,.8)];
+  return { candles:PAD([...pre,...star,...TR(102.8,6,.7,.9),...CO(106,6,1.4)],22),
+           continuation:TR(106,10,2.4,1.4), signal:'buy', name:'Morning Star', cat:'Reversal' };
+}
+function bullEngulf() {
+  const pre=TR(108,11,-0.9,1.1), last=pre[pre.length-1];
+  const eng=[K(last.c,last.c-1.9,.4,.7),K(last.c-2.2,last.c+1.4,.2,.4)];
+  return { candles:PAD([...pre,...eng,...CO(eng[eng.length-1].c,9,1.3)],22),
+           continuation:TR(eng[eng.length-1].c,10,2.1,1.4), signal:'buy', name:'Bullish Engulfing', cat:'Reversal' };
+}
+function liquiditySweepBull() {
+  const pre=TR(104,6,-0.6,1), sup=101;
+  // sweep below support then violent snap
+  const sweep=[K(101.2,100.4,.3,.7),K(100.2,99.5,.4,1.1),K(99.2,103.2,.15,.25)];
+  return { candles:PAD([...pre,...sweep,...CO(103.2,13,1.8)],22),
+           continuation:TR(104,10,2.8,1.3), signal:'buy', name:'Liquidity Sweep ↑', cat:'Reversal' };
+}
+function islandRevBull() {
+  const pre=TR(108,5,-1.3,1);
+  // gap-down island then gap-up escape
+  const gapDn=TR(103,4,-.4,.9);
+  const gapUp=TR(105.5,4,1.1,.9);
+  return { candles:PAD([...pre,...gapDn,...gapUp,...CO(gapUp[gapUp.length-1].c,9,1.5)],22),
+           continuation:TR(107,10,2.4,1.3), signal:'buy', name:'Island Reversal ↑', cat:'Reversal' };
+}
+
+// Bearish Reversals ────────
+function hs() {
+  const pre=TR(100,3,1.6,.9);
+  const ls=[K(103,104.8,.4,.8),K(104.6,103.2,.6,.4)];
+  const hd=[K(104,107.8,.25,.6),K(107.6,106.8,.4,1.3),K(107,103.8,.2,.4)];
+  const rs=[K(104,104.9,.6,.7),K(104.7,103,0.4,.6)];
+  return { candles:PAD([...pre,...ls,...hd,...rs,...CO(103,8,1.4)],22),
+           continuation:TR(101.5,10,-2.7,1.3), signal:'sell', name:'Head & Shoulders', cat:'Reversal' };
+}
+function dblTop() {
+  const pre=TR(98,3,1.9,.9), t1=TR(104,3,1.4,.8), d1=TR(107,3,-1.9,.8);
+  const t2=TR(104,3,1.6,.8), drp=TR(107,4,-1.1,.9);
+  return { candles:PAD([...pre,...t1,...d1,...t2,...drp,...CO(drp[drp.length-1].c,5,1.4)],22),
+           continuation:TR(103.5,10,-2.3,1.5), signal:'sell', name:'Double Top', cat:'Reversal' };
+}
+function tripleTop() {
+  const pre=[K(104,106,.4,.8)];
+  const t1=TR(106,2,.7,.6), d1=TR(107,2,-1.9,.6);
+  const t2=TR(104.5,2,1.4,.6), d2=TR(107,2,-1.9,.6);
+  const t3=TR(104.5,2,1.1,.6), d3=TR(107,3,-1.4,.6);
+  return { candles:PAD([...pre,...t1,...d1,...t2,...d2,...t3,...d3,...CO(d3[d3.length-1].c,4,1.1)],22),
+           continuation:TR(103,10,-2.5,1.3), signal:'sell', name:'Triple Top', cat:'Reversal' };
+}
+function roundTop() {
+  const a=[]; for(let i=0;i<16;i++){ const p=108-7*(1-Math.cos((i/15)*Math.PI))/2; a.push(K(p+R(-.6,.6),p+R(-.6,.6),R(.2,.8),R(.2,.8))); }
+  return { candles:PAD([...a,...CO(a[a.length-1].c,6,1.1)],22),
+           continuation:TR(101.5,10,-2.1,1.4), signal:'sell', name:'Rounding Top', cat:'Reversal' };
+}
+function eveningStar() {
+  const pre=TR(100,5,1.1,.9);
+  const star=[K(105,107.8,.7,1),K(108,107.5,.7,.5),K(107.7,104.2,.4,.8)];
+  return { candles:PAD([...pre,...star,...TR(104.2,6,-.7,.9),...CO(101,6,1.4)],22),
+           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Evening Star', cat:'Reversal' };
+}
+function bearEngulf() {
+  const pre=TR(100,11,0.9,1.1), last=pre[pre.length-1];
+  const eng=[K(last.c,last.c+1.9,.4,.7),K(last.c+2.2,last.c-1.4,.2,.4)];
+  return { candles:PAD([...pre,...eng,...CO(eng[eng.length-1].c,9,1.3)],22),
+           continuation:TR(eng[eng.length-1].c,10,-2.1,1.4), signal:'sell', name:'Bearish Engulfing', cat:'Reversal' };
+}
+function liquiditySweepBear() {
+  const pre=TR(104,6,0.6,1);
+  const sweep=[K(106.8,107.6,.3,.7),K(107.8,108.5,1.1,.4),K(108.7,104.8,.25,.15)];
+  return { candles:PAD([...pre,...sweep,...CO(104.8,13,1.8)],22),
+           continuation:TR(103,10,-2.8,1.3), signal:'sell', name:'Liquidity Sweep ↓', cat:'Reversal' };
+}
+function islandRevBear() {
+  const pre=TR(100,5,1.3,1);
+  const gapUp=TR(105,4,.4,.9);
+  const gapDn=TR(102.5,4,-1.1,.9);
+  return { candles:PAD([...pre,...gapUp,...gapDn,...CO(gapDn[gapDn.length-1].c,9,1.5)],22),
+           continuation:TR(99,10,-2.4,1.3), signal:'sell', name:'Island Reversal ↓', cat:'Reversal' };
+}
+
+// Neutral / Breakout Either-Way ─────
+function symTriangle() {
+  const lead=TR(100,4,1.2,1.4); let hi=108, lo=100;
+  const tri=[];
+  for(let i=0;i<10;i++){ hi-=.38; lo+=.38; const m=(hi+lo)/2+R(-1.5,1.5);
+    tri.push(K(m+R(-.6,.6),m+R(-.6,.6),CL(hi-m,.2,2),CL(m-lo,.2,2))); }
+  return { candles:PAD([...lead,...tri,...CO(tri[tri.length-1].c,8,1.3)],22),
+           continuation:CO(tri[tri.length-1].c,10,2.8), signal:'hold', name:'Symmetrical Triangle', cat:'Neutral' };
+}
+function wedgeNeutral() {
+  const lead=TR(100,4,1,1.2); let hi=108, lo=102;
+  const wedge=[];
+  for(let i=0;i<10;i++){ hi-=.28; lo+=.22; const m=(hi+lo)/2+R(-1,1);
+    wedge.push(K(m+R(-.4,.4),m+R(-.4,.4),CL(hi-m,.2,1.5),CL(m-lo,.2,1.5))); }
+  return { candles:PAD([...lead,...wedge,...CO(wedge[wedge.length-1].c,8,1.4)],22),
+           continuation:CO(wedge[wedge.length-1].c,10,3.1), signal:'hold', name:'Narrowing Wedge', cat:'Neutral' };
+}
+function flatConsolidation() {
+  const lead=TR(104,5,.3,1.3);
+  const flat=CO(lead[lead.length-1].c,12,3);
+  return { candles:PAD([...lead,...flat,...CO(flat[flat.length-1].c,5,1.2)],22),
+           continuation:CO(flat[flat.length-1].c,10,2.6), signal:'hold', name:'Flat Consolidation', cat:'Neutral' };
+}
+function dojiCluster() {
+  const lead=TR(104,8,0.3,1.6);
+  const cluster=[]; for(let i=0;i<6;i++){ const p=lead[lead.length-1].c+R(-.5,.5); cluster.push(K(p,p+R(-.25,.25),R(.4,1.2),R(.4,1.2))); }
+  return { candles:PAD([...lead,...cluster,...CO(cluster[cluster.length-1].c,8,1.4)],22),
+           continuation:CO(cluster[cluster.length-1].c,10,2.4), signal:'hold', name:'Doji Cluster', cat:'Neutral' };
+}
+function insideBar() {
+  const lead=TR(104,9,0.5,1.4);
+  const mother=lead[lead.length-1];
+  const rng=mother.h-mother.l;
+  const inside=[]; for(let i=0;i<4;i++){
+    const mid=(mother.h+mother.l)/2+R(-rng*.2,rng*.2);
+    inside.push(K(mid+R(-.3,.3),mid+R(-.3,.3),R(.2,rng*.18),R(.2,rng*.18)));
+  }
+  return { candles:PAD([...lead,...inside,...CO(inside[inside.length-1].c,9,1.3)],22),
+           continuation:CO(inside[inside.length-1].c,10,2.5), signal:'hold', name:'Inside Bar Setup', cat:'Neutral' };
+}
+function priceChannel() {
+  const ch=[];
+  let lo=100, hi=108, p=(lo+hi)/2;
+  for(let i=0;i<18;i++){
+    const nextP = i%4<2 ? p+R(.5,1.4) : p+R(-1.4,-.5);
+    p = CL(nextP, lo+1, hi-1);
+    ch.push(K(p+R(-.5,.5),p+R(-.5,.5),R(.3,1),R(.3,1)));
+  }
+  return { candles:PAD([...ch,...CO(ch[ch.length-1].c,4,1.2)],22),
+           continuation:CO(ch[ch.length-1].c,10,2.8), signal:'hold', name:'Price Channel', cat:'Neutral' };
+}
+function rangeBreakFake() {
+  const rng=CO(104,12,3.4);
+  const spike=[K(rng[rng.length-1].c+1,108,.3,.5),K(108,109,.4,.3),K(108.8,104.5,.2,.6)];
+  return { candles:PAD([...rng,...spike,...CO(104.5,7,2.4)],22),
+           continuation:CO(104.5,10,3), signal:'hold', name:'Range Fakeout', cat:'Neutral' };
+}
+
+// More advanced / uncommon patterns ─────
+function threeWhiteSoldiers() {
+  const pre=TR(100,8,-0.6,1.2);
+  const soldiers=[K(99,101.8,.3,.5),K(101.5,104,.35,.4),K(103.8,106.5,.3,.4)];
+  return { candles:PAD([...pre,...soldiers,...CO(106.5,11,1.6)],22),
+           continuation:TR(107,10,2.4,1.4), signal:'buy', name:'Three White Soldiers', cat:'Reversal' };
+}
+function threeBlackCrows() {
+  const pre=TR(108,8,0.6,1.2);
+  const crows=[K(109,106.2,.5,.3),K(106.5,104,.4,.35),K(104.2,101.5,.4,.3)];
+  return { candles:PAD([...pre,...crows,...CO(101.5,11,1.6)],22),
+           continuation:TR(100,10,-2.4,1.4), signal:'sell', name:'Three Black Crows', cat:'Reversal' };
+}
+function fallingKnife() {
+  const drop=TR(112,7,-3.2,.9);
+  const bounce=TR(drop[drop.length-1].c,4,1.8,1.1);
+  return { candles:PAD([...drop,...bounce,...CO(bounce[bounce.length-1].c,11,2.1)],22),
+           continuation:TR(bounce[bounce.length-1].c-1,10,-2.5,1.5), signal:'sell', name:'Falling Knife Bounce', cat:'Reversal' };
+}
+function parabolicBlow() {
+  const run=TR(100,6,1.6,.9);
+  const para=[]; let v=1.2;
+  for(let i=0;i<6;i++){ const o=run[run.length-1].c+(i>0?para[i-1].c-para[i-1].o:0)+v; v*=1.35;
+    para.push(K(o,o+R(1.5,3.5),R(.3,.9),R(.2,.5))); }
+  return { candles:PAD([...run,...para,...CO(para[para.length-1].c,10,3)],22),
+           continuation:TR(para[para.length-1].c,10,-3.2,2), signal:'sell', name:'Parabolic Blowoff', cat:'Reversal' };
+}
+function gapFillBull() {
+  const pre=TR(104,6,-.8,1);
+  const gap=TR(100,4,-1,1.2);
+  const fill=TR(98,6,1.3,1);
+  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
+           continuation:TR(fill[fill.length-1].c,10,2.3,1.4), signal:'buy', name:'Gap Fill ↑', cat:'Continuation' };
+}
+function gapFillBear() {
+  const pre=TR(104,6,.8,1);
+  const gap=TR(108,4,1,1.2);
+  const fill=TR(110,6,-1.3,1);
+  return { candles:PAD([...pre,...gap,...fill,...CO(fill[fill.length-1].c,6,1.3)],22),
+           continuation:TR(fill[fill.length-1].c,10,-2.3,1.4), signal:'sell', name:'Gap Fill ↓', cat:'Continuation' };
+}
+
+// ── PATTERN POOL ──────────────────────────────────────────────
+const PATTERN_POOL = [
+  bullFlag, highTightFlag, ascTriangle, cupHandle, powerOf3, wyckoffSpring, bullRect,
+  bearFlag, descTriangle, bearRect, wyckoffUpthrust,
+  invHS, adamEve, dblBottom, tripleBottom, roundBottom, morningStar, bullEngulf, liquiditySweepBull, islandRevBull,
+  hs, dblTop, tripleTop, roundTop, eveningStar, bearEngulf, liquiditySweepBear, islandRevBear,
+  symTriangle, wedgeNeutral, flatConsolidation, dojiCluster, insideBar, priceChannel, rangeBreakFake,
+  threeWhiteSoldiers, threeBlackCrows, fallingKnife, parabolicBlow, gapFillBull, gapFillBear,
+];
+
+function getRandomPattern() { return PATTERN_POOL[RI(0, PATTERN_POOL.length - 1)](); }
+
+/* ═══════════════════════════════════════════════════════════════
+    6  ARCHETYPE ENGINE  (personality reveal based on playstyle)
+   ═══════════════════════════════════════════════════════════════ */
+const ARCHETYPES = [
+  { name:"Impulse Ape",        emoji:"🐒", cond: r => r.buyCount > 4,
+    roast:"Bro you BUY everything with a heartbeat. Your wallet is just Binance with extra steps and a prayer. You once bought a rug because it \"looked promising.\"" },
+  { name:"Paper Hands Ghost",  emoji:"👻", cond: r => r.sellCount > 4,
+    roast:"You sold BTC at $6k, ETH at $1k, and your last shred of self-respect at 2am on a Tuesday. Congratulations, you've single-handedly funded every whale's yacht." },
+  { name:"Zen Diamond Holder", emoji:"💎", cond: r => r.holdCount > 3 && r.correct > 4,
+    roast:"You held through 3 bear markets, 2 divorces, and a 99% drawdown — and somehow you're STILL not broke. Suspicious. Either enlightened or your wallet app is literally just broken." },
+  { name:"Panic Seller",       emoji:"😰", cond: r => r.sellCount > 2 && r.correct < 3,
+    roast:"Your strategy: chart goes red → you SELL → it pumps 300% → you cry into instant noodles → repeat. You are the liquidity. You ARE the exit. Whale food, but make it artisanal." },
+  { name:"Scalp King",         emoji:"⚡", cond: r => r.avgSpeed < 1800 && r.correct > 4,
+    roast:"Sub-2-second reflexes. Either you're a legit trader or you've been IV-dripping Monster since 2019. Your fingers are so fast they've filed for workers comp." },
+  { name:"The Analyst",        emoji:"📊", cond: r => r.correct >= 6,
+    roast:"6+ correct reads. OK so either you ACTUALLY studied charts — or — and hear me out — you've been selling trading courses to degens this whole time. Which is it? Don't answer." },
+  { name:"Whale Watcher",      emoji:"🐋", cond: r => r.holdCount >= 2 && r.correct >= 4,
+    roast:"You can smell a whale order block from 3 chains away. You lurk in whale wallets like a stalker in a Discord. Respect. Also, yes, that IS creepy. No we won't elaborate." },
+  { name:"Degen",              emoji:"🎰", cond: () => true,  // fallback
+    roast:"Your portfolio: 47 memecoins, a shitcoin called TOILET, and a single leveraged position held together by copium and prayers to Satoshi. Degen isn't your lifestyle. It's a clinical diagnosis." },
+];
+
+function getArchetype(stats) {
+  return ARCHETYPES.find(a => a.cond(stats)) || ARCHETYPES[ARCHETYPES.length - 1];
+}
+
+/* ═══════════════════════════════════════════════════════════════
+    7  CANVAS CHART RENDERER  (DPR-aware, 60fps animated reveal)
+   ═══════════════════════════════════════════════════════════════ */
 function drawChart(canvas, candles, revealCount, continuationCount, contCandles, godMode) {
   if (!canvas) return;
   const ctx    = canvas.getContext("2d");
@@ -1166,25 +927,29 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
 
   // ═══════════════════════════════════════════════════════════════
   // ULTRA-MODERN MINIMALIST BACKGROUND
+  // Clean, sophisticated, Apple-level quality
   // ═══════════════════════════════════════════════════════════════
   
+  // Premium dark gradient - deep but rich
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, "#0a0a12");
   bg.addColorStop(1, "#050508");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Minimal grid
+  // Minimal horizontal grid lines (subtle structure)
   ctx.strokeStyle = "rgba(255,255,255,0.03)";
   ctx.lineWidth = 1;
-  for(let i=1; i<5; i++) {
-    const y = (H / 5) * i;
+  const gridCount = 5;
+  for(let i=1; i<gridCount; i++) {
+    const y = (H / gridCount) * i;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(W, y);
     ctx.stroke();
   }
 
+  // God mode - clean premium glow
   if(godMode) {
     ctx.save();
     const pulse = 0.6 + 0.4*Math.sin(Date.now()*0.003);
@@ -1199,38 +964,29 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
   if (!candles || candles.length === 0 || revealCount === 0) return;
 
   // ═══════════════════════════════════════════════════════════════
-  // SLIDING WINDOW RENDERING (show last 28 candles only)
+  // CLEAN CHART RENDERING
   // ═══════════════════════════════════════════════════════════════
   
   const allCandles = [...candles, ...(contCandles||[])];
   if(allCandles.length === 0) return;
 
-  // Calculate visible candles (last 28 only for realistic trading view)
-  const maxVisible = 28;
-  const numVisible = Math.min(allCandles.length, maxVisible);
-  const startIdx = Math.max(0, allCandles.length - maxVisible);
-  
-  // Only calculate scale based on VISIBLE candles
-  const visibleCandles = allCandles.slice(startIdx);
+  // Price scale
   let lo = Infinity, hi = -Infinity;
-  visibleCandles.forEach(c => { 
-    if(c.l < lo) lo = c.l; 
-    if(c.h > hi) hi = c.h; 
-  });
-  
+  allCandles.forEach(c => { if(c.l<lo) lo=c.l; if(c.h>hi) hi=c.h; });
   const pad = (hi - lo) * 0.08;
   lo -= pad; hi += pad;
   const priceH = hi - lo || 1;
 
-  const slotW = W / numVisible;
-  const bodyW = slotW * 0.75;
-  const gap = slotW * 0.12;
+  const totalSlots = allCandles.length;
+  const slotW = W / totalSlots;
+  const bodyW = slotW * 0.7;
+  const gap = slotW * 0.15;
 
   const toY = p => H - ((p - lo) / priceH) * H;
 
-  // ── Price label (only for last visible candle) ──
+  // ── Premium price label ──
   let lastVisibleIdx = -1;
-  for(let i = allCandles.length - 1; i >= startIdx; i--) {
+  for(let i = allCandles.length - 1; i >= 0; i--) {
     let alpha = 0;
     if (i < candles.length) {
       alpha = Math.max(0, Math.min(1, revealCount - i));
@@ -1244,44 +1000,49 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     }
   }
   
-  if (lastVisibleIdx >= startIdx) {
+  if (lastVisibleIdx >= 0) {
     const lastC = allCandles[lastVisibleIdx];
     const lblY = toY(lastC.c);
     const lblColor = lastC.c >= lastC.o ? C.bull : C.bear;
     
     ctx.save();
+    
+    // Clean pill background
     const lblW = 62, lblH = 28;
     ctx.fillStyle = "rgba(10,10,18,0.95)";
     ctx.beginPath();
     ctx.roundRect(W - lblW - 8, lblY - lblH/2, lblW, lblH, 14);
     ctx.fill();
     
+    // Subtle border
     ctx.strokeStyle = lblColor + "30";
     ctx.lineWidth = 1;
     ctx.stroke();
     
+    // Clean price text
     ctx.fillStyle = lblColor;
     ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.textAlign = "right";
     ctx.fillText(lastC.c.toFixed(2), W - 18, lblY + 4.5);
+    
     ctx.restore();
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // RENDER VISIBLE CANDLES ONLY (sliding window)
+  // ULTRA-CLEAN MODERN CANDLES
+  // Minimal depth, maximum clarity
   // ═══════════════════════════════════════════════════════════════
   
-  visibleCandles.forEach((c, localIdx) => {
-    const globalIdx = startIdx + localIdx;
-    const x = localIdx * slotW + gap/2;
+  allCandles.forEach((c, i) => {
+    const x = i * slotW + gap/2;
     const bull = c.c >= c.o;
 
-    // Calculate alpha
+    // Smooth alpha
     let alpha = 0;
-    if (globalIdx < candles.length) {
-      alpha = Math.max(0, Math.min(1, revealCount - globalIdx));
+    if (i < candles.length) {
+      alpha = Math.max(0, Math.min(1, revealCount - i));
     } else {
-      const ci = globalIdx - candles.length;
+      const ci = i - candles.length;
       alpha = Math.max(0, Math.min(1, continuationCount - ci));
     }
     
@@ -1289,8 +1050,8 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
 
     const bodyColor = bull ? C.bull : C.bear;
     
-    // Subtle emphasis on recent candles
-    const isRecent = localIdx >= numVisible - 5;
+    // Subtle depth for the last few candles only
+    const isRecent = i >= allCandles.length - 5;
     const depthBoost = isRecent ? 0.15 : 0;
     const finalAlpha = alpha * (0.85 + depthBoost);
     
@@ -1299,7 +1060,7 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.save();
     ctx.globalAlpha = finalAlpha;
 
-    // Wick
+    // ── MINIMAL WICK ──
     const wickTop = toY(c.h);
     const wickBot = toY(c.l);
     
@@ -1310,29 +1071,32 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.lineTo(x + currentBodyW/2, wickBot);
     ctx.stroke();
 
-    // Body
+    // ── CLEAN MODERN BODY ──
     const bodyTop = toY(Math.max(c.o, c.c));
     const bodyBottom = toY(Math.min(c.o, c.c));
     const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
 
+    // Solid fill with subtle gradient
     const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
     bodyGrad.addColorStop(0, bodyColor + "f0");
     bodyGrad.addColorStop(1, bodyColor + "b8");
     ctx.fillStyle = bodyGrad;
     
+    // Rounded corners for modern look
     ctx.beginPath();
     ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
     ctx.fill();
 
+    // Clean border
     ctx.strokeStyle = bodyColor;
     ctx.lineWidth = 1;
     ctx.stroke();
     
-    // Top highlight
+    // Subtle highlight on top edge
     ctx.fillStyle = "rgba(255,255,255,0.15)";
     ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
 
-    // Recent candle glow
+    // Premium glow on recent candles
     if (isRecent && alpha > 0.9) {
       ctx.shadowColor = bodyColor;
       ctx.shadowBlur = 12;
@@ -1344,7 +1108,7 @@ function drawChart(canvas, candles, revealCount, continuationCount, contCandles,
     ctx.restore();
   });
 
-  // Subtle ambient
+  // Subtle ambient lighting
   const ambientLight = ctx.createRadialGradient(W*0.5, H*0.3, 0, W*0.5, H*0.3, W*0.6);
   ambientLight.addColorStop(0, "rgba(0,255,170,0.02)");
   ambientLight.addColorStop(1, "rgba(0,0,0,0)");
@@ -2068,22 +1832,23 @@ export default function App() {
     
     setInitialRevealProgress(0);
     const startTime = Date.now();
-    const totalCandles = pattern.candles?.length || 45; // context + setup
-    const duration = 2700; // 2.7 seconds
-    let lastSoundedCandle = -1;
+    const duration = 2700; // 2.7 seconds (during 3-2-1 countdown)
+    let lastSoundedCandle = -1; // Track which candle we last played sound for
     
     function animate() {
       const elapsed = Date.now() - startTime;
       const pct = Math.min(elapsed / duration, 1);
+      // ease-out cubic for smooth animation
       const eased = 1 - Math.pow(1 - pct, 3);
-      const newProgress = eased * totalCandles;
+      const newProgress = eased * 22;
       setInitialRevealProgress(newProgress);
       
-      // Sound every 4th candle (since we have more candles now)
+      // Play sound effect when each new candle appears
       const currentCandle = Math.floor(newProgress);
-      if (currentCandle > lastSoundedCandle && currentCandle < totalCandles) {
+      if (currentCandle > lastSoundedCandle && currentCandle < 22) {
         lastSoundedCandle = currentCandle;
-        if (currentCandle % 4 === 0) {
+        // Play sound every 3rd candle to avoid overwhelming audio
+        if (currentCandle % 3 === 0) {
           SND.candlePop();
         }
       }
@@ -2091,7 +1856,7 @@ export default function App() {
       if (pct < 1) {
         initialAnimRef.current = requestAnimationFrame(animate);
       } else {
-        setInitialRevealProgress(totalCandles);
+        setInitialRevealProgress(22);
       }
     }
     
@@ -2201,22 +1966,23 @@ export default function App() {
     if(screen !== "revealing") { cancelAnimationFrame(contAnimRef.current); return; }
     setContProgress(0);
     const startTime = Date.now();
-    const totalCont = pattern?.continuation?.length || 18;
-    const duration  = 900; // ms for all continuation candles
+    const duration  = 900; // ms for all 10 candles
     let lastSoundedContCandle = -1;
     
     function animate() {
       const elapsed = Date.now() - startTime;
       const pct     = Math.min(elapsed / duration, 1);
+      // ease-out cubic
       const eased   = 1 - Math.pow(1 - pct, 3);
-      const newProgress = eased * totalCont;
+      const newProgress = eased * 10;
       setContProgress(newProgress);
       
-      // Sound every 3rd candle
+      // Play sound when continuation candles appear
       const currentContCandle = Math.floor(newProgress);
-      if (currentContCandle > lastSoundedContCandle && currentContCandle < totalCont) {
+      if (currentContCandle > lastSoundedContCandle && currentContCandle < 10) {
         lastSoundedContCandle = currentContCandle;
-        if (currentContCandle % 3 === 0) {
+        // Play every 2nd candle for continuation (faster pace)
+        if (currentContCandle % 2 === 0) {
           SND.candlePop();
         }
       }
@@ -2224,39 +1990,23 @@ export default function App() {
       if(pct < 1) {
         contAnimRef.current = requestAnimationFrame(animate);
       } else {
-        setContProgress(totalCont);
+        setContProgress(10);
+        // after reveal completes → show outcome
         setTimeout(() => setScreen("outcome"), 200);
       }
     }
     contAnimRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(contAnimRef.current);
-  }, [screen, pattern]);
+  }, [screen]);
 
   // ── GAME ACTIONS ──
 
   // 1️⃣ játék indítás → pattern ELŐRE létrejön
   const startGame = useCallback(() => {
-    // Generate pattern with 3-phase structure
+    // Első pattern generálása
     const p = getRandomPattern();
-    
-    // Combine context + setup for initial display
-    // User sees: context (auto-plays) + setup (where they decide)
-    const combinedCandles = [...p.context, ...p.setup];
-    
-    // Store pattern with proper structure
-    setPattern({
-      candles: combinedCandles,           // context + setup combined
-      continuation: p.continuation,       // what happens after
-      signal: p.signal,
-      name: p.name,
-      cat: p.cat,
-      difficulty: p.difficulty || 2,
-      trap: p.trap || false,
-      contextLength: p.context.length,    // track where setup starts
-      setupLength: p.setup.length
-    });
-    
-    setUsedPatterns([p.name]);
+    setPattern(p);
+    setUsedPatterns([p.name]); // Inicializáljuk a használt pattern-ekkel
 
     setRound(0);
     setScores([]);
@@ -2267,7 +2017,7 @@ export default function App() {
     setContProgress(0);
     setInitialRevealProgress(0);
 
-    // Start countdown
+    // Countdown indítása
     setShowCountdown(true);
   }, []);
 
@@ -2340,7 +2090,7 @@ export default function App() {
       addToLeaderboard(playerName, stats);
       setScreen("verdict");
     } else {
-      // Generate new pattern that hasn't been used
+      // Generálunk új pattern-t, ami még nem volt használva
       let p = getRandomPattern();
       let attempts = 0;
       while (usedPatterns.includes(p.name) && attempts < 50) {
@@ -2348,21 +2098,7 @@ export default function App() {
         attempts++;
       }
       
-      // Combine context + setup for display
-      const combinedCandles = [...p.context, ...p.setup];
-      
-      setPattern({
-        candles: combinedCandles,
-        continuation: p.continuation,
-        signal: p.signal,
-        name: p.name,
-        cat: p.cat,
-        difficulty: p.difficulty || 2,
-        trap: p.trap || false,
-        contextLength: p.context.length,
-        setupLength: p.setup.length
-      });
-      
+      setPattern(p);
       setUsedPatterns(prev => [...prev, p.name]);
 
       setRound(nextRound);
@@ -2370,7 +2106,7 @@ export default function App() {
       setContProgress(0);
       setInitialRevealProgress(0);
 
-      // No countdown between rounds
+      // Következő körnél NEM mutatunk countdownt
       setScreen("playing");
     }
   }, [round, playerName, usedPatterns]);
