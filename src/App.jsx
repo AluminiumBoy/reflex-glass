@@ -1508,7 +1508,7 @@ export default function App() {
       let targetFps = 60;
       if (screen === "building") {
         // LOWER FPS during build to prevent stutter with many candles
-        targetFps = isMobile ? 24 : 30; // Cinematic feel, no lag
+        targetFps = isMobile ? 15 : 20; // Cinematic feel, no lag
       } else if (screen === "playing") {
         // Static view, lower fps ok
         targetFps = 24; // Save battery
@@ -1517,7 +1517,7 @@ export default function App() {
         targetFps = isMobile ? 40 : 60;
       }
       
-      const minFrameTime = 200 / targetFps;
+      const minFrameTime = 1000 / targetFps;
 
       const render = (timestamp) => {
         // Throttle to target FPS
