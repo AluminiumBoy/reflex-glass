@@ -1503,7 +1503,7 @@ export default function App() {
 
       let targetFps = 60;
       if (screen === "building") {
-        targetFps = isMobile ? 12 : 15;        // még film-szerűbbé tettem
+        targetFps = isMobile ? 24 : 40;        // még film-szerűbbé tettem
       } else if (screen === "playing") {
         targetFps = 24;
       } else {
