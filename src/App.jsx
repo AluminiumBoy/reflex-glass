@@ -1476,13 +1476,22 @@ export default function App() {
 
       const isMobile = window.innerWidth < 520;
 
+      // Gyertya szám alapján finomhangolás az elejére
+      const candleCount = structure?.candles?.length || 0;
+      const isEarlyPhase = candleCount < 10;  // az első 10 gyertyánál még lassabb
+
       let throttleDelay;
       if (screen === "building" || screen === "playing") {
-        // MÉG LASSABB – döntés előtt
-        throttleDelay = isMobile ? 600 : 150;   // mobilon kb. 1.6–2 fps
+        if (isEarlyPhase) {
+          // ELEJÉN MÉG LASSABB – hogy ne rohanjon az első gyertyák
+          throttleDelay = isMobile ? 800 : 200;   // mobilon kb. 1.25 fps
+        } else {
+          // később már kicsit gyorsabb, de még mindig nyugodt
+          throttleDelay = isMobile ? 450 : 120;
+        }
       } else {
-        // revealing / outcome – kicsit lassabb, mint előzőleg, hogy ne legyen vég-lag
-        throttleDelay = isMobile ? 200 : 80;    // mobilon kb. 5 fps
+        // revealing / outcome – gyorsabb, hogy a continuation jól látszódjon
+        throttleDelay = isMobile ? 180 : 70;
       }
 
       const throttledRender = throttle((candles) => {
