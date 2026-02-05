@@ -788,15 +788,16 @@ class MarketStructureGenerator {
       ═══════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════
-  5. CHART RENDERER - Stabil kanóc, eltüntetett price label
+  5. CHART RENDERER - Profi verzió, stabil kanóc, arányos wick
 
   Javítva:
-  - Kanóc stabil minden gyertyaszám esetén
-  - Wick width limit
-  - Minimum body magasság
-  - Dinamikus SCALE_LOOKBACK
-  - Price label-ek kikapcsolva / kicsire
+  - Kanóc mindig arányos a high-low különbséggel
+  - Wick max magasság limit
+  - Body minimum magasság
+  - Price label-ek eltávolítva
   - Animáció progress-szel
+  - Grid és ambient light megmarad
+  - Mobil és desktop optimalizálva
   ═══════════════════════════════════════════════════════════════ */
 
 class ChartRenderer {
@@ -891,7 +892,7 @@ class ChartRenderer {
     const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
 
     const minBodyHeight = mobile ? 4 : 2;
-    const maxWickHeight = mobile ? 20 : 15;
+    const maxWickHeight = mobile ? 25 : 20;
 
     // Grid
     ctx.strokeStyle = "rgba(255,255,255,0.04)";
@@ -918,17 +919,21 @@ class ChartRenderer {
       const highY = toY(c.high);
       const lowY = toY(c.low);
 
-      // Wick - stabil és limitált
-      const wickTop = Math.min(top, highY);
-      const wickBottom = Math.max(bot, lowY);
-      const wickHeight = Math.min(wickBottom - wickTop, maxWickHeight);
+      // Wick arányos high-low, max magasság limit
+      let wickTop = highY;
+      let wickBottom = lowY;
+      if (wickBottom - wickTop > maxWickHeight) {
+        const mid = (top + bot) / 2;
+        wickTop = mid - maxWickHeight / 2;
+        wickBottom = mid + maxWickHeight / 2;
+      }
 
       ctx.save();
       ctx.strokeStyle = col;
       ctx.lineWidth = wickWidth;
       ctx.beginPath();
       ctx.moveTo(centerX, wickTop);
-      ctx.lineTo(centerX, wickTop + wickHeight);
+      ctx.lineTo(centerX, wickBottom);
       ctx.stroke();
 
       // Body
@@ -947,9 +952,7 @@ class ChartRenderer {
       ctx.restore();
     });
 
-    // Price label-ek kikapcsolva / nagyon kicsi
-    // Ha akarjuk, itt akár el is távolíthatjuk teljesen
-    // ctx.font = mobile ? "8px monospace" : "7px monospace"; // opcionális
+    // Price label-ek teljesen kikapcsolva
   }
 
   render(allCandles, windowStart, windowSize) {
