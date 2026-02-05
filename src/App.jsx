@@ -822,7 +822,7 @@ class ChartRenderer {
 
     /* ───────── PLATFORM LOGIC ───────── */
     const mobile = this.isMobile(width);
-    const MAX_VISIBLE = mobile ? 14 : 32;
+    const MAX_VISIBLE = mobile ? 24 : 36;
 
     const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
     const visible = allCandles.slice(startIdx);
@@ -831,15 +831,22 @@ class ChartRenderer {
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
-    visible.forEach(c => {
+    const SCALE_LOOKBACK = mobile ? 10 : 6;
+    const scaleSource = allCandles.slice(
+      Math.max(0, startIdx - SCALE_LOOKBACK),
+      startIdx + visible.length
+    );
+
+    scaleSource.forEach(c => {
       minPrice = Math.min(minPrice, c.low);
       maxPrice = Math.max(maxPrice, c.high);
     });
 
+
     let range = maxPrice - minPrice || 1;
 
     // 🔑 prevent micro-compression on mobile
-    const MIN_RANGE = mobile ? 12 : 6;
+    const MIN_RANGE = mobile ? 4 : 3;
     if (range < MIN_RANGE) {
       const pad = (MIN_RANGE - range) / 2;
       minPrice -= pad;
@@ -847,8 +854,10 @@ class ChartRenderer {
       range = maxPrice - minPrice;
     }
 
-    minPrice -= range * 0.15;
-    maxPrice += range * 0.15;
+    const pad = mobile ? 0.08 : 0.06;
+    minPrice -= range * pad;
+    maxPrice += range * pad;
+
 
     const toY = price =>
       height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
