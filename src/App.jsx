@@ -69,10 +69,6 @@ class SoundEngine {
     this.on = true;
     this.masterGain = null;
     this.compressor = null;
-    this.buildingOsc = null;
-    this.buildingLFO = null;
-    this.buildingGain = null;
-    this.buildingLFOGain = null;
   }
 
   _ensure() {
@@ -150,83 +146,44 @@ class SoundEngine {
     osc.stop(now + 0.16);
   }
 
-  // Continuous building sound (call start/stop)
-  startBuilding() {
+  // Soft mechanical tick for each candle built
+  buildTick(progress) {
     if (!this.on) return;
-    this.stopBuilding(); // Clean up any existing
-    
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
-    console.log("🔊 Building sound starting...");
+    // Create a soft mechanical click/tick sound
+    // Uses noise burst + resonant filter for realistic mechanical sound
     
-    // Create pulsing low tone for "building" feel
-    this.buildingOsc = ctx.createOscillator();
-    this.buildingGain = ctx.createGain();
-    this.buildingLFO = ctx.createOscillator();
-    this.buildingLFOGain = ctx.createGain();
-    
-    // Main tone - low frequency
-    this.buildingOsc.type = "sine";
-    this.buildingOsc.frequency.setValueAtTime(110, now); // Low A
-    
-    // LFO for pulsing effect
-    this.buildingLFO.type = "sine";
-    this.buildingLFO.frequency.setValueAtTime(2, now); // 2 Hz pulse
-    
-    // LFO controls the amplitude
-    this.buildingLFOGain.gain.setValueAtTime(0.05, now);
-    
-    // Master gain starts at 0
-    this.buildingGain.gain.setValueAtTime(0, now);
-    
-    // Connect: LFO -> LFOGain -> Osc.frequency (for subtle vibrato too)
-    this.buildingLFO.connect(this.buildingLFOGain);
-    this.buildingLFOGain.connect(this.buildingGain.gain);
-    
-    // Main signal path
-    this.buildingOsc.connect(this.buildingGain);
-    this.buildingGain.connect(this.masterGain);
-    
-    this.buildingOsc.start(now);
-    this.buildingLFO.start(now);
-    
-    // Fade in to audible level - increased volume
-    this.buildingGain.gain.linearRampToValueAtTime(0.15, now + 0.4);
-    
-    console.log("🔊 Building sound started!");
-  }
-
-  stopBuilding() {
-    if (!this.buildingOsc) return;
-    
-    console.log("🔇 Building sound stopping...");
-    
-    try {
-      const ctx = this._ensure();
-      const now = ctx.currentTime;
-      
-      // Fade out
-      if (this.buildingGain) {
-        this.buildingGain.gain.linearRampToValueAtTime(0, now + 0.15);
-      }
-      
-      setTimeout(() => {
-        try {
-          if (this.buildingOsc) this.buildingOsc.stop();
-          if (this.buildingLFO) this.buildingLFO.stop();
-        } catch (e) {}
-        
-        this.buildingOsc = null;
-        this.buildingLFO = null;
-        this.buildingGain = null;
-        this.buildingLFOGain = null;
-        
-        console.log("🔇 Building sound stopped!");
-      }, 200);
-    } catch (e) {
-      console.log("⚠️ Error stopping building sound:", e);
+    // Noise component (very short burst)
+    const bufferSize = ctx.sampleRate * 0.015; // 15ms
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
     }
+    
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    
+    // Bandpass filter for mechanical resonance
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1800 + (progress * 300), now); // Subtle pitch variation
+    filter.Q.value = 12; // High Q for mechanical resonance
+    
+    const gain = ctx.createGain();
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    
+    // Sharp attack, quick decay
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+    
+    noise.start(now);
+    noise.stop(now + 0.03);
   }
 
   correct() {
@@ -1382,9 +1339,7 @@ export default function App() {
       setRevealProgress(0);
       setWindowStart(0); // Start from 0
       buildAnimationProgress.current = 0;
-
-      // Start building sound
-      sound.startBuilding();
+      lastCandleCount.current = 0; // Reset candle count for tick sounds
 
       // Smooth scrolling reveal animation
       const duration = 6500; // Gyorsabb, pörgősebb ritmus
@@ -1409,9 +1364,6 @@ export default function App() {
           buildAnimationProgress.current = 1;
           setWindowStart(newStructure.decisionIndex);
           setScreen("playing");
-          
-          // Stop building sound
-          sound.stopBuilding();
           
           // Start decision timer
           const timerStart = Date.now();
@@ -1482,9 +1434,6 @@ export default function App() {
       // Stop any running animations (building or other)
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
-      
-      // Stop building sound if it's playing
-      sound.stopBuilding();
       
       // If still in building phase, complete it immediately
       if (screen === "building") {
@@ -1578,6 +1527,12 @@ export default function App() {
           const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
           const displayedIndex = Math.floor(targetIndex);
           const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
+
+          // Play tick sound when a new candle is completed
+          if (displayedIndex > lastCandleCount.current) {
+            sound.buildTick(displayedIndex / structure.decisionIndex);
+            lastCandleCount.current = displayedIndex;
+          }
 
           // Teljes gyertyák az utolsó előttiig
           currentCandles = structure.candles.slice(0, displayedIndex);
