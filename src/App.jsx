@@ -1503,7 +1503,7 @@ export default function App() {
 
       let targetFps = 60;
       if (screen === "building") {
-        targetFps = isMobile ? 15 : 20;           // cinematic + stabil
+        targetFps = isMobile ? 24 : 40;        // még film-szerűbbé tettem
       } else if (screen === "playing") {
         targetFps = 24;
       } else {
@@ -1511,13 +1511,6 @@ export default function App() {
       }
 
       const minFrameTime = 1000 / targetFps;
-
-      // Ease függvény
-      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-
-      // CACHING – csak akkor slice-olunk, amikor új teljes gyertya jön
-      const cachedComplete = useRef([]);           // ← ezek maradnak a komponensben!
-      const lastCompleteIndex = useRef(-1);
 
       const render = (timestamp) => {
         if (timestamp - lastRenderTime.current < minFrameTime) {
@@ -1530,27 +1523,20 @@ export default function App() {
         let currentOffset = 0;
 
         if (screen === "building") {
-          const rawProgress = buildAnimationProgress.current;
-          const easedProgress = easeOutCubic(rawProgress);
-
-          const targetIndex = easedProgress * structure.decisionIndex;
+          // ── ÚJ: Progress-alapú lassú építés + partial candle ──
+          const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
           const displayedIndex = Math.floor(targetIndex);
-          const partialProgress = targetIndex - displayedIndex;
+          const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
 
-          // Csak akkor slice-olunk, ha tényleg új teljes gyertya kell
-          if (displayedIndex > lastCompleteIndex.current) {
-            cachedComplete.current = structure.candles.slice(0, displayedIndex);
-            lastCompleteIndex.current = displayedIndex;
-          }
+          // Teljes gyertyák az utolsó előttiig
+          currentCandles = structure.candles.slice(0, displayedIndex);
 
-          currentCandles = [...cachedComplete.current];
-
-          // Partial gyertya (mindig frissül, de nagyon olcsó)
+          // Az utolsó gyertya részlegesen "épül"
           if (displayedIndex < structure.candles.length) {
             const nextCandle = structure.candles[displayedIndex];
 
             const partialCandle = {
-              ...nextCandle,
+              ...nextCandle,                    // time, volume, stb. marad
               open: nextCandle.open,
               high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
               low:  nextCandle.open + (nextCandle.low  - nextCandle.open) * partialProgress,
@@ -1581,9 +1567,6 @@ export default function App() {
 
       return () => {
         if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
-        // cleanup (opcionális)
-        cachedComplete.current = [];
-        lastCompleteIndex.current = -1;
       };
     }, [structure, screen, revealProgress, swipeOffset, windowStart]);
 
