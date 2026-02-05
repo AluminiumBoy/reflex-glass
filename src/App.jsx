@@ -1642,6 +1642,11 @@ export default function App() {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
     
+    // Force cleanup of renderer
+    if (rendererRef.current) {
+      rendererRef.current = null;
+    }
+    
     // Reset all game state
     setRound(0);
     setScores([]);
@@ -1655,26 +1660,35 @@ export default function App() {
     setSwipeOffset(0);
     buildAnimationProgress.current = 0;
     lastCandleCount.current = 0;
+    cachedCandles.current = [];
     
-    // Start countdown
+    // Start countdown - 3, 2, 1
     setShowCountdown(true);
+    setCountdownNum(3);
     sound.tick(3);
     
-    const t1 = setTimeout(() => setCountdownNum(3), 0);
-    const t2 = setTimeout(() => { setCountdownNum(2); sound.tick(2); }, 1000);
-    const t3 = setTimeout(() => { setCountdownNum(1); sound.tick(1); }, 2000);
-    const t4 = setTimeout(() => {
+    setTimeout(() => {
+      setCountdownNum(2);
+      sound.tick(2);
+    }, 1000);
+    
+    setTimeout(() => {
+      setCountdownNum(1);
+      sound.tick(1);
+    }, 2000);
+    
+    setTimeout(() => {
       setShowCountdown(false);
-      setScreen("building");
+      
+      // Reinitialize renderer if needed
+      if (chartRef.current && !rendererRef.current) {
+        rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+        const rect = chartRef.current.getBoundingClientRect();
+        rendererRef.current.setDimensions(rect.width, rect.height);
+      }
+      
       initializeRound(0);
     }, 3000);
-    
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
   }, [initializeRound]);
 
   // ── Handle user choice ──
