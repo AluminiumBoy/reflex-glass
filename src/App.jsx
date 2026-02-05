@@ -1207,67 +1207,329 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
   </GlassPanel>
 );
 
-const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => (
-  <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
-    <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
-    <div
-      style={{
-        fontSize: 48,
-        fontWeight: 900,
-        fontFamily: "monospace",
-        background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
+const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => {
+  const [playerName, setPlayerName] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const saveScore = async () => {
+    if (!playerName.trim() || saving) return;
+    
+    setSaving(true);
+    try {
+      const timestamp = Date.now();
+      const scoreData = {
+        name: playerName.trim(),
+        score: stats.totalScore,
+        streak: stats.bestStreak,
+        accuracy: stats.accuracy,
+        timestamp
+      };
+      
+      await window.storage.set(
+        `score:${playerName.trim()}:${timestamp}`,
+        JSON.stringify(scoreData),
+        true // shared
+      );
+      
+      setSaved(true);
+      haptic([50, 30, 50]);
+    } catch (err) {
+      console.error("Failed to save score:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
+      <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
+      <div
+        style={{
+          fontSize: 48,
+          fontWeight: 900,
+          fontFamily: "monospace",
+          background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          marginBottom: 20,
+        }}
+      >
+        {stats.totalScore.toLocaleString()}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            ACCURACY
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen }}>
+            {stats.accuracy}%
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            CORRECT
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue }}>
+            {stats.correct}/{stats.total}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            BEST STREAK
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple }}>
+            {stats.bestStreak}
+          </div>
+        </div>
+      </div>
+
+      {!saved ? (
+        <div style={{ marginBottom: 16 }}>
+          <input
+            type="text"
+            placeholder="Enter your name"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && saveScore()}
+            maxLength={20}
+            style={{
+              width: "100%",
+              padding: "12px 16px",
+              fontSize: 16,
+              fontWeight: 600,
+              background: C.glass,
+              border: `1px solid ${C.glassBr}`,
+              borderRadius: 12,
+              color: "#fff",
+              textAlign: "center",
+              outline: "none",
+              marginBottom: 10,
+              backdropFilter: "blur(20px)"
+            }}
+          />
+          <GlassButton 
+            onClick={saveScore} 
+            color={C.nGreen}
+            disabled={!playerName.trim() || saving}
+            style={{ 
+              width: "100%", 
+              padding: "12px 0",
+              opacity: (!playerName.trim() || saving) ? 0.5 : 1
+            }}
+          >
+            {saving ? "Saving..." : "Save Score"}
+          </GlassButton>
+        </div>
+      ) : (
+        <div style={{ 
+          padding: "12px", 
+          marginBottom: 16,
+          background: `${C.nGreen}20`,
+          border: `1px solid ${C.nGreen}60`,
+          borderRadius: 12,
+          color: C.nGreen,
+          fontSize: 14,
+          fontWeight: 600
+        }}>
+          ✓ Score saved!
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "14px 0" }}>
+          Play Again
+        </GlassButton>
+        <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "14px 0" }}>
+          Leaderboard
+        </GlassButton>
+      </div>
+    </GlassPanel>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+    6.5  LEADERBOARD COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
+
+const Leaderboard = ({ onBack }) => {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, []);
+
+  const loadLeaderboard = async () => {
+    try {
+      setLoading(true);
+      const result = await window.storage.list("score:", true);
+      if (result && result.keys) {
+        // Load all scores
+        const scores = await Promise.all(
+          result.keys.map(async (key) => {
+            const data = await window.storage.get(key, true);
+            return data ? JSON.parse(data.value) : null;
+          })
+        );
+        
+        // Filter out nulls and aggregate by player name
+        const validScores = scores.filter(s => s);
+        const aggregated = {};
+        
+        validScores.forEach(score => {
+          if (!aggregated[score.name]) {
+            aggregated[score.name] = {
+              name: score.name,
+              totalScore: 0,
+              games: 0,
+              bestScore: 0,
+              bestStreak: 0
+            };
+          }
+          aggregated[score.name].totalScore += score.score;
+          aggregated[score.name].games += 1;
+          aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
+          aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
+        });
+        
+        // Convert to array and sort by total score
+        const leaderboard = Object.values(aggregated)
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .slice(0, 10); // Top 10
+        
+        setEntries(leaderboard);
+      } else {
+        setEntries([]);
+      }
+    } catch (err) {
+      console.log("No leaderboard data yet");
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      gap: 16, 
+      maxWidth: 480, 
+      margin: "0 auto",
+      padding: 16 
+    }}>
+      <div style={{ 
+        textAlign: "center", 
+        fontSize: 32, 
+        fontWeight: 800,
+        background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 100%)`,
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
-        marginBottom: 20,
-      }}
-    >
-      {stats.totalScore.toLocaleString()}
-    </div>
+        marginBottom: 8
+      }}>
+        🏆 Leaderboard
+      </div>
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr 1fr",
-        gap: 12,
-        marginBottom: 20,
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-          ACCURACY
+      {loading ? (
+        <div style={{ textAlign: "center", color: C.neut, padding: 40 }}>
+          Loading...
         </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen }}>
-          {stats.accuracy}%
+      ) : entries.length === 0 ? (
+        <div style={{ 
+          textAlign: "center", 
+          color: "rgba(255,255,255,0.5)", 
+          padding: 40,
+          fontSize: 14
+        }}>
+          No scores yet. Be the first!
         </div>
-      </div>
-      <div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-          CORRECT
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {entries.map((entry, idx) => (
+            <div
+              key={entry.name}
+              style={{
+                background: C.glass,
+                border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
+                borderRadius: 12,
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                backdropFilter: "blur(20px)",
+                boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none"
+              }}
+            >
+              <div style={{ 
+                fontSize: 20, 
+                fontWeight: 700,
+                minWidth: 32,
+                color: idx === 0 ? C.nGreen : idx === 1 ? C.nPurple : idx === 2 ? C.nBlue : "rgba(255,255,255,0.6)"
+              }}>
+                {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  fontSize: 16, 
+                  fontWeight: 600,
+                  color: "#fff",
+                  marginBottom: 2
+                }}>
+                  {entry.name}
+                </div>
+                <div style={{ 
+                  fontSize: 11, 
+                  color: "rgba(255,255,255,0.5)",
+                  fontFamily: "monospace"
+                }}>
+                  {entry.games} game{entry.games !== 1 ? "s" : ""} • Best: {entry.bestScore.toLocaleString()}
+                </div>
+              </div>
+              <div style={{ 
+                textAlign: "right",
+                display: "flex",
+                flexDirection: "column",
+                gap: 2
+              }}>
+                <div style={{ 
+                  fontSize: 18, 
+                  fontWeight: 700,
+                  color: C.nGreen
+                }}>
+                  {entry.totalScore.toLocaleString()}
+                </div>
+                <div style={{ 
+                  fontSize: 10, 
+                  color: "rgba(255,255,255,0.4)",
+                  fontFamily: "monospace"
+                }}>
+                  🔥 {entry.bestStreak}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue }}>
-          {stats.correct}/{stats.total}
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-          BEST STREAK
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple }}>
-          {stats.bestStreak}
-        </div>
-      </div>
-    </div>
+      )}
 
-    <div style={{ display: "flex", gap: 10 }}>
-      <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "14px 0" }}>
-        Play Again
-      </GlassButton>
-      <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "14px 0" }}>
-        Leaderboard
+      <GlassButton 
+        onClick={onBack} 
+        color={C.nPurple} 
+        style={{ marginTop: 8 }}
+      >
+        Back
       </GlassButton>
     </div>
-  </GlassPanel>
-);
+  );
+};
 
 /* ═══════════════════════════════════════════════════════════════
     7  MAIN APP COMPONENT
@@ -1410,20 +1672,20 @@ export default function App() {
     // Start countdown
     setShowCountdown(true);
     setCountdownNum(3);
+    sound.tick(3);
 
-    let count = 3;
+    let count = 2;
     const countInterval = setInterval(() => {
-      if (count === 1) {
+      if (count === 0) {
         clearInterval(countInterval);
-        sound.tick(1);
         setTimeout(() => {
           setShowCountdown(false);
           initializeRound(0);
         }, 300);
       } else {
+        setCountdownNum(count);
         sound.tick(count);
         count--;
-        setCountdownNum(count);
       }
     }, 1000);
   }, [initializeRound]);
@@ -2075,6 +2337,17 @@ export default function App() {
         {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
           renderPlaying()}
         {screen === "verdict" && renderVerdict()}
+        {screen === "leaderboard" && (
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            alignItems: "center", 
+            minHeight: "100dvh",
+            padding: 16 
+          }}>
+            <Leaderboard onBack={() => setScreen("verdict")} />
+          </div>
+        )}
       </div>
 
       {/* Countdown overlay */}
