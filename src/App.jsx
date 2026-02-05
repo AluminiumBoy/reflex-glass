@@ -1211,7 +1211,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const saveScore = async () => {
+    const saveScore = () => {
       if (!playerName || saved) return;
       
       try {
@@ -1224,11 +1224,9 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
-        await window.storage.set(
-          `score:${playerName}:${timestamp}`,
-          JSON.stringify(scoreData),
-          true // shared
-        );
+        let scores = JSON.parse(localStorage.getItem("reflexScores") || "[]");
+        scores.push(scoreData);
+        localStorage.setItem("reflexScores", JSON.stringify(scores));
         
         setSaved(true);
         haptic([50, 30, 50]);
@@ -1333,23 +1331,19 @@ const Leaderboard = ({ onBack }) => {
     loadLeaderboard();
   }, []);
 
-  const loadLeaderboard = async () => {
-    try {
-      setLoading(true);
-      const result = await window.storage.list("score:", true);
-      if (result && result.keys) {
-        // Load all scores
-        const scores = await Promise.all(
-          result.keys.map(async (key) => {
-            const data = await window.storage.get(key, true);
-            return data ? JSON.parse(data.value) : null;
-          })
-        );
-        
-        // Filter out nulls and aggregate by player name
-        const validScores = scores.filter(s => s);
+
+    const loadLeaderboard = () => {
+      try {
+        const scoresStr = localStorage.getItem("reflexScores");
+        if (!scoresStr) {
+          setEntries([]);
+          setLoading(false);
+          return;
+        }
+
+        const validScores = JSON.parse(scoresStr);
         const aggregated = {};
-        
+
         validScores.forEach(score => {
           if (!aggregated[score.name]) {
             aggregated[score.name] = {
@@ -1365,23 +1359,19 @@ const Leaderboard = ({ onBack }) => {
           aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
           aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
         });
-        
-        // Convert to array and sort by total score
+
         const leaderboard = Object.values(aggregated)
           .sort((a, b) => b.totalScore - a.totalScore)
-          .slice(0, 10); // Top 10
-        
+          .slice(0, 10);
+
         setEntries(leaderboard);
-      } else {
+      } catch (err) {
+        console.log("No leaderboard data");
         setEntries([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.log("No leaderboard data yet");
-      setEntries([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   return (
     <div style={{ 
@@ -1553,13 +1543,12 @@ export default function App() {
   }, []);
 
   // ── Load saved player name ──
+  // ── Load saved player name ──
   useEffect(() => {
-    const loadPlayerName = async () => {
+    const loadPlayerName = () => {
       try {
-        const result = await window.storage.get("playerName", false);
-        if (result && result.value) {
-          setPlayerName(result.value);
-        }
+        const saved = localStorage.getItem("playerName");
+        if (saved) setPlayerName(saved);
       } catch (err) {
         console.log("No saved name");
       }
@@ -1843,13 +1832,13 @@ export default function App() {
     const [isEditing, setIsEditing] = useState(!playerName);
     const [tempName, setTempName] = useState(playerName);
 
-    const handleSaveName = async () => {
-      if (!tempName.trim()) return;
-      
-      // Save player name
+    const handleSaveName = () => {
+      const trimmed = tempName.trim();
+      if (!trimmed) return;
+
       try {
-        await window.storage.set("playerName", tempName.trim(), false);
-        setPlayerName(tempName.trim());
+        localStorage.setItem("playerName", trimmed);
+        setPlayerName(trimmed);
         setIsEditing(false);
         haptic([30, 20, 30]);
       } catch (err) {
