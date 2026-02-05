@@ -1350,7 +1350,7 @@ export default function App() {
       buildAnimationProgress.current = 0;
 
       // Smooth scrolling reveal animation
-      const duration = 2000; // Gyorsabb, pörgősebb ritmus
+      const duration = 6500; // Gyorsabb, pörgősebb ritmus
       const startTime = Date.now();
 
       const animateScroll = () => {
