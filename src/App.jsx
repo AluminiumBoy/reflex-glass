@@ -1350,7 +1350,7 @@ export default function App() {
       buildAnimationProgress.current = 0;
 
       // Smooth scrolling reveal animation
-      const duration = 2500; // Gyorsabb, pörgősebb ritmus
+      const duration = 5000; // Gyorsabb, pörgősebb ritmus
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -1508,7 +1508,7 @@ export default function App() {
       let targetFps = 60;
       if (screen === "building") {
         // LOWER FPS during build to prevent stutter with many candles
-        targetFps = isMobile ? 15 : 20; // Cinematic feel, no lag
+        targetFps = isMobile ? 24 : 30; // Cinematic feel, no lag
       } else if (screen === "playing") {
         // Static view, lower fps ok
         targetFps = 24; // Save battery
