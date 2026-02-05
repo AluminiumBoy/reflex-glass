@@ -777,14 +777,14 @@ class MarketStructureGenerator {
 }
 
     /* ═══════════════════════════════════════════════════════════════
-      5. CHART RENDERER - Javított verzió
+      5. CHART RENDERER - Stabil kanóc javítás
 
-      Mobile-first, structure-preserving chart renderer
       Javítva:
-      - Stabil kanóc kevés gyertyánál
-      - Limitált wick width
+      - Stabil kanóc 6–10 gyertyánál
+      - Wick width limit
+      - Minimum wick magasság
       - Dinamikus SCALE_LOOKBACK
-      - Animáció könnyen szabályozható
+      - Animáció progress-szel
       ═══════════════════════════════════════════════════════════════ */
 
     class ChartRenderer {
@@ -860,7 +860,6 @@ class MarketStructureGenerator {
         let minPrice = Infinity;
         let maxPrice = -Infinity;
 
-        // Dinamikus SCALE_LOOKBACK a kevés gyertyára
         const SCALE_LOOKBACK = Math.max(visible.length, mobile ? 16 : 6);
         const scaleSource = allCandles.slice(
           Math.max(0, startIdx - SCALE_LOOKBACK),
@@ -873,6 +872,14 @@ class MarketStructureGenerator {
         });
 
         let range = maxPrice - minPrice || 1;
+
+        // Fix range kis gyertyaszám esetén
+        if (visible.length < 12) {
+          const fixedPad = 5;
+          minPrice -= fixedPad;
+          maxPrice += fixedPad;
+          range = maxPrice - minPrice;
+        }
 
         const MIN_RANGE = mobile ? 4 : 3;
         if (range < MIN_RANGE) {
@@ -948,13 +955,16 @@ class MarketStructureGenerator {
 
           ctx.save();
 
-          // Wick
+          // Wick – minimum magasság
+          const centerX = Math.round(x + bodyWidth / 2);
+          const wickTop = toY(c.high);
+          const wickBottom = toY(c.low);
+          const minWickHeight = mobile ? 4 : 2;
           ctx.strokeStyle = col;
           ctx.lineWidth = wickWidth;
           ctx.beginPath();
-          const centerX = Math.round(x + bodyWidth / 2);
-          ctx.moveTo(centerX, toY(c.high));
-          ctx.lineTo(centerX, toY(c.low));
+          ctx.moveTo(centerX, Math.min(wickTop, wickBottom));
+          ctx.lineTo(centerX, Math.max(wickTop, wickBottom, Math.min(wickTop + minWickHeight, wickBottom + minWickHeight)));
           ctx.stroke();
 
           // Body
@@ -1010,6 +1020,7 @@ class MarketStructureGenerator {
         this.renderAll([...allCandles, ...continuation.slice(0, count)]);
       }
     }
+
 
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
