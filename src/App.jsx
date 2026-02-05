@@ -21,7 +21,7 @@
  * ═══════════════════════════════════════════════════════════════
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 /* ═══════════════════════════════════════════════════════════════
     1  CONSTANTS & COLOR TOKENS
@@ -836,22 +836,27 @@ class ChartRenderer {
     const rightPadding = mobile ? 15 : 30;
     const availableWidth = width - leftPadding - rightPadding;
 
-    const MIN_BODY_WIDTH = mobile ? 6 : 9;
-    const MIN_SLOT = MIN_BODY_WIDTH + gap;
-
-    let maxVisibleCalc = Math.floor(availableWidth / MIN_SLOT);
-    let MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 35 : 40);
-
-    let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
+    const MIN_BODY_WIDTH = mobile ? 3 : 4;
+    const MAX_BODY_WIDTH = mobile ? 14 : 18;
+    
+    // Calculate how many candles we need to show
+    const candleCount = allCandles.length;
+    
+    // Calculate ideal slot width to fit all candles
+    let slotWidth = availableWidth / candleCount;
     let bodyWidth = slotWidth - gap;
-
+    
+    // Clamp body width to min/max
     if (bodyWidth < MIN_BODY_WIDTH) {
       bodyWidth = MIN_BODY_WIDTH;
       slotWidth = bodyWidth + gap;
-      if (slotWidth * MAX_VISIBLE > availableWidth) {
-        MAX_VISIBLE = Math.floor(availableWidth / slotWidth);
-      }
+    } else if (bodyWidth > MAX_BODY_WIDTH) {
+      bodyWidth = MAX_BODY_WIDTH;
+      slotWidth = bodyWidth + gap;
     }
+    
+    // Now we show ALL candles that fit, or scroll if needed
+    let MAX_VISIBLE = Math.min(candleCount, Math.floor(availableWidth / slotWidth));
 
     const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
     
@@ -859,8 +864,7 @@ class ChartRenderer {
     const offsetCandles = Math.floor(scrollOffset / slotWidth);
     const startIdx = Math.max(0, Math.min(allCandles.length - MAX_VISIBLE, allCandles.length - MAX_VISIBLE - offsetCandles));
     
-    // OPTIMIZATION: During heavy rendering, show only what fits
-    // This prevents lag when there are 60+ candles
+    // Show visible candles
     const endIdx = Math.min(startIdx + MAX_VISIBLE, allCandles.length);
     const visible = allCandles.slice(startIdx, endIdx);
     
@@ -1014,39 +1018,46 @@ const GlassPanel = ({ children, style, onClick }) => (
   </div>
 );
 
-const GlassButton = ({ children, onClick, color, disabled, style }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    style={{
-      background: disabled ? C.glass : `linear-gradient(135deg, ${color}22, ${color}11)`,
-      border: `1.5px solid ${disabled ? C.glassBr : color}55`,
-      borderRadius: 16,
-      padding: "12px 24px",
-      color: disabled ? "rgba(255,255,255,0.3)" : "#fff",
-      fontSize: 14,
-      fontWeight: 600,
-      cursor: disabled ? "not-allowed" : "pointer",
-      backdropFilter: "blur(16px)",
-      transition: "all 0.2s",
-      ...style,
-    }}
-    onMouseEnter={(e) => {
-      if (!disabled) {
-        e.target.style.transform = "translateY(-1px)";
-        e.target.style.boxShadow = `0 6px 20px ${color}33`;
-      }
-    }}
-    onMouseLeave={(e) => {
-      if (!disabled) {
-        e.target.style.transform = "translateY(0)";
-        e.target.style.boxShadow = "none";
-      }
-    }}
-  >
-    {children}
-  </button>
-);
+const GlassButton = React.memo(({ children, onClick, color, disabled, style }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  const handleMouseEnter = useCallback(() => {
+    if (!disabled) setIsHovered(true);
+  }, [disabled]);
+  
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+  
+  const buttonStyle = useMemo(() => ({
+    background: disabled ? C.glass : `linear-gradient(135deg, ${color}22, ${color}11)`,
+    border: `1.5px solid ${disabled ? C.glassBr : color}55`,
+    borderRadius: 16,
+    padding: "12px 24px",
+    color: disabled ? "rgba(255,255,255,0.3)" : "#fff",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: disabled ? "not-allowed" : "pointer",
+    backdropFilter: "blur(16px)",
+    transform: !disabled && isHovered ? "translateY(-1px)" : "translateY(0)",
+    boxShadow: !disabled && isHovered ? `0 6px 20px ${color}33` : "none",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border 0.2s ease",
+    willChange: "transform, box-shadow",
+    ...style,
+  }), [disabled, color, isHovered, style]);
+  
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={buttonStyle}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+    </button>
+  );
+});
 
 const TimerBar = ({ timeLeft, totalTime }) => {
   const pct = (timeLeft / totalTime) * 100;
@@ -1076,34 +1087,40 @@ const TimerBar = ({ timeLeft, totalTime }) => {
   );
 };
 
-const DecisionButtons = ({ onChoose, disabled }) => (
-  <div style={{ display: "flex", gap: 10 }}>
-    <GlassButton
-      onClick={() => onChoose("BUY")}
-      disabled={disabled}
-      color={C.bull}
-      style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
-    >
-      📈 BUY
-    </GlassButton>
-    <GlassButton
-      onClick={() => onChoose("HOLD")}
-      disabled={disabled}
-      color={C.neut}
-      style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
-    >
-      ⏸️ HOLD
-    </GlassButton>
-    <GlassButton
-      onClick={() => onChoose("SELL")}
-      disabled={disabled}
-      color={C.bear}
-      style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
-    >
-      📉 SELL
-    </GlassButton>
-  </div>
-);
+const DecisionButtons = React.memo(({ onChoose, disabled }) => {
+  const handleBuy = useCallback(() => onChoose("BUY"), [onChoose]);
+  const handleHold = useCallback(() => onChoose("HOLD"), [onChoose]);
+  const handleSell = useCallback(() => onChoose("SELL"), [onChoose]);
+
+  return (
+    <div style={{ display: "flex", gap: 10, willChange: "opacity" }}>
+      <GlassButton
+        onClick={handleBuy}
+        disabled={disabled}
+        color={C.bull}
+        style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
+      >
+        📈 BUY
+      </GlassButton>
+      <GlassButton
+        onClick={handleHold}
+        disabled={disabled}
+        color={C.neut}
+        style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
+      >
+        ⏸️ HOLD
+      </GlassButton>
+      <GlassButton
+        onClick={handleSell}
+        disabled={disabled}
+        color={C.bear}
+        style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
+      >
+        📉 SELL
+      </GlassButton>
+    </div>
+  );
+});
 
 const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onNext, context }) => (
   <GlassPanel style={{ padding: "16px 20px" }}>
@@ -1349,11 +1366,11 @@ export default function App() {
         if (progress < 1) {
           animFrameRef.current = requestAnimationFrame(animateScroll);
         } else {
-          // Scrolling complete - set final state once
+          // Scrolling complete - set final state immediately
           buildAnimationProgress.current = 1;
           setWindowStart(newStructure.decisionIndex);
           setScreen("playing");
-
+          
           // Start decision timer
           const timerStart = Date.now();
           if (timerRef.current) clearInterval(timerRef.current);
@@ -1522,7 +1539,8 @@ export default function App() {
           }
           currentCandles = cachedCandles.current;
         } else if (screen === "playing") {
-          currentCandles = structure.candles.slice(0, windowStart + 1);
+          // Show all candles up to and including decision point
+          currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
         } else if (screen === "revealing" || screen === "outcome") {
           const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
           const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
@@ -1823,13 +1841,17 @@ export default function App() {
       </div>
 
       {/* Decision / Outcome - compact */}
-      <div style={{ paddingBottom: 6, flexShrink: 0, padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0" }}>
-        {screen === "building" && (
-          <div style={{ textAlign: "center", padding: "12px", color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
-            Watching market develop...
-          </div>
-        )}
-        {screen === "playing" && <DecisionButtons onChoose={handleChoice} disabled={false} />}
+      <div style={{ paddingBottom: 6, flexShrink: 0, padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0", minHeight: 64 }}>
+        <div style={{ 
+          display: screen === "outcome" ? "none" : "block",
+          opacity: screen === "playing" ? 1 : 0,
+          pointerEvents: screen === "playing" ? "auto" : "none",
+          transition: "opacity 0.1s ease-out",
+          willChange: "opacity",
+          transform: "translateZ(0)",
+        }}>
+          <DecisionButtons onChoose={handleChoice} disabled={screen !== "playing"} />
+        </div>
         {screen === "outcome" && (
           <OutcomeCard
             correct={roundStats[roundStats.length - 1]?.correct}
