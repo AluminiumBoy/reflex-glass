@@ -1317,7 +1317,7 @@ export default function App() {
 
       // Smooth scrolling reveal animation
       let progress = 0;
-      const duration = 5000; // 2.5 seconds to build full context
+      const duration = 3500; // 2.5 seconds to build full context
       const startTime = Date.now();
 
       const animateScroll = () => {
