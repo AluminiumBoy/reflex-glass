@@ -1840,16 +1840,30 @@ export default function App() {
 
   // ── Home screen ──
   const renderHome = () => {
-    const handleStartGame = async () => {
-      if (!playerName.trim()) return;
+    const [isEditing, setIsEditing] = useState(!playerName);
+    const [tempName, setTempName] = useState(playerName);
+
+    const handleSaveName = async () => {
+      if (!tempName.trim()) return;
       
       // Save player name
       try {
-        await window.storage.set("playerName", playerName.trim(), false);
+        await window.storage.set("playerName", tempName.trim(), false);
+        setPlayerName(tempName.trim());
+        setIsEditing(false);
+        haptic([30, 20, 30]);
       } catch (err) {
         console.error("Failed to save name:", err);
       }
-      
+    };
+
+    const handleCancelEdit = () => {
+      setTempName(playerName);
+      setIsEditing(false);
+    };
+
+    const handleStartGame = () => {
+      if (!playerName.trim()) return;
       startGame();
     };
 
@@ -1890,27 +1904,117 @@ export default function App() {
           to wait. Focus on context, not memorization.
         </div>
         
-        <input
-          type="text"
-          placeholder="Enter your name"
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleStartGame()}
-          maxLength={20}
-          style={{
-            width: "100%",
-            padding: "12px 16px",
-            fontSize: 16,
-            fontWeight: 600,
-            background: C.glass,
-            border: `1px solid ${C.glassBr}`,
-            borderRadius: 12,
-            color: "#fff",
-            textAlign: "center",
-            outline: "none",
-            backdropFilter: "blur(20px)"
-          }}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            type="text"
+            placeholder="Enter your name"
+            value={isEditing ? tempName : playerName}
+            onChange={(e) => isEditing && setTempName(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                if (isEditing) {
+                  handleSaveName();
+                } else {
+                  handleStartGame();
+                }
+              }
+            }}
+            maxLength={20}
+            disabled={!isEditing}
+            style={{
+              width: "100%",
+              padding: "12px 48px 12px 16px",
+              fontSize: 16,
+              fontWeight: 600,
+              background: C.glass,
+              border: `1px solid ${isEditing ? C.nGreen : C.glassBr}`,
+              borderRadius: 12,
+              color: "#fff",
+              textAlign: "center",
+              outline: "none",
+              backdropFilter: "blur(20px)",
+              cursor: isEditing ? "text" : "default",
+              opacity: isEditing ? 1 : 0.9
+            }}
+          />
+          {isEditing ? (
+            <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
+              <button
+                onClick={handleSaveName}
+                disabled={!tempName.trim()}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: "none",
+                  background: tempName.trim() ? C.nGreen : "rgba(255,255,255,0.1)",
+                  color: "#fff",
+                  cursor: tempName.trim() ? "pointer" : "not-allowed",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  opacity: tempName.trim() ? 1 : 0.4,
+                  transition: "all 0.2s"
+                }}
+              >
+                ✓
+              </button>
+              {playerName && (
+                <button
+                  onClick={handleCancelEdit}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "none",
+                    background: "rgba(255,77,148,0.3)",
+                    color: C.nPink,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    transition: "all 0.2s"
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ) : (
+            playerName && (
+              <button
+                onClick={() => {
+                  setTempName(playerName);
+                  setIsEditing(true);
+                }}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: "none",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.6)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                  transition: "all 0.2s"
+                }}
+              >
+                ✎
+              </button>
+            )
+          )}
+        </div>
       </GlassPanel>
 
       <GlassButton
