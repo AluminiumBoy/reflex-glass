@@ -787,6 +787,18 @@ class MarketStructureGenerator {
       - Animáció progress-szel
       ═══════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════
+  5. CHART RENDERER - Stabil kanóc, eltüntetett price label
+
+  Javítva:
+  - Kanóc stabil minden gyertyaszám esetén
+  - Wick width limit
+  - Minimum body magasság
+  - Dinamikus SCALE_LOOKBACK
+  - Price label-ek kikapcsolva / kicsire
+  - Animáció progress-szel
+  ═══════════════════════════════════════════════════════════════ */
+
 class ChartRenderer {
   constructor(canvas, config) {
     this.canvas = canvas;
@@ -865,7 +877,6 @@ class ChartRenderer {
 
     let range = maxPrice - minPrice || 1;
 
-    // Fix range kis gyertyaszám esetén
     if (visible.length < 12) {
       const pad = 5;
       minPrice -= pad;
@@ -907,7 +918,7 @@ class ChartRenderer {
       const highY = toY(c.high);
       const lowY = toY(c.low);
 
-      // Wick magasság - limitált és body felett/alatt
+      // Wick - stabil és limitált
       const wickTop = Math.min(top, highY);
       const wickBottom = Math.max(bot, lowY);
       const wickHeight = Math.min(wickBottom - wickTop, maxWickHeight);
@@ -935,6 +946,10 @@ class ChartRenderer {
       ctx.stroke();
       ctx.restore();
     });
+
+    // Price label-ek kikapcsolva / nagyon kicsi
+    // Ha akarjuk, itt akár el is távolíthatjuk teljesen
+    // ctx.font = mobile ? "8px monospace" : "7px monospace"; // opcionális
   }
 
   render(allCandles, windowStart, windowSize) {
