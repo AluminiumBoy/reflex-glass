@@ -820,7 +820,7 @@ class ChartRenderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  renderAll(allCandles) {
+  renderAll(allCandles, scrollOffset = 0) {
     const ctx = this.ctx;
     const dpr = window.devicePixelRatio || 1;
     const width = this.canvas.width / dpr;
@@ -832,15 +832,15 @@ class ChartRenderer {
     const mobile = this.isMobile(width);
 
     const gap = mobile ? 4 : 2;
-    const leftPadding = mobile ? 20 : 30;
-    const rightPadding = mobile ? 90 : 30;
+    const leftPadding = mobile ? 10 : 30;
+    const rightPadding = mobile ? 15 : 30;
     const availableWidth = width - leftPadding - rightPadding;
 
-    const MIN_BODY_WIDTH = mobile ? 8 : 9;
+    const MIN_BODY_WIDTH = mobile ? 6 : 9;
     const MIN_SLOT = MIN_BODY_WIDTH + gap;
 
     let maxVisibleCalc = Math.floor(availableWidth / MIN_SLOT);
-    let MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 24 : 40);
+    let MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 35 : 40);
 
     let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
     let bodyWidth = slotWidth - gap;
@@ -854,8 +854,11 @@ class ChartRenderer {
     }
 
     const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
-    const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
-    const visible = allCandles.slice(startIdx);
+    
+    // Apply scroll offset (in candles)
+    const offsetCandles = Math.floor(scrollOffset / slotWidth);
+    const startIdx = Math.max(0, Math.min(allCandles.length - MAX_VISIBLE, allCandles.length - MAX_VISIBLE - offsetCandles));
+    const visible = allCandles.slice(startIdx, startIdx + MAX_VISIBLE);
 
     // Y skála
     let minPrice = Infinity;
@@ -1248,12 +1251,15 @@ export default function App() {
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdownNum, setCountdownNum] = useState(3);
   const [revealProgress, setRevealProgress] = useState(0);
+  const [swipeOffset, setSwipeOffset] = useState(0);
 
   // ── Refs ──
   const chartRef = useRef(null);
   const rendererRef = useRef(null);
   const timerRef = useRef(null);
   const animFrameRef = useRef(null);
+  const touchStartX = useRef(null);
+  const touchStartOffset = useRef(0);
 
   // ── Initialize renderer ──
   useEffect(() => {
@@ -1346,6 +1352,7 @@ export default function App() {
     setStructure(null);
     setWindowStart(0);
     setRevealProgress(0);
+    setSwipeOffset(0);
     
     // Start countdown
     setShowCountdown(true);
@@ -1413,6 +1420,7 @@ export default function App() {
   // ── Advance to next round ──
   const advanceRound = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    setSwipeOffset(0); // Reset scroll position
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
     } else {
@@ -1455,33 +1463,34 @@ export default function App() {
       if (screen === "building" || screen === "playing") {
         if (isEarlyPhase) {
           // ELEJÉN MÉG LASSABB – hogy ne rohanjon az első gyertyák
-          throttleDelay = isMobile ? 1200 : 400;   // mobilon kb. 1.25 fps
+          throttleDelay = isMobile ? 800 : 200;   // mobilon kb. 1.25 fps
         } else {
           // később már kicsit gyorsabb, de még mindig nyugodt
-          throttleDelay = isMobile ? 1200 : 400;
+          throttleDelay = isMobile ? 450 : 120;
         }
       } else {
         // revealing / outcome – gyorsabb, hogy a continuation jól látszódjon
         throttleDelay = isMobile ? 180 : 70;
       }
 
-      const throttledRender = throttle((candles) => {
+      const throttledRender = throttle((candles, offset = 0) => {
         if (rendererRef.current) {
-          rendererRef.current.renderAll(candles);
+          rendererRef.current.renderAll(candles, offset);
         }
       }, throttleDelay);
 
       if (screen === "building" || screen === "playing") {
         const visibleCandles = structure.candles.slice(0, windowStart + 1);
-        throttledRender(visibleCandles);
+        throttledRender(visibleCandles, 0);
       } else if (screen === "revealing" || screen === "outcome") {
         const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
         const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
         const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
-        throttledRender(allCandles);
+        // Use swipeOffset only on outcome screen
+        throttledRender(allCandles, screen === "outcome" ? swipeOffset : 0);
       }
 
-    }, [structure, windowStart, screen, revealProgress]);
+    }, [structure, windowStart, screen, revealProgress, swipeOffset]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
@@ -1565,18 +1574,26 @@ export default function App() {
   );
 
   // ── Playing screen ──
-  const renderPlaying = () => (
+  const renderPlaying = () => {
+    const isMobile = window.innerWidth < 520;
+    return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         height: "100%",
         gap: 8,
-        padding: "8px 10px",
+        padding: isMobile ? "8px 0" : "8px 10px",
       }}
     >
       {/* Header - more compact on mobile */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        flexShrink: 0,
+        padding: isMobile ? "0 10px" : "0"
+      }}>
         <GlassPanel style={{ padding: "5px 12px", borderRadius: 14 }}>
           <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>
             Round{" "}
@@ -1606,7 +1623,7 @@ export default function App() {
 
       {/* Timer - only show when playing, more compact */}
       {screen === "playing" && (
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ flexShrink: 0, padding: isMobile ? "0 10px" : "0" }}>
           <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
         </div>
       )}
@@ -1620,30 +1637,73 @@ export default function App() {
       }}>
         <canvas
           ref={chartRef}
-          style={{ width: "100%", height: "100%", borderRadius: 16, display: "block" }}
+          style={{ 
+            width: "100%", 
+            height: "100%", 
+            borderRadius: 16, 
+            display: "block",
+            touchAction: screen === "outcome" ? "pan-x" : "none"
+          }}
+          onTouchStart={(e) => {
+            if (screen === "outcome") {
+              touchStartX.current = e.touches[0].clientX;
+              touchStartOffset.current = swipeOffset;
+            }
+          }}
+          onTouchMove={(e) => {
+            if (screen === "outcome" && touchStartX.current !== null) {
+              const deltaX = touchStartX.current - e.touches[0].clientX;
+              const newOffset = touchStartOffset.current + deltaX;
+              // Limit scrolling range
+              setSwipeOffset(Math.max(-200, Math.min(400, newOffset)));
+            }
+          }}
+          onTouchEnd={() => {
+            touchStartX.current = null;
+          }}
         />
         {screen === "outcome" && structure && (
-          <div
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 12,
-              fontSize: 9,
-              fontFamily: "monospace",
-              color: "rgba(255,255,255,0.18)",
-              background: "rgba(6,6,12,0.6)",
-              padding: "3px 7px",
-              borderRadius: 6,
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            {structure.continuation.pattern}
-          </div>
+          <>
+            <div
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 12,
+                fontSize: 9,
+                fontFamily: "monospace",
+                color: "rgba(255,255,255,0.18)",
+                background: "rgba(6,6,12,0.6)",
+                padding: "3px 7px",
+                borderRadius: 6,
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              {structure.continuation.pattern}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                bottom: 10,
+                left: "50%",
+                transform: "translateX(-50%)",
+                fontSize: 10,
+                fontFamily: "monospace",
+                color: "rgba(255,255,255,0.25)",
+                background: "rgba(6,6,12,0.7)",
+                padding: "4px 10px",
+                borderRadius: 8,
+                backdropFilter: "blur(8px)",
+                pointerEvents: "none",
+              }}
+            >
+              ← Swipe to explore →
+            </div>
+          </>
         )}
       </div>
 
       {/* Decision / Outcome - compact */}
-      <div style={{ paddingBottom: 6, flexShrink: 0 }}>
+      <div style={{ paddingBottom: 6, flexShrink: 0, padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0" }}>
         {screen === "building" && (
           <div style={{ textAlign: "center", padding: "12px", color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
             Watching market develop...
@@ -1664,7 +1724,8 @@ export default function App() {
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   // ── Verdict screen ──
   const renderVerdict = () => (
