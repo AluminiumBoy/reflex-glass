@@ -1503,7 +1503,7 @@ export default function App() {
 
       let targetFps = 60;
       if (screen === "building") {
-        targetFps = isMobile ? 30 : 40;          // alacsonyabb FPS → sokkal cinematicabb / lassabb érzet
+        targetFps = isMobile ? 24 : 40;        // még film-szerűbbé tettem
       } else if (screen === "playing") {
         targetFps = 24;
       } else {
@@ -1511,9 +1511,6 @@ export default function App() {
       }
 
       const minFrameTime = 1000 / targetFps;
-
-      // Ease függvény – lassabb indulás, finomabb lezárás
-      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
       const render = (timestamp) => {
         if (timestamp - lastRenderTime.current < minFrameTime) {
@@ -1526,33 +1523,28 @@ export default function App() {
         let currentOffset = 0;
 
         if (screen === "building") {
-          // Raw progress → eased progress
-          const rawProgress = buildAnimationProgress.current;
-          const easedProgress = easeOutCubic(rawProgress);   // itt alkalmazzuk az ease-t
-
-          const targetIndex = easedProgress * structure.decisionIndex;
+          // ── ÚJ: Progress-alapú lassú építés + partial candle ──
+          const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
           const displayedIndex = Math.floor(targetIndex);
-          const partialProgress = targetIndex - displayedIndex; // 0.0 → 1.0 az aktuális gyertyán
+          const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
 
           // Teljes gyertyák az utolsó előttiig
           currentCandles = structure.candles.slice(0, displayedIndex);
 
-          // Részleges gyertya az aktuális pozíción
+          // Az utolsó gyertya részlegesen "épül"
           if (displayedIndex < structure.candles.length) {
             const nextCandle = structure.candles[displayedIndex];
 
             const partialCandle = {
-              ...nextCandle,  // time, volume, open stb. marad
+              ...nextCandle,                    // time, volume, stb. marad
               open: nextCandle.open,
               high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
               low:  nextCandle.open + (nextCandle.low  - nextCandle.open) * partialProgress,
               close: nextCandle.open + (nextCandle.close - nextCandle.open) * partialProgress,
-              // ha van volume, wick szín stb. akkor azt is érdemes lehet interpolálni, de most marad
             };
 
             currentCandles = [...currentCandles, partialCandle];
           }
-          // Ha még nincs gyertya → üres tömb, de nem baj
         } 
         else if (screen === "playing") {
           currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
