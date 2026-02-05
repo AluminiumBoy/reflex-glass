@@ -787,239 +787,165 @@ class MarketStructureGenerator {
       - Animáció progress-szel
       ═══════════════════════════════════════════════════════════════ */
 
-    class ChartRenderer {
-      constructor(canvas, config) {
-        this.canvas = canvas;
-        this.ctx = canvas.getContext("2d");
-        this.config = config;
-      }
+class ChartRenderer {
+  constructor(canvas, config) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.config = config;
+  }
 
-      isMobile(width) {
-        return width < 520;
-      }
+  isMobile(width) {
+    return width < 520;
+  }
 
-      setDimensions(width) {
-        const dpr = window.devicePixelRatio || 1;
-        const mobile = this.isMobile(width);
-        const height = mobile
-          ? Math.floor(window.innerHeight * 0.65)
-          : 440;
+  setDimensions(width) {
+    const dpr = window.devicePixelRatio || 1;
+    const mobile = this.isMobile(width);
+    const height = mobile ? Math.floor(window.innerHeight * 0.65) : 440;
 
-        this.canvas.width = width * dpr;
-        this.canvas.height = height * dpr;
-        this.canvas.style.width = `${width}px`;
-        this.canvas.style.height = `${height}px`;
+    this.canvas.width = width * dpr;
+    this.canvas.height = height * dpr;
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
 
-        this.ctx = this.canvas.getContext("2d");
-        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
+    this.ctx = this.canvas.getContext("2d");
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 
-      renderAll(allCandles) {
-        const ctx = this.ctx;
-        const dpr = window.devicePixelRatio || 1;
-        const width = this.canvas.width / dpr;
-        const height = this.canvas.height / dpr;
+  renderAll(allCandles) {
+    const ctx = this.ctx;
+    const dpr = window.devicePixelRatio || 1;
+    const width = this.canvas.width / dpr;
+    const height = this.canvas.height / dpr;
 
-        ctx.clearRect(0, 0, width, height);
-        if (!allCandles || allCandles.length === 0) return;
+    ctx.clearRect(0, 0, width, height);
+    if (!allCandles || allCandles.length === 0) return;
 
-        const mobile = this.isMobile(width);
+    const mobile = this.isMobile(width);
 
-        /* ───────── LAYOUT ───────── */
-        const gap = mobile ? 4 : 2;
-        const leftPadding = mobile ? 20 : 30;
-        const rightPadding = mobile ? 90 : 30;
-        const availableWidth = width - leftPadding - rightPadding;
+    const gap = mobile ? 4 : 2;
+    const leftPadding = mobile ? 20 : 30;
+    const rightPadding = mobile ? 90 : 30;
+    const availableWidth = width - leftPadding - rightPadding;
 
-        const MIN_BODY_WIDTH = mobile ? 8 : 9;
-        const MIN_SLOT = MIN_BODY_WIDTH + gap;
+    const MIN_BODY_WIDTH = mobile ? 8 : 9;
+    const MIN_SLOT = MIN_BODY_WIDTH + gap;
 
-        let maxVisibleCalc = Math.floor(availableWidth / MIN_SLOT);
-        let MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 24 : 40);
+    let maxVisibleCalc = Math.floor(availableWidth / MIN_SLOT);
+    let MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 24 : 40);
 
-        let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
-        let bodyWidth = slotWidth - gap;
+    let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
+    let bodyWidth = slotWidth - gap;
 
-        if (bodyWidth < MIN_BODY_WIDTH) {
-          bodyWidth = MIN_BODY_WIDTH;
-          slotWidth = bodyWidth + gap;
-          if (slotWidth * MAX_VISIBLE > availableWidth) {
-            MAX_VISIBLE = Math.floor(availableWidth / slotWidth);
-          }
-        }
-
-        // Wick – stabil, limitált
-        const wickWidth = mobile
-          ? Math.min(2.2, bodyWidth * 0.4, 2)
-          : 1.5;
-
-        const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
-        const visible = allCandles.slice(startIdx);
-
-        /* ───────── Y SCALE ───────── */
-        let minPrice = Infinity;
-        let maxPrice = -Infinity;
-
-        const SCALE_LOOKBACK = Math.max(visible.length, mobile ? 16 : 6);
-        const scaleSource = allCandles.slice(
-          Math.max(0, startIdx - SCALE_LOOKBACK),
-          startIdx + visible.length
-        );
-
-        scaleSource.forEach(c => {
-          minPrice = Math.min(minPrice, c.low);
-          maxPrice = Math.max(maxPrice, c.high);
-        });
-
-        let range = maxPrice - minPrice || 1;
-
-        // Fix range kis gyertyaszám esetén
-        if (visible.length < 12) {
-          const fixedPad = 5;
-          minPrice -= fixedPad;
-          maxPrice += fixedPad;
-          range = maxPrice - minPrice;
-        }
-
-        const MIN_RANGE = mobile ? 4 : 3;
-        if (range < MIN_RANGE) {
-          const pad = (MIN_RANGE - range) / 2;
-          minPrice -= pad;
-          maxPrice += pad;
-          range = maxPrice - minPrice;
-        }
-
-        const pad = mobile ? 0.08 : 0.06;
-        minPrice -= range * pad;
-        maxPrice += range * pad;
-
-        const toY = price =>
-          height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
-
-        /* ───────── GRID ───────── */
-        ctx.strokeStyle = "rgba(255,255,255,0.04)";
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 5; i++) {
-          const y = 50 + (i / 4) * (height - 100);
-          ctx.beginPath();
-          ctx.moveTo(leftPadding, y);
-          ctx.lineTo(width - rightPadding + 10, y);
-          ctx.stroke();
-        }
-
-        /* ───────── PRICE LABELS ───────── */
-        ctx.fillStyle = "rgba(255,255,255,0.35)";
-        ctx.font = mobile
-          ? "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-          : "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-        ctx.textAlign = "right";
-        ctx.textBaseline = "middle";
-
-        for (let i = 0; i < 5; i++) {
-          const price = minPrice + (i / 4) * (maxPrice - minPrice);
-          ctx.fillText(price.toFixed(0), width - rightPadding + 10, toY(price));
-        }
-
-        /* ───────── LAST PRICE PILL ───────── */
-        const last = visible.at(-1);
-        if (last) {
-          const y = toY(last.close);
-          const col = last.close >= last.open ? C.bull : C.bear;
-
-          const w = mobile ? 64 : 62;
-          const h = mobile ? 30 : 28;
-
-          ctx.save();
-          ctx.fillStyle = "rgba(10,10,18,0.95)";
-          ctx.beginPath();
-          ctx.roundRect(width - w - 8, y - h / 2, w, h, 14);
-          ctx.fill();
-
-          ctx.strokeStyle = col + "30";
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          ctx.fillStyle = col;
-          ctx.font = mobile
-            ? "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-            : "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-          ctx.fillText(last.close.toFixed(2), width - 18, y + 5);
-          ctx.restore();
-        }
-
-        /* ───────── CANDLES ───────── */
-        visible.forEach((c, i) => {
-          const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
-          const bull = c.close >= c.open;
-          const col = bull ? C.bull : C.bear;
-
-          ctx.save();
-
-          // Wick – minimum magasság
-          const centerX = Math.round(x + bodyWidth / 2);
-          const wickTop = toY(c.high);
-          const wickBottom = toY(c.low);
-          const minWickHeight = mobile ? 4 : 2;
-          ctx.strokeStyle = col;
-          ctx.lineWidth = wickWidth;
-          ctx.beginPath();
-          ctx.moveTo(centerX, Math.min(wickTop, wickBottom));
-          ctx.lineTo(centerX, Math.max(wickTop, wickBottom, Math.min(wickTop + minWickHeight, wickBottom + minWickHeight)));
-          ctx.stroke();
-
-          // Body
-          const top = toY(Math.max(c.open, c.close));
-          const bot = toY(Math.min(c.open, c.close));
-          const h = Math.max(bot - top, mobile ? 4 : 2);
-
-          const grad = ctx.createLinearGradient(x, top, x, top + h);
-          grad.addColorStop(0, col + "f0");
-          grad.addColorStop(1, col + "b8");
-
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.roundRect(x, top, bodyWidth, h, mobile ? 2 : 1.5);
-          ctx.fill();
-
-          ctx.strokeStyle = col;
-          ctx.lineWidth = mobile ? 1.6 : 1;
-          ctx.stroke();
-
-          ctx.restore();
-        });
-
-        /* ───────── AMBIENT LIGHT ───────── */
-        const glow = ctx.createRadialGradient(
-          width * 0.5, height * 0.3, 0,
-          width * 0.5, height * 0.3, width * 0.6
-        );
-        glow.addColorStop(0, "rgba(0,255,170,0.02)");
-        glow.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, width, height);
-
-        /* ───────── DEBUG INFO ───────── */
-        ctx.globalAlpha = 0.4;
-        ctx.fillStyle = "#fff";
-        ctx.font = "10px monospace";
-        ctx.fillText(
-          `${visible.length}/${allCandles.length} candles | bodyW: ${bodyWidth}px`,
-          10,
-          height - 10
-        );
-        ctx.globalAlpha = 1;
-      }
-
-      // Backward compatibility
-      render(allCandles, windowStart, windowSize) {
-        this.renderAll(allCandles.slice(windowStart, windowStart + windowSize));
-      }
-
-      renderContinuation(allCandles, windowStart, windowSize, continuation, progress) {
-        const count = Math.floor(progress * continuation.length);
-        this.renderAll([...allCandles, ...continuation.slice(0, count)]);
+    if (bodyWidth < MIN_BODY_WIDTH) {
+      bodyWidth = MIN_BODY_WIDTH;
+      slotWidth = bodyWidth + gap;
+      if (slotWidth * MAX_VISIBLE > availableWidth) {
+        MAX_VISIBLE = Math.floor(availableWidth / slotWidth);
       }
     }
+
+    const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
+    const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
+    const visible = allCandles.slice(startIdx);
+
+    // Y skála
+    let minPrice = Infinity;
+    let maxPrice = -Infinity;
+    const SCALE_LOOKBACK = Math.max(visible.length, mobile ? 16 : 6);
+    const scaleSource = allCandles.slice(
+      Math.max(0, startIdx - SCALE_LOOKBACK),
+      startIdx + visible.length
+    );
+
+    scaleSource.forEach(c => {
+      minPrice = Math.min(minPrice, c.low);
+      maxPrice = Math.max(maxPrice, c.high);
+    });
+
+    let range = maxPrice - minPrice || 1;
+
+    // Fix range kis gyertyaszám esetén
+    if (visible.length < 12) {
+      const pad = 5;
+      minPrice -= pad;
+      maxPrice += pad;
+      range = maxPrice - minPrice;
+    }
+
+    const pad = mobile ? 0.08 : 0.06;
+    minPrice -= range * pad;
+    maxPrice += range * pad;
+
+    const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
+
+    const minBodyHeight = mobile ? 4 : 2;
+    const maxWickHeight = mobile ? 20 : 15;
+
+    // Grid
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = 50 + (i / 4) * (height - 100);
+      ctx.beginPath();
+      ctx.moveTo(leftPadding, y);
+      ctx.lineTo(width - rightPadding + 10, y);
+      ctx.stroke();
+    }
+
+    // Gyertyák
+    visible.forEach((c, i) => {
+      const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
+      const bull = c.close >= c.open;
+      const col = bull ? C.bull : C.bear;
+
+      const top = toY(Math.max(c.open, c.close));
+      const bot = toY(Math.min(c.open, c.close));
+      const bodyHeight = Math.max(bot - top, minBodyHeight);
+
+      const centerX = Math.round(x + bodyWidth / 2);
+      const highY = toY(c.high);
+      const lowY = toY(c.low);
+
+      // Wick magasság - limitált és body felett/alatt
+      const wickTop = Math.min(top, highY);
+      const wickBottom = Math.max(bot, lowY);
+      const wickHeight = Math.min(wickBottom - wickTop, maxWickHeight);
+
+      ctx.save();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = wickWidth;
+      ctx.beginPath();
+      ctx.moveTo(centerX, wickTop);
+      ctx.lineTo(centerX, wickTop + wickHeight);
+      ctx.stroke();
+
+      // Body
+      const grad = ctx.createLinearGradient(x, top, x, top + bodyHeight);
+      grad.addColorStop(0, col + "f0");
+      grad.addColorStop(1, col + "b8");
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(x, top, bodyWidth, bodyHeight, mobile ? 2 : 1.5);
+      ctx.fill();
+
+      ctx.strokeStyle = col;
+      ctx.lineWidth = mobile ? 1.6 : 1;
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  render(allCandles, windowStart, windowSize) {
+    this.renderAll(allCandles.slice(windowStart, windowStart + windowSize));
+  }
+
+  renderContinuation(allCandles, windowStart, windowSize, continuation, progress) {
+    const count = Math.floor(progress * continuation.length);
+    this.renderAll([...allCandles, ...continuation.slice(0, count)]);
+  }
+}
 
 
 /* ═══════════════════════════════════════════════════════════════
