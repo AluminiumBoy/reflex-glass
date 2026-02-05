@@ -1317,7 +1317,7 @@ export default function App() {
 
       // Smooth scrolling reveal animation
       let progress = 0;
-      const duration = 2500; // 2.5 seconds to build full context
+      const duration = 5000; // 2.5 seconds to build full context
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -1394,7 +1394,7 @@ export default function App() {
         count--;
         setCountdownNum(count);
       }
-    }, 200);
+    }, 1000);
   }, [initializeRound]);
 
   // ── Handle user choice ──
