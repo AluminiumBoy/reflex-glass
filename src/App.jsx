@@ -777,10 +777,14 @@ class MarketStructureGenerator {
 }
 
     /* ═══════════════════════════════════════════════════════════════
-      5. CHART RENDERER
+      5. CHART RENDERER - Javított verzió
 
       Mobile-first, structure-preserving chart renderer
-      Javítva: minimum gyertya szélesség, dinamikus MAX_VISIBLE, jobb arányok, bugfix mobilon
+      Javítva:
+      - Stabil kanóc kevés gyertyánál
+      - Limitált wick width
+      - Dinamikus SCALE_LOOKBACK
+      - Animáció könnyen szabályozható
       ═══════════════════════════════════════════════════════════════ */
 
     class ChartRenderer {
@@ -797,8 +801,6 @@ class MarketStructureGenerator {
       setDimensions(width) {
         const dpr = window.devicePixelRatio || 1;
         const mobile = this.isMobile(width);
-
-        // taller canvas on mobile
         const height = mobile
           ? Math.floor(window.innerHeight * 0.65)
           : 440;
@@ -821,49 +823,45 @@ class MarketStructureGenerator {
         ctx.clearRect(0, 0, width, height);
         if (!allCandles || allCandles.length === 0) return;
 
-        /* ───────── PLATFORM LOGIC ───────── */
         const mobile = this.isMobile(width);
 
         /* ───────── LAYOUT ───────── */
         const gap = mobile ? 4 : 2;
         const leftPadding = mobile ? 20 : 30;
         const rightPadding = mobile ? 90 : 30;
-
         const availableWidth = width - leftPadding - rightPadding;
 
-        // Hard minimum – ez akadályozza meg a bugot
         const MIN_BODY_WIDTH = mobile ? 8 : 9;
         const MIN_SLOT = MIN_BODY_WIDTH + gap;
 
-        // Maximális látható gyertya – dinamikus, de felső korláttal
         let maxVisibleCalc = Math.floor(availableWidth / MIN_SLOT);
-        const MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 24 : 40);
+        let MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 24 : 40);
 
-        // Slot és body véglegesítése – mindig egész szám
         let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
         let bodyWidth = slotWidth - gap;
 
-        // Ha mégis túl kicsi lenne (pl. nagyon keskeny képernyő)
         if (bodyWidth < MIN_BODY_WIDTH) {
           bodyWidth = MIN_BODY_WIDTH;
           slotWidth = bodyWidth + gap;
-          // Ha túl sok lenne, vágjuk vissza
           if (slotWidth * MAX_VISIBLE > availableWidth) {
             MAX_VISIBLE = Math.floor(availableWidth / slotWidth);
           }
         }
 
-        // Wick vastagság – arányos, de ne legyen túl vastag
-        const wickWidth = mobile ? Math.min(2.2, bodyWidth * 0.4) : 1.5;
+        // Wick – stabil, limitált
+        const wickWidth = mobile
+          ? Math.min(2.2, bodyWidth * 0.4, 2)
+          : 1.5;
 
         const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
         const visible = allCandles.slice(startIdx);
 
-        /* ───────── Y SCALE (STABLE, VISIBLE ONLY) ───────── */
+        /* ───────── Y SCALE ───────── */
         let minPrice = Infinity;
         let maxPrice = -Infinity;
 
-        const SCALE_LOOKBACK = mobile ? 16 : 6;
+        // Dinamikus SCALE_LOOKBACK a kevés gyertyára
+        const SCALE_LOOKBACK = Math.max(visible.length, mobile ? 16 : 6);
         const scaleSource = allCandles.slice(
           Math.max(0, startIdx - SCALE_LOOKBACK),
           startIdx + visible.length
@@ -950,7 +948,7 @@ class MarketStructureGenerator {
 
           ctx.save();
 
-          // Wick – egész pixelre kerekítve a középpont
+          // Wick
           ctx.strokeStyle = col;
           ctx.lineWidth = wickWidth;
           ctx.beginPath();
@@ -1012,6 +1010,7 @@ class MarketStructureGenerator {
         this.renderAll([...allCandles, ...continuation.slice(0, count)]);
       }
     }
+
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
