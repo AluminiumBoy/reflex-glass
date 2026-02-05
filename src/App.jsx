@@ -1475,9 +1475,8 @@ export default function App() {
         rendererRef.current.setDimensions(rect.width, rect.height);
       }
 
-      // Throttled render függvény létrehozása (csak egyszer fusson le)
       const isMobile = window.innerWidth < 520;
-      const throttleDelay = isMobile ? 400 : 120;  // mobilon kb. 8 fps, asztali kb. 16 fps
+      const throttleDelay = isMobile ? 400 : 120;  // mobilon 400 ms → kb. 2.5 fps
 
       const throttledRender = throttle((candles) => {
         if (rendererRef.current) {
@@ -1485,7 +1484,6 @@ export default function App() {
         }
       }, throttleDelay);
 
-      // Most már a throttled verziót használjuk
       if (screen === "building" || screen === "playing") {
         const visibleCandles = structure.candles.slice(0, windowStart + 1);
         throttledRender(visibleCandles);
