@@ -1640,6 +1640,7 @@ export default function App() {
     // Cleanup any running timers/animations
     if (timerRef.current) clearInterval(timerRef.current);
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
     
     // Reset all game state
     setRound(0);
@@ -1652,26 +1653,28 @@ export default function App() {
     setWindowStart(0);
     setRevealProgress(0);
     setSwipeOffset(0);
+    buildAnimationProgress.current = 0;
+    lastCandleCount.current = 0;
     
     // Start countdown
     setShowCountdown(true);
-    setCountdownNum(3);
     sound.tick(3);
-
-    setTimeout(() => {
-      setCountdownNum(2);
-      sound.tick(2);
-      
-      setTimeout(() => {
-        setCountdownNum(1);
-        sound.tick(1);
-        
-        setTimeout(() => {
-          setShowCountdown(false);
-          initializeRound(0);
-        }, 1000);
-      }, 1000);
-    }, 1000);
+    
+    const t1 = setTimeout(() => setCountdownNum(3), 0);
+    const t2 = setTimeout(() => { setCountdownNum(2); sound.tick(2); }, 1000);
+    const t3 = setTimeout(() => { setCountdownNum(1); sound.tick(1); }, 2000);
+    const t4 = setTimeout(() => {
+      setShowCountdown(false);
+      setScreen("building");
+      initializeRound(0);
+    }, 3000);
+    
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
   }, [initializeRound]);
 
   // ── Handle user choice ──
