@@ -1394,7 +1394,7 @@ export default function App() {
         count--;
         setCountdownNum(count);
       }
-    }, 1000);
+    }, 200);
   }, [initializeRound]);
 
   // ── Handle user choice ──
