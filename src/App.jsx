@@ -1455,10 +1455,10 @@ export default function App() {
       if (screen === "building" || screen === "playing") {
         if (isEarlyPhase) {
           // ELEJÉN MÉG LASSABB – hogy ne rohanjon az első gyertyák
-          throttleDelay = isMobile ? 800 : 200;   // mobilon kb. 1.25 fps
+          throttleDelay = isMobile ? 1200 : 400;   // mobilon kb. 1.25 fps
         } else {
           // később már kicsit gyorsabb, de még mindig nyugodt
-          throttleDelay = isMobile ? 450 : 120;
+          throttleDelay = isMobile ? 1200 : 400;
         }
       } else {
         // revealing / outcome – gyorsabb, hogy a continuation jól látszódjon
