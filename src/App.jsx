@@ -779,8 +779,8 @@ class MarketStructureGenerator {
     /* ═══════════════════════════════════════════════════════════════
       5. CHART RENDERER
 
-      Mobile-first, structure-preserving chart renderer – improved for mobile
-      2025–2026 finomhangolás: jobb olvashatóság, több gyertya mobilon
+      Mobile-first, structure-preserving chart renderer
+      Javítva: minimum gyertya szélesség, dinamikus MAX_VISIBLE, jobb arányok mobilon
       ═══════════════════════════════════════════════════════════════ */
 
     class ChartRenderer {
@@ -823,7 +823,34 @@ class MarketStructureGenerator {
 
         /* ───────── PLATFORM LOGIC ───────── */
         const mobile = this.isMobile(width);
-        const MAX_VISIBLE = mobile ? 32 : 36;           // több gyertya mobilon
+
+        /* ───────── LAYOUT ───────── */
+        const gap = mobile ? 3 : 2;
+        const leftPadding = mobile ? 18 : 30;
+        const rightPadding = mobile ? 85 : 30;
+
+        const availableWidth = width - leftPadding - rightPadding;
+
+        // Minimum gyertya szélesség – ez akadályozza meg a bebuggosodást
+        const MIN_BODY_WIDTH = mobile ? 8 : 9;
+        const MIN_SLOT = MIN_BODY_WIDTH + gap;
+
+        // Dinamikus MAX_VISIBLE – soha ne legyen túl sűrű
+        let MAX_VISIBLE = Math.floor(availableWidth / MIN_SLOT);
+        MAX_VISIBLE = Math.min(MAX_VISIBLE, mobile ? 26 : 42); // felső korlát
+
+        // Végleges slot és body kiszámítása
+        let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
+        let bodyWidth = slotWidth - gap;
+
+        // Ha még mindig túl kicsi lenne (edge case)
+        if (bodyWidth < MIN_BODY_WIDTH) {
+          MAX_VISIBLE = Math.floor(availableWidth / (MIN_BODY_WIDTH + gap));
+          slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
+          bodyWidth = slotWidth - gap;
+        }
+
+        const wickWidth = mobile ? Math.max(1.6, bodyWidth * 0.35) : 1.5;
 
         const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
         const visible = allCandles.slice(startIdx);
@@ -832,7 +859,7 @@ class MarketStructureGenerator {
         let minPrice = Infinity;
         let maxPrice = -Infinity;
 
-        const SCALE_LOOKBACK = mobile ? 16 : 6;         // hosszabb lookback mobilon → nyugodtabb skála
+        const SCALE_LOOKBACK = mobile ? 16 : 6;
         const scaleSource = allCandles.slice(
           Math.max(0, startIdx - SCALE_LOOKBACK),
           startIdx + visible.length
@@ -845,7 +872,6 @@ class MarketStructureGenerator {
 
         let range = maxPrice - minPrice || 1;
 
-        // prevent micro-compression on mobile
         const MIN_RANGE = mobile ? 4 : 3;
         if (range < MIN_RANGE) {
           const pad = (MIN_RANGE - range) / 2;
@@ -860,17 +886,6 @@ class MarketStructureGenerator {
 
         const toY = price =>
           height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
-
-        /* ───────── LAYOUT ───────── */
-        const gap = mobile ? 2 : 2;
-        const leftPadding  = mobile ? 16 : 30;
-        const rightPadding = mobile ? 80 : 30;          // hely a price pill-nek
-
-        const bodyWidth = mobile
-          ? Math.max(6, Math.floor((width - leftPadding - rightPadding) / MAX_VISIBLE) - gap)
-          : 8;
-
-        const slotWidth = bodyWidth + gap;
 
         /* ───────── GRID ───────── */
         ctx.strokeStyle = "rgba(255,255,255,0.04)";
@@ -925,7 +940,7 @@ class MarketStructureGenerator {
 
         /* ───────── CANDLES ───────── */
         visible.forEach((c, i) => {
-          const x = leftPadding + i * slotWidth + gap / 2;
+          const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
           const bull = c.close >= c.open;
           const col = bull ? C.bull : C.bear;
 
@@ -933,7 +948,7 @@ class MarketStructureGenerator {
 
           // Wick
           ctx.strokeStyle = col;
-          ctx.lineWidth = mobile ? 1.8 : 1.5;           // vékonyabb wick mobilon
+          ctx.lineWidth = wickWidth;
           ctx.beginPath();
           ctx.moveTo(x + bodyWidth / 2, toY(c.high));
           ctx.lineTo(x + bodyWidth / 2, toY(c.low));
@@ -954,7 +969,7 @@ class MarketStructureGenerator {
           ctx.fill();
 
           ctx.strokeStyle = col;
-          ctx.lineWidth = mobile ? 1.5 : 1;             // vékonyabb body outline
+          ctx.lineWidth = mobile ? 1.6 : 1;
           ctx.stroke();
 
           ctx.restore();
@@ -992,6 +1007,7 @@ class MarketStructureGenerator {
         this.renderAll([...allCandles, ...continuation.slice(0, count)]);
       }
     }
+
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
