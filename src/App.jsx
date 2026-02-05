@@ -780,7 +780,7 @@ class MarketStructureGenerator {
       5. CHART RENDERER
 
       Mobile-first, structure-preserving chart renderer
-      Javítva: minimum gyertya szélesség, dinamikus MAX_VISIBLE, jobb arányok mobilon
+      Javítva: minimum gyertya szélesség, dinamikus MAX_VISIBLE, jobb arányok, bugfix mobilon
       ═══════════════════════════════════════════════════════════════ */
 
     class ChartRenderer {
@@ -825,32 +825,36 @@ class MarketStructureGenerator {
         const mobile = this.isMobile(width);
 
         /* ───────── LAYOUT ───────── */
-        const gap = mobile ? 3 : 2;
-        const leftPadding = mobile ? 18 : 30;
-        const rightPadding = mobile ? 85 : 30;
+        const gap = mobile ? 4 : 2;
+        const leftPadding = mobile ? 20 : 30;
+        const rightPadding = mobile ? 90 : 30;
 
         const availableWidth = width - leftPadding - rightPadding;
 
-        // Minimum gyertya szélesség – ez akadályozza meg a bebuggosodást
+        // Hard minimum – ez akadályozza meg a bugot
         const MIN_BODY_WIDTH = mobile ? 8 : 9;
         const MIN_SLOT = MIN_BODY_WIDTH + gap;
 
-        // Dinamikus MAX_VISIBLE – soha ne legyen túl sűrű
-        let MAX_VISIBLE = Math.floor(availableWidth / MIN_SLOT);
-        MAX_VISIBLE = Math.min(MAX_VISIBLE, mobile ? 26 : 42); // felső korlát
+        // Maximális látható gyertya – dinamikus, de felső korláttal
+        let maxVisibleCalc = Math.floor(availableWidth / MIN_SLOT);
+        const MAX_VISIBLE = Math.min(maxVisibleCalc, mobile ? 24 : 40);
 
-        // Végleges slot és body kiszámítása
+        // Slot és body véglegesítése – mindig egész szám
         let slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
         let bodyWidth = slotWidth - gap;
 
-        // Ha még mindig túl kicsi lenne (edge case)
+        // Ha mégis túl kicsi lenne (pl. nagyon keskeny képernyő)
         if (bodyWidth < MIN_BODY_WIDTH) {
-          MAX_VISIBLE = Math.floor(availableWidth / (MIN_BODY_WIDTH + gap));
-          slotWidth = Math.floor(availableWidth / MAX_VISIBLE);
-          bodyWidth = slotWidth - gap;
+          bodyWidth = MIN_BODY_WIDTH;
+          slotWidth = bodyWidth + gap;
+          // Ha túl sok lenne, vágjuk vissza
+          if (slotWidth * MAX_VISIBLE > availableWidth) {
+            MAX_VISIBLE = Math.floor(availableWidth / slotWidth);
+          }
         }
 
-        const wickWidth = mobile ? Math.max(1.6, bodyWidth * 0.35) : 1.5;
+        // Wick vastagság – arányos, de ne legyen túl vastag
+        const wickWidth = mobile ? Math.min(2.2, bodyWidth * 0.4) : 1.5;
 
         const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
         const visible = allCandles.slice(startIdx);
@@ -946,12 +950,13 @@ class MarketStructureGenerator {
 
           ctx.save();
 
-          // Wick
+          // Wick – egész pixelre kerekítve a középpont
           ctx.strokeStyle = col;
           ctx.lineWidth = wickWidth;
           ctx.beginPath();
-          ctx.moveTo(x + bodyWidth / 2, toY(c.high));
-          ctx.lineTo(x + bodyWidth / 2, toY(c.low));
+          const centerX = Math.round(x + bodyWidth / 2);
+          ctx.moveTo(centerX, toY(c.high));
+          ctx.lineTo(centerX, toY(c.low));
           ctx.stroke();
 
           // Body
@@ -986,11 +991,11 @@ class MarketStructureGenerator {
         ctx.fillRect(0, 0, width, height);
 
         /* ───────── DEBUG INFO ───────── */
-        ctx.globalAlpha = 0.3;
+        ctx.globalAlpha = 0.4;
         ctx.fillStyle = "#fff";
         ctx.font = "10px monospace";
         ctx.fillText(
-          `${visible.length}/${allCandles.length} candles`,
+          `${visible.length}/${allCandles.length} candles | bodyW: ${bodyWidth}px`,
           10,
           height - 10
         );
@@ -1007,7 +1012,6 @@ class MarketStructureGenerator {
         this.renderAll([...allCandles, ...continuation.slice(0, count)]);
       }
     }
-
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
