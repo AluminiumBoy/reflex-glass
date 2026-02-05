@@ -298,42 +298,92 @@ class MarketStructureGenerator {
     const { cleanRatio } = this.config;
 
     // Distribution: 50% BUY, 50% SELL - no HOLD
-    if (r < 0.25) {
-      // Clean bullish continuation
+    // Bővített pattern lista több változattal
+    
+    if (r < 0.125) {
+      // Bullish continuation patterns - Group 1
+      const patterns = ["Bull Flag", "Ascending Triangle", "Bull Pennant", "Rising Wedge Breakout"];
       return {
         type: "bullish_continuation",
         signal: "BUY",
-        name: this.rng() < 0.5 ? "Bull Flag" : "Ascending Triangle",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.25) {
+      // Bullish continuation patterns - Group 2
+      const patterns = ["Rectangle Breakout (Bull)", "Symmetrical Triangle (Bull)", "Cup & Handle"];
+      return {
+        type: "bullish_continuation",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.375) {
+      // Bearish continuation patterns - Group 1
+      const patterns = ["Bear Flag", "Descending Triangle", "Bear Pennant", "Falling Wedge Breakdown"];
+      return {
+        type: "bearish_continuation",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "strong",
         quality: "clean",
         willSucceed: true,
       };
     } else if (r < 0.5) {
-      // Clean bearish continuation
+      // Bearish continuation patterns - Group 2
+      const patterns = ["Rectangle Breakdown (Bear)", "Symmetrical Triangle (Bear)", "Inverse Cup & Handle"];
       return {
         type: "bearish_continuation",
         signal: "SELL",
-        name: this.rng() < 0.5 ? "Bear Flag" : "Descending Triangle",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "strong",
         quality: "clean",
         willSucceed: true,
       };
-    } else if (r < 0.75) {
-      // Bullish reversal
+    } else if (r < 0.625) {
+      // Bullish reversal patterns - Group 1
+      const patterns = ["Double Bottom", "Inverse H&S", "Triple Bottom"];
       return {
         type: "bullish_reversal",
         signal: "BUY",
-        name: this.rng() < 0.5 ? "Double Bottom" : "Inverse H&S",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.75) {
+      // Bullish reversal patterns - Group 2
+      const patterns = ["Rounding Bottom", "Falling Wedge Reversal", "Bullish Divergence"];
+      return {
+        type: "bullish_reversal",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.875) {
+      // Bearish reversal patterns - Group 1
+      const patterns = ["Double Top", "Head & Shoulders", "Triple Top"];
+      return {
+        type: "bearish_reversal",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "building",
         quality: "good",
         willSucceed: true,
       };
     } else {
-      // Bearish reversal
+      // Bearish reversal patterns - Group 2
+      const patterns = ["Rounding Top", "Rising Wedge Reversal", "Bearish Divergence"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
-        name: this.rng() < 0.5 ? "Double Top" : "Head & Shoulders",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "building",
         quality: "good",
         willSucceed: true,
