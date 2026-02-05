@@ -69,6 +69,10 @@ class SoundEngine {
     this.on = true;
     this.masterGain = null;
     this.compressor = null;
+    this.buildingOsc = null;
+    this.buildingLFO = null;
+    this.buildingGain = null;
+    this.buildingLFOGain = null;
   }
 
   _ensure() {
@@ -115,8 +119,20 @@ class SoundEngine {
     if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
-    const freq = n === 1 ? 1400 : 880;
-    const vol = n === 1 ? 0.25 : 0.18;
+    
+    // Different sounds for countdown: 3, 2, 1
+    let freq, vol;
+    if (n === 3) {
+      freq = 660;
+      vol = 0.15;
+    } else if (n === 2) {
+      freq = 880;
+      vol = 0.18;
+    } else {
+      freq = 1320;
+      vol = 0.25;
+    }
+    
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
@@ -132,6 +148,85 @@ class SoundEngine {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
     osc.start(now);
     osc.stop(now + 0.16);
+  }
+
+  // Continuous building sound (call start/stop)
+  startBuilding() {
+    if (!this.on) return;
+    this.stopBuilding(); // Clean up any existing
+    
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    console.log("🔊 Building sound starting...");
+    
+    // Create pulsing low tone for "building" feel
+    this.buildingOsc = ctx.createOscillator();
+    this.buildingGain = ctx.createGain();
+    this.buildingLFO = ctx.createOscillator();
+    this.buildingLFOGain = ctx.createGain();
+    
+    // Main tone - low frequency
+    this.buildingOsc.type = "sine";
+    this.buildingOsc.frequency.setValueAtTime(110, now); // Low A
+    
+    // LFO for pulsing effect
+    this.buildingLFO.type = "sine";
+    this.buildingLFO.frequency.setValueAtTime(2, now); // 2 Hz pulse
+    
+    // LFO controls the amplitude
+    this.buildingLFOGain.gain.setValueAtTime(0.05, now);
+    
+    // Master gain starts at 0
+    this.buildingGain.gain.setValueAtTime(0, now);
+    
+    // Connect: LFO -> LFOGain -> Osc.frequency (for subtle vibrato too)
+    this.buildingLFO.connect(this.buildingLFOGain);
+    this.buildingLFOGain.connect(this.buildingGain.gain);
+    
+    // Main signal path
+    this.buildingOsc.connect(this.buildingGain);
+    this.buildingGain.connect(this.masterGain);
+    
+    this.buildingOsc.start(now);
+    this.buildingLFO.start(now);
+    
+    // Fade in to audible level - increased volume
+    this.buildingGain.gain.linearRampToValueAtTime(0.15, now + 0.4);
+    
+    console.log("🔊 Building sound started!");
+  }
+
+  stopBuilding() {
+    if (!this.buildingOsc) return;
+    
+    console.log("🔇 Building sound stopping...");
+    
+    try {
+      const ctx = this._ensure();
+      const now = ctx.currentTime;
+      
+      // Fade out
+      if (this.buildingGain) {
+        this.buildingGain.gain.linearRampToValueAtTime(0, now + 0.15);
+      }
+      
+      setTimeout(() => {
+        try {
+          if (this.buildingOsc) this.buildingOsc.stop();
+          if (this.buildingLFO) this.buildingLFO.stop();
+        } catch (e) {}
+        
+        this.buildingOsc = null;
+        this.buildingLFO = null;
+        this.buildingGain = null;
+        this.buildingLFOGain = null;
+        
+        console.log("🔇 Building sound stopped!");
+      }, 200);
+    } catch (e) {
+      console.log("⚠️ Error stopping building sound:", e);
+    }
   }
 
   correct() {
@@ -210,7 +305,7 @@ class MarketStructureGenerator {
 
     // Determine setup type and signal FIRST (outcome-driven)
     const setupType = this._pickSetupType();
-    const signal = setupType.signal; // BUY, SELL, or HOLD
+    const signal = setupType.signal; // BUY or SELL
 
     // Build context that supports (or contradicts for traps) this signal
     const context = this._buildContext(setupType, contextSize);
@@ -245,9 +340,9 @@ class MarketStructureGenerator {
     const r = this.rng();
     const { cleanRatio } = this.config;
 
-    // Distribution: 50% directional, 30% trap, 20% HOLD
+    // Distribution: 50% BUY, 50% SELL - no HOLD
     if (r < 0.25) {
-      // Clean bullish continuation (12.5% each)
+      // Clean bullish continuation
       return {
         type: "bullish_continuation",
         signal: "BUY",
@@ -266,7 +361,7 @@ class MarketStructureGenerator {
         quality: "clean",
         willSucceed: true,
       };
-    } else if (r < 0.65) {
+    } else if (r < 0.75) {
       // Bullish reversal
       return {
         type: "bullish_reversal",
@@ -276,7 +371,7 @@ class MarketStructureGenerator {
         quality: "good",
         willSucceed: true,
       };
-    } else if (r < 0.8) {
+    } else {
       // Bearish reversal
       return {
         type: "bearish_reversal",
@@ -285,36 +380,6 @@ class MarketStructureGenerator {
         momentum: "building",
         quality: "good",
         willSucceed: true,
-      };
-    } else if (r < 0.9) {
-      // Trap - looks bullish but fails
-      return {
-        type: "bull_trap",
-        signal: "HOLD",
-        name: "Bull Trap",
-        momentum: "weak",
-        quality: "poor",
-        willSucceed: false,
-      };
-    } else if (r < 0.95) {
-      // Trap - looks bearish but fails
-      return {
-        type: "bear_trap",
-        signal: "HOLD",
-        name: "Bear Trap",
-        momentum: "weak",
-        quality: "poor",
-        willSucceed: false,
-      };
-    } else {
-      // True HOLD - no clear structure
-      return {
-        type: "consolidation",
-        signal: "HOLD",
-        name: "Consolidation",
-        momentum: "neutral",
-        quality: "incomplete",
-        willSucceed: false,
       };
     }
   }
@@ -704,7 +769,7 @@ class MarketStructureGenerator {
     const length = 10 + Math.floor(this.rng() * 4);
     let price = lastPrice;
 
-    if (signal === "BUY" && setupType.willSucceed) {
+    if (signal === "BUY") {
       // Strong bullish continuation
       for (let i = 0; i < length; i++) {
         const drift = 0.004 + this.rng() * 0.002;
@@ -722,7 +787,7 @@ class MarketStructureGenerator {
         candles.push({ open, high, low, close });
         price = close;
       }
-    } else if (signal === "SELL" && setupType.willSucceed) {
+    } else if (signal === "SELL") {
       // Strong bearish continuation
       for (let i = 0; i < length; i++) {
         const drift = -0.004 - this.rng() * 0.002;
@@ -730,24 +795,6 @@ class MarketStructureGenerator {
         const isBull = this.rng() < 0.25;
         const bodySize = price * vol * (0.5 + this.rng() * 0.4);
         const wickSize = bodySize * (0.2 + this.rng() * 0.4);
-
-        const open = price;
-        price *= 1 + drift;
-        const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-        price = close;
-      }
-    } else {
-      // HOLD / failed pattern - choppy or weak continuation
-      for (let i = 0; i < length; i++) {
-        const drift = (this.rng() - 0.5) * 0.002;
-        const vol = 0.01;
-        const isBull = this.rng() < 0.5;
-        const bodySize = price * vol * (0.3 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.7);
 
         const open = price;
         price *= 1 + drift;
@@ -1097,7 +1144,6 @@ const TimerBar = ({ timeLeft, totalTime }) => {
 
 const DecisionButtons = React.memo(({ onChoose, disabled }) => {
   const handleBuy = useCallback(() => onChoose("BUY"), [onChoose]);
-  const handleHold = useCallback(() => onChoose("HOLD"), [onChoose]);
   const handleSell = useCallback(() => onChoose("SELL"), [onChoose]);
 
   return (
@@ -1109,14 +1155,6 @@ const DecisionButtons = React.memo(({ onChoose, disabled }) => {
         style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
       >
         📈 BUY
-      </GlassButton>
-      <GlassButton
-        onClick={handleHold}
-        disabled={disabled}
-        color={C.neut}
-        style={{ flex: 1, fontSize: 16, padding: "16px 0" }}
-      >
-        ⏸️ HOLD
       </GlassButton>
       <GlassButton
         onClick={handleSell}
@@ -1198,19 +1236,9 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
           </div>
         ) : (
           <div>
-            {signal === "HOLD" ? (
-              <>
-                • Pattern lacked confirmation or clear direction
-                <br />• Patience rewarded - no clear edge to trade
-                <br />• Context suggested waiting for better setup
-              </>
-            ) : (
-              <>
-                • Pattern failed to follow through as expected
-                <br />• Context ({context.trendBias} bias) conflicted with setup
-                <br />• Better to avoid low-quality setups
-              </>
-            )}
+            • Pattern failed to follow through as expected
+            <br />• Context ({context.trendBias} bias) conflicted with setup
+            <br />• Better to avoid low-quality setups
           </div>
         )}
       </div>
@@ -1355,6 +1383,9 @@ export default function App() {
       setWindowStart(0); // Start from 0
       buildAnimationProgress.current = 0;
 
+      // Start building sound
+      sound.startBuilding();
+
       // Smooth scrolling reveal animation
       const duration = 6500; // Gyorsabb, pörgősebb ritmus
       const startTime = Date.now();
@@ -1379,6 +1410,9 @@ export default function App() {
           setWindowStart(newStructure.decisionIndex);
           setScreen("playing");
           
+          // Stop building sound
+          sound.stopBuilding();
+          
           // Start decision timer
           const timerStart = Date.now();
           if (timerRef.current) clearInterval(timerRef.current);
@@ -1389,8 +1423,8 @@ export default function App() {
 
             if (remaining === 0) {
               clearInterval(timerRef.current);
-              // Call handleChoice directly - will be available in scope
-              handleChoice("TIMEOUT");
+              // Timeout - counts as incorrect (random choice for display)
+              handleChoice(Math.random() < 0.5 ? "BUY" : "SELL");
             }
           }, 50);
         }
@@ -1445,7 +1479,19 @@ export default function App() {
   // ── Handle user choice ──
   const handleChoice = useCallback(
     (userChoice) => {
+      // Stop any running animations (building or other)
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
+      
+      // Stop building sound if it's playing
+      sound.stopBuilding();
+      
+      // If still in building phase, complete it immediately
+      if (screen === "building") {
+        buildAnimationProgress.current = 1;
+        setWindowStart(structure.decisionIndex);
+      }
+      
       haptic([30, 20, 30]);
       sound.click();
 
@@ -1462,8 +1508,7 @@ export default function App() {
           animFrameRef.current = requestAnimationFrame(animate);
         } else {
           // Reveal complete - show outcome
-          const correct =
-            userChoice === structure.signal || (userChoice === "TIMEOUT" && structure.signal === "HOLD");
+          const correct = userChoice === structure.signal;
           const newStreak = correct ? streak + 1 : 0;
           const multiplier = STREAK_MULT[Math.min(newStreak, STREAK_MULT.length - 1)];
           const points = correct ? Math.round(BASE_SCORE * multiplier) : 0;
@@ -1481,7 +1526,7 @@ export default function App() {
       };
       animate();
     },
-    [structure, streak, bestStreak, scores, roundStats]
+    [structure, streak, bestStreak, scores, roundStats, screen]
   );
 
   // ── Advance to next round ──
@@ -1557,15 +1602,19 @@ export default function App() {
         } 
         else if (screen === "revealing" || screen === "outcome") {
           const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-          const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
-          currentCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
+          const continuationCandles = structure.continuation?.candles || [];
+          const contCount = Math.floor(revealProgress * continuationCandles.length);
+          currentCandles = [...baseCandles, ...continuationCandles.slice(0, contCount)];
           currentOffset = screen === "outcome" ? swipeOffset : 0;
         }
 
         if (rendererRef.current && currentCandles.length > 0) {
           // Calculate total expected candles for stable rendering
+          // CRITICAL: This must be STABLE throughout the reveal animation to prevent jumping
+          // Use the FINAL expected count, not the current visible count
+          const continuationLength = structure.continuation?.candles?.length || 0;
           const totalExpectedCandles = screen === "revealing" || screen === "outcome"
-            ? structure.candles.length + structure.continuation.candles.length
+            ? (structure.decisionIndex + 1) + continuationLength
             : currentCandles.length;
           
           rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles);
@@ -1917,11 +1966,11 @@ export default function App() {
         <div style={{ 
           display: screen === "outcome" ? "none" : "block",
           opacity: screen === "home" ? 0 : 1,
-          pointerEvents: screen === "playing" ? "auto" : "none",
+          pointerEvents: (screen === "playing" || screen === "building") ? "auto" : "none",
           transition: "none",
           transform: "translateZ(0)",
         }}>
-          <DecisionButtons onChoose={handleChoice} disabled={screen !== "playing"} />
+          <DecisionButtons onChoose={handleChoice} disabled={screen !== "playing" && screen !== "building"} />
         </div>
         {screen === "outcome" && (
           <OutcomeCard
