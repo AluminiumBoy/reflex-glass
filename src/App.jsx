@@ -833,8 +833,8 @@ class ChartRenderer {
 
     // Calculate candle layout with MOBILE-RESPONSIVE sizing
     const isMobile = width < 500;
-    const gap = isMobile ? 3 : 2; // More space on mobile
-    const targetBodyWidth = isMobile ? 12 : 8; // MUCH wider on mobile (12px vs 8px)
+    const gap = isMobile ? 4 : 2; // More space on mobile
+    const targetBodyWidth = isMobile ? 16 : 8; // DOUBLE WIDTH on mobile! (16px vs 8px)
     const slotWidth = targetBodyWidth + gap;
     const totalWidth = allCandles.length * slotWidth;
     
@@ -854,9 +854,9 @@ class ChartRenderer {
       ctx.stroke();
     }
 
-    // Price labels (right side)
+    // Price labels (right side) - responsive font size
     ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.font = isMobile ? "12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" : "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for (let i = 0; i < 5; i++) {
@@ -865,7 +865,7 @@ class ChartRenderer {
       ctx.fillText(price.toFixed(0), width - 8, y);
     }
 
-    // Last price label - premium pill
+    // Last price label - premium pill (bigger on mobile)
     if (allCandles.length > 0) {
       const lastCandle = allCandles[allCandles.length - 1];
       const lblY = toY(lastCandle.close);
@@ -873,8 +873,9 @@ class ChartRenderer {
       
       ctx.save();
       
-      // Clean pill background
-      const lblW = 62, lblH = 28;
+      // Clean pill background (larger on mobile)
+      const lblW = isMobile ? 70 : 62;
+      const lblH = isMobile ? 32 : 28;
       ctx.fillStyle = "rgba(10,10,18,0.95)";
       ctx.beginPath();
       ctx.roundRect(width - lblW - 8, lblY - lblH/2, lblW, lblH, 14);
@@ -885,11 +886,11 @@ class ChartRenderer {
       ctx.lineWidth = 1;
       ctx.stroke();
       
-      // Clean price text
+      // Clean price text (bigger font on mobile)
       ctx.fillStyle = lblColor;
-      ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      ctx.font = isMobile ? "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" : "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
       ctx.textAlign = "right";
-      ctx.fillText(lastCandle.close.toFixed(2), width - 18, lblY + 4.5);
+      ctx.fillText(lastCandle.close.toFixed(2), width - (isMobile ? 20 : 18), lblY + 5);
       
       ctx.restore();
     }
@@ -909,12 +910,12 @@ class ChartRenderer {
 
       ctx.save();
 
-      // VISIBLE WICK - thicker on mobile
+      // THICK VISIBLE WICK on mobile
       const wickTop = toY(candle.high);
       const wickBot = toY(candle.low);
       
       ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = isMobile ? 2.5 : 1.5; // MUCH thicker wick on mobile
+      ctx.lineWidth = isMobile ? 3 : 1.5; // SUPER thick wick on mobile (3px!)
       ctx.beginPath();
       ctx.moveTo(x + currentBodyW/2, wickTop);
       ctx.lineTo(x + currentBodyW/2, wickBot);
@@ -923,7 +924,7 @@ class ChartRenderer {
       // CLEAN MODERN BODY
       const bodyTop = toY(Math.max(candle.open, candle.close));
       const bodyBottom = toY(Math.min(candle.open, candle.close));
-      const bodyHeight = Math.max(bodyBottom - bodyTop, isMobile ? 3 : 2); // Taller minimum on mobile
+      const bodyHeight = Math.max(bodyBottom - bodyTop, isMobile ? 4 : 2); // Taller minimum on mobile
 
       // Solid fill with subtle gradient
       const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
@@ -933,26 +934,27 @@ class ChartRenderer {
       
       // Rounded corners for modern look
       ctx.beginPath();
-      ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
+      ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, isMobile ? 2 : 1.5);
       ctx.fill();
 
       // Clean border - thicker on mobile
       ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = isMobile ? 1.5 : 1; // Thicker border on mobile
+      ctx.lineWidth = isMobile ? 2 : 1; // DOUBLE thickness on mobile
       ctx.stroke();
       
       // Subtle highlight on top edge
-      if (currentBodyW > 6) { // Only show if candle is wide enough
+      if (currentBodyW > 8) { // Only show if candle is wide enough (always on mobile)
         ctx.fillStyle = "rgba(255,255,255,0.15)";
-        ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
+        const highlightPadding = isMobile ? 3 : 2;
+        ctx.fillRect(x + highlightPadding, bodyTop + 1, currentBodyW - highlightPadding * 2, isMobile ? 2 : 1);
       }
 
       // Premium glow on recent candles
       if (isRecent) {
         ctx.shadowColor = bodyColor;
-        ctx.shadowBlur = isMobile ? 10 : 12;
+        ctx.shadowBlur = isMobile ? 14 : 12;
         ctx.strokeStyle = bodyColor + "80";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = isMobile ? 1.5 : 1;
         ctx.stroke();
       }
 
@@ -1595,32 +1597,32 @@ export default function App() {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        gap: 10,
-        padding: "10px 12px",
+        gap: 8,
+        padding: "8px 10px",
       }}
     >
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <GlassPanel style={{ padding: "6px 14px", borderRadius: 16 }}>
-          <span style={{ fontSize: 12, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>
+      {/* Header - more compact on mobile */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+        <GlassPanel style={{ padding: "5px 12px", borderRadius: 14 }}>
+          <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>
             Round{" "}
           </span>
-          <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "monospace", color: C.nGreen }}>
+          <span style={{ fontSize: 13, fontWeight: 800, fontFamily: "monospace", color: C.nGreen }}>
             {round + 1}
             <span style={{ color: "rgba(255,255,255,0.28)", fontWeight: 400 }}>/{ROUNDS}</span>
           </span>
         </GlassPanel>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {screen === "building" && (
-            <GlassPanel style={{ padding: "5px 11px", borderRadius: 16, border: `1px solid ${C.nBlue}35` }}>
-              <span style={{ fontSize: 12, fontFamily: "monospace", color: C.nBlue }}>
-                📊 Building context...
+            <GlassPanel style={{ padding: "4px 10px", borderRadius: 14, border: `1px solid ${C.nBlue}35` }}>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: C.nBlue }}>
+                📊 Building...
               </span>
             </GlassPanel>
           )}
           {streak > 0 && screen !== "building" && (
-            <GlassPanel style={{ padding: "5px 11px", borderRadius: 16, border: `1px solid ${C.nPurple}35` }}>
-              <span style={{ fontSize: 12, fontFamily: "monospace", color: C.nPurple }}>
+            <GlassPanel style={{ padding: "4px 10px", borderRadius: 14, border: `1px solid ${C.nPurple}35` }}>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: C.nPurple }}>
                 🔥 ×{STREAK_MULT[Math.min(streak, STREAK_MULT.length - 1)].toFixed(1)}
               </span>
             </GlassPanel>
@@ -1628,27 +1630,36 @@ export default function App() {
         </div>
       </div>
 
-      {/* Timer - only show when playing */}
-      {screen === "playing" && <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />}
+      {/* Timer - only show when playing, more compact */}
+      {screen === "playing" && (
+        <div style={{ flexShrink: 0 }}>
+          <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
+        </div>
+      )}
 
-      {/* Chart */}
-      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+      {/* Chart - MUCH BIGGER on mobile */}
+      <div style={{ 
+        flex: 1, 
+        minHeight: 0, 
+        position: "relative",
+        minHeight: "50vh" // Force minimum height for mobile
+      }}>
         <canvas
           ref={chartRef}
-          style={{ width: "100%", height: "100%", borderRadius: 20, display: "block" }}
+          style={{ width: "100%", height: "100%", borderRadius: 16, display: "block" }}
         />
         {screen === "outcome" && structure && (
           <div
             style={{
               position: "absolute",
-              top: 12,
-              right: 14,
-              fontSize: 10,
+              top: 10,
+              right: 12,
+              fontSize: 9,
               fontFamily: "monospace",
               color: "rgba(255,255,255,0.18)",
               background: "rgba(6,6,12,0.6)",
-              padding: "3px 8px",
-              borderRadius: 8,
+              padding: "3px 7px",
+              borderRadius: 6,
               backdropFilter: "blur(8px)",
             }}
           >
@@ -1657,10 +1668,10 @@ export default function App() {
         )}
       </div>
 
-      {/* Decision / Outcome */}
-      <div style={{ paddingBottom: 8 }}>
+      {/* Decision / Outcome - compact */}
+      <div style={{ paddingBottom: 6, flexShrink: 0 }}>
         {screen === "building" && (
-          <div style={{ textAlign: "center", padding: "20px", color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+          <div style={{ textAlign: "center", padding: "12px", color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
             Watching market develop...
           </div>
         )}
