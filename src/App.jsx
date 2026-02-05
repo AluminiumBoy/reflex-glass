@@ -1676,16 +1676,22 @@ export default function App() {
         sound.tick(countdownValue);
       } else {
         clearInterval(countdownInterval);
-        setShowCountdown(false);
         
-        // Reinitialize renderer if needed
-        if (chartRef.current && !rendererRef.current) {
-          rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-          const rect = chartRef.current.getBoundingClientRect();
-          rendererRef.current.setDimensions(rect.width, rect.height);
-        }
-        
-        initializeRound(0);
+        // Wait 800ms after "1" disappears before starting game
+        setTimeout(() => {
+          setShowCountdown(false);
+          
+          // Additional delay to ensure countdown is fully hidden
+          setTimeout(() => {
+            if (chartRef.current && !rendererRef.current) {
+              rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+              const rect = chartRef.current.getBoundingClientRect();
+              rendererRef.current.setDimensions(rect.width, rect.height);
+            }
+            
+            initializeRound(0);
+          }, 200);
+        }, 800);
       }
     }, 1000);
   }, [initializeRound]);
