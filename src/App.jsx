@@ -794,16 +794,12 @@ class MarketStructureGenerator {
   - Grid és ambient light megmarad
   - Mobil és desktop optimalizálva
   ═══════════════════════════════════════════════════════════════ */
+
 class ChartRenderer {
   constructor(canvas, config) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.config = config;
-
-    // FIX paraméterek – nem változnak frame-enként
-    this.bodyWidth = 0;
-    this.slotWidth = 0;
-    this.visibleCount = 0;
   }
 
   isMobile(width) {
@@ -815,8 +811,8 @@ class ChartRenderer {
     const mobile = this.isMobile(width);
     const height = mobile ? Math.floor(window.innerHeight * 0.65) : 440;
 
-    this.canvas.width = Math.floor(width * dpr);
-    this.canvas.height = Math.floor(height * dpr);
+    this.canvas.width = width * dpr;
+    this.canvas.height = height * dpr;
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
 
@@ -842,118 +838,153 @@ class ChartRenderer {
 
     const MIN_BODY_WIDTH = mobile ? 3 : 4;
     const MAX_BODY_WIDTH = mobile ? 14 : 18;
-
-    // ── FIX: egyszer számolt candle méretek ──
-    if (!this.bodyWidth || !this.slotWidth) {
-      let body = mobile ? 6 : 8;
-      body = Math.max(MIN_BODY_WIDTH, Math.min(MAX_BODY_WIDTH, body));
-      this.bodyWidth = body;
-      this.slotWidth = body + gap;
-      this.visibleCount = Math.floor(availableWidth / this.slotWidth);
+    
+    // Calculate how many candles we need to show
+    const candleCount = allCandles.length;
+    
+    // Calculate ideal slot width to fit all candles
+    let slotWidth = availableWidth / candleCount;
+    let bodyWidth = slotWidth - gap;
+    
+    // Clamp body width to min/max
+    if (bodyWidth < MIN_BODY_WIDTH) {
+      bodyWidth = MIN_BODY_WIDTH;
+      slotWidth = bodyWidth + gap;
+    } else if (bodyWidth > MAX_BODY_WIDTH) {
+      bodyWidth = MAX_BODY_WIDTH;
+      slotWidth = bodyWidth + gap;
     }
+    
+    // Now we show ALL candles that fit, or scroll if needed
+    let MAX_VISIBLE = Math.min(candleCount, Math.floor(availableWidth / slotWidth));
 
-    const totalWidth = allCandles.length * this.slotWidth;
-    const maxOffset = Math.max(0, totalWidth - availableWidth);
-
-    // ── FIX: scrollOffset clamp + pixel snap ──
-    const clampedOffset = Math.round(
-      Math.min(Math.max(scrollOffset, 0), maxOffset)
-    );
-
-    const startIdx = Math.floor(clampedOffset / this.slotWidth);
-    const endIdx = Math.min(
-      allCandles.length,
-      startIdx + this.visibleCount + 1
-    );
-
+    const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
+    
+    // Apply scroll offset (in candles)
+    const offsetCandles = Math.floor(scrollOffset / slotWidth);
+    const startIdx = Math.max(0, Math.min(allCandles.length - MAX_VISIBLE, allCandles.length - MAX_VISIBLE - offsetCandles));
+    
+    // Show visible candles
+    const endIdx = Math.min(startIdx + MAX_VISIBLE, allCandles.length);
     const visible = allCandles.slice(startIdx, endIdx);
-    if (!visible.length) return;
+    
+    // Early exit if nothing to render
+    if (visible.length === 0) return;
 
-    // ── Y skála ──
+    // Y skála
     let minPrice = Infinity;
     let maxPrice = -Infinity;
+    const SCALE_LOOKBACK = Math.max(visible.length, mobile ? 16 : 6);
+    const scaleSource = allCandles.slice(
+      Math.max(0, startIdx - SCALE_LOOKBACK),
+      startIdx + visible.length
+    );
 
-    visible.forEach(c => {
+    scaleSource.forEach(c => {
       minPrice = Math.min(minPrice, c.low);
       maxPrice = Math.max(maxPrice, c.high);
     });
 
     let range = maxPrice - minPrice || 1;
+
+    if (visible.length < 12) {
+      const pad = 5;
+      minPrice -= pad;
+      maxPrice += pad;
+      range = maxPrice - minPrice;
+    }
+
     const pad = mobile ? 0.08 : 0.06;
     minPrice -= range * pad;
     maxPrice += range * pad;
 
-    const toY = p =>
-      Math.round(
-        height - 50 - ((p - minPrice) / (maxPrice - minPrice)) * (height - 90)
-      );
+    const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
 
-    // ── Grid ──
+    const minBodyHeight = mobile ? 4 : 2;
+    const maxWickHeight = mobile ? 25 : 20;
+
+    // Grid
     ctx.strokeStyle = "rgba(255,255,255,0.04)";
     ctx.lineWidth = 1;
     for (let i = 0; i < 5; i++) {
-      const y = Math.round(50 + (i / 4) * (height - 100));
+      const y = 50 + (i / 4) * (height - 100);
       ctx.beginPath();
       ctx.moveTo(leftPadding, y);
-      ctx.lineTo(width - rightPadding, y);
+      ctx.lineTo(width - rightPadding + 10, y);
       ctx.stroke();
     }
 
-    const wickWidth = mobile ? Math.min(2, this.bodyWidth * 0.4) : 1.5;
+    // Gyertyák - OPTIMIZED: batch rendering, no save/restore per candle
     ctx.lineWidth = wickWidth;
-
-    // ── Wicks ──
+    
+    // Draw all wicks first (batched)
     visible.forEach((c, i) => {
-      const x =
-        leftPadding +
-        i * this.slotWidth -
-        (clampedOffset % this.slotWidth) +
-        (this.slotWidth - this.bodyWidth) / 2;
+      const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
+      const bull = c.close >= c.open;
+      const col = bull ? C.bull : C.bear;
 
-      const cx = Math.round(x + this.bodyWidth / 2);
       const top = toY(Math.max(c.open, c.close));
       const bot = toY(Math.min(c.open, c.close));
+      const centerX = Math.round(x + bodyWidth / 2);
       const highY = toY(c.high);
       const lowY = toY(c.low);
 
-      ctx.strokeStyle = c.close >= c.open ? C.bull : C.bear;
+      ctx.strokeStyle = col;
       ctx.beginPath();
       if (highY < top) {
-        ctx.moveTo(cx, highY);
-        ctx.lineTo(cx, top);
+        ctx.moveTo(centerX, highY);
+        ctx.lineTo(centerX, top);
       }
       if (lowY > bot) {
-        ctx.moveTo(cx, bot);
-        ctx.lineTo(cx, lowY);
+        ctx.moveTo(centerX, bot);
+        ctx.lineTo(centerX, lowY);
       }
       ctx.stroke();
     });
 
-    // ── Bodies ──
-    const minBodyHeight = mobile ? 4 : 2;
-
+    // Draw all bodies (batched by color for better performance)
+    const bullCandles = [];
+    const bearCandles = [];
+    
     visible.forEach((c, i) => {
+      const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
       const bull = c.close >= c.open;
-      const x =
-        leftPadding +
-        i * this.slotWidth -
-        (clampedOffset % this.slotWidth) +
-        (this.slotWidth - this.bodyWidth) / 2;
-
-      const rx = Math.round(x);
       const top = toY(Math.max(c.open, c.close));
       const bot = toY(Math.min(c.open, c.close));
-      const h = Math.max(bot - top, minBodyHeight);
-
-      ctx.fillStyle = bull ? C.bull : C.bear;
-      ctx.strokeStyle = ctx.fillStyle;
-      ctx.lineWidth = mobile ? 1.6 : 1;
-
-      ctx.beginPath();
-      ctx.roundRect(rx, top, this.bodyWidth, h, mobile ? 2 : 1.5);
-      ctx.fill();
-      ctx.stroke();
+      const bodyHeight = Math.max(bot - top, minBodyHeight);
+      
+      const candleData = { x, top, bodyWidth, bodyHeight };
+      if (bull) bullCandles.push(candleData);
+      else bearCandles.push(candleData);
     });
+
+    // Draw bull candles
+    if (bullCandles.length > 0) {
+      ctx.fillStyle = C.bull;
+      ctx.strokeStyle = C.bull;
+      ctx.lineWidth = mobile ? 1.6 : 1;
+      bullCandles.forEach(cd => {
+        ctx.beginPath();
+        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 2 : 1.5);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    // Draw bear candles
+    if (bearCandles.length > 0) {
+      ctx.fillStyle = C.bear;
+      ctx.strokeStyle = C.bear;
+      ctx.lineWidth = mobile ? 1.6 : 1;
+      bearCandles.forEach(cd => {
+        ctx.beginPath();
+        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 2 : 1.5);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    // Price label-ek teljesen kikapcsolva
   }
 
   render(allCandles, windowStart, windowSize) {
@@ -1319,7 +1350,7 @@ export default function App() {
       buildAnimationProgress.current = 0;
 
       // Smooth scrolling reveal animation
-      const duration = 6500; // Gyorsabb, pörgősebb ritmus
+      const duration = 8000; // Gyorsabb, pörgősebb ritmus
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -1463,116 +1494,85 @@ export default function App() {
       if (!chartRef.current || !structure) return;
 
       if (!rendererRef.current) {
-        rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-      }
-
-      const resize = () => {
-        if (!chartRef.current || !rendererRef.current) return;
+        rendererRef.current = new ChartRenderer(
+          chartRef.current,
+          DIFFICULTY_CONFIG
+        );
         const rect = chartRef.current.getBoundingClientRect();
         rendererRef.current.setDimensions(rect.width, rect.height);
-      };
-
-      resize();
-      window.addEventListener("resize", resize);
-
-      const isMobile = window.innerWidth < 520;
-
-      let targetFps;
-      if (screen === "building") {
-        targetFps = isMobile ? 24 : 40;
-      } else if (screen === "playing") {
-        targetFps = 24;
-      } else {
-        targetFps = isMobile ? 40 : 60;
       }
 
+      const isMobile = window.innerWidth < 520;
+      
+      // Adaptive frame rate based on screen state
+      let targetFps = 60;
+      if (screen === "building") {
+        // LOWER FPS during build to prevent stutter with many candles
+        targetFps = isMobile ? 24 : 30; // Cinematic feel, no lag
+      } else if (screen === "playing") {
+        // Static view, lower fps ok
+        targetFps = 24; // Save battery
+      } else {
+        // Revealing/outcome - smooth animations
+        targetFps = isMobile ? 40 : 60;
+      }
+      
       const minFrameTime = 1000 / targetFps;
 
       const render = (timestamp) => {
+        // Throttle to target FPS
         if (timestamp - lastRenderTime.current < minFrameTime) {
           renderRafId.current = requestAnimationFrame(render);
           return;
         }
-
+        
         lastRenderTime.current = timestamp;
-
+        
+        // Recalculate candles on each frame for smooth building
         let currentCandles = [];
         let currentOffset = 0;
-
+        
         if (screen === "building") {
-          const maxIndex = structure.decisionIndex;
-          const progress = Math.max(0, Math.min(1, buildAnimationProgress.current));
-          const targetIndex = progress * maxIndex;
-
-          const displayedIndex = Math.floor(targetIndex);
-          const partialProgress = targetIndex - displayedIndex;
-
-          currentCandles = structure.candles.slice(0, displayedIndex);
-
-          if (displayedIndex < structure.candles.length) {
-            const c = structure.candles[displayedIndex];
-
-            const interp = (from, to) => from + (to - from) * partialProgress;
-
-            const partialCandle = {
-              ...c,
-              open: c.open,
-              high: interp(c.open, c.high),
-              low: interp(c.open, c.low),
-              close: interp(c.open, c.close),
-            };
-
-            currentCandles.push(partialCandle);
+          const currentIndex = Math.floor(buildAnimationProgress.current * structure.decisionIndex);
+          // Cache optimization: only slice when count changes
+          if (currentIndex !== lastCandleCount.current) {
+            cachedCandles.current = structure.candles.slice(0, currentIndex + 1);
+            lastCandleCount.current = currentIndex;
           }
-        } 
-        else if (screen === "playing") {
+          currentCandles = cachedCandles.current;
+        } else if (screen === "playing") {
+          // Show all candles up to and including decision point
           currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-        } 
-        else if (screen === "revealing" || screen === "outcome") {
+        } else if (screen === "revealing" || screen === "outcome") {
           const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-          const contLen = structure.continuation?.candles?.length ?? 0;
-          const contCount = Math.floor(
-            Math.max(0, Math.min(1, revealProgress)) * contLen
-          );
-
-          currentCandles = [
-            ...baseCandles,
-            ...structure.continuation.candles.slice(0, contCount),
-          ];
-
+          const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
+          currentCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
           currentOffset = screen === "outcome" ? swipeOffset : 0;
         }
-
-        if (rendererRef.current && currentCandles.length) {
+        
+        if (rendererRef.current && currentCandles.length > 0) {
           rendererRef.current.renderAll(currentCandles, currentOffset);
         }
-
+        
         renderRafId.current = requestAnimationFrame(render);
       };
 
-      lastRenderTime.current = 0;
       renderRafId.current = requestAnimationFrame(render);
 
       return () => {
-        if (renderRafId.current) {
-          cancelAnimationFrame(renderRafId.current);
-        }
-        window.removeEventListener("resize", resize);
+        if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
       };
-    }, [structure, screen, revealProgress, swipeOffset]);
+    }, [structure, screen, revealProgress, swipeOffset, windowStart]);
 
-    // ── Compute stats ──
-    const computeStats = useCallback(() => {
-      const totalScore = scores.reduce((a, b) => a + b, 0);
-      const correct = roundStats.filter((r) => r.correct).length;
-      const total = roundStats.length;
-      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+  // ── Compute stats ──
+  const computeStats = useCallback(() => {
+    const totalScore = scores.reduce((a, b) => a + b, 0);
+    const correct = roundStats.filter((r) => r.correct).length;
+    const total = roundStats.length;
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-      return { totalScore, correct, total, accuracy, bestStreak };
-    }, [scores, roundStats, bestStreak]);
-
-
-
+    return { totalScore, correct, total, accuracy, bestStreak };
+  }, [scores, roundStats, bestStreak]);
 
   // ── Home screen ──
   const renderHome = () => (
