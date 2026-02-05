@@ -209,610 +209,571 @@ class MarketStructureGenerator {
   }
 
   // Generate complete market structure with context
+  // Focus: INFERABLE DIRECTION, not confusion
   generate() {
     const { contextSize } = this.config;
-    const totalCandles = contextSize + 15; // Extra for continuation
 
-    // Choose overall market regime
-    const regime = this._pickRegime();
+    // Determine setup type and signal FIRST (outcome-driven)
+    const setupType = this._pickSetupType();
+    const signal = setupType.signal; // BUY, SELL, or HOLD
 
-    // Build the structure in phases
-    const phases = this._buildPhases(regime, totalCandles);
+    // Build context that supports (or contradicts for traps) this signal
+    const context = this._buildContext(setupType, contextSize);
 
-    // Generate candles from phases
-    const candles = this._generateCandles(phases);
+    // Build the actual setup candles
+    const setupCandles = this._buildSetup(setupType, context);
 
-    // Identify decision point
-    const decisionIndex = this._findDecisionPoint(candles, phases);
+    // Combine: context + setup
+    const candles = [...context.candles, ...setupCandles];
+    const decisionIndex = candles.length - 1;
 
-    // Determine correct answer based on what happens next
-    const continuation = this._generateContinuation(candles, phases, decisionIndex);
+    // Generate continuation based on signal
+    const continuation = this._generateContinuation(signal, setupType, candles);
 
-    // Package everything
     return {
       candles,
       decisionIndex,
       continuation,
-      signal: continuation.signal,
-      context: this._analyzeContext(candles, decisionIndex, phases),
-      pattern: continuation.pattern,
-      regime,
-    };
-  }
-
-  _pickRegime() {
-    const r = this.rng();
-    if (r < 0.25) return "uptrend";
-    if (r < 0.5) return "downtrend";
-    if (r < 0.75) return "range";
-    return "transition";
-  }
-
-  _buildPhases(regime, totalCandles) {
-    const phases = [];
-    let currentIndex = 0;
-
-    // Build context phases
-    if (regime === "uptrend") {
-      phases.push({
-        type: "trend",
-        direction: "up",
-        start: currentIndex,
-        length: Math.floor(20 + this.rng() * 15),
-        volatility: 0.015 + this.rng() * 0.01,
-      });
-      currentIndex += phases[phases.length - 1].length;
-
-      // Add pullback or consolidation
-      if (this.rng() < 0.7) {
-        phases.push({
-          type: "pullback",
-          direction: "down",
-          start: currentIndex,
-          length: Math.floor(8 + this.rng() * 10),
-          volatility: 0.012 + this.rng() * 0.008,
-        });
-        currentIndex += phases[phases.length - 1].length;
-      }
-
-      // Setup phase (where decision happens)
-      phases.push({
-        type: "setup",
-        subtype: this._pickSetupType("bullish"),
-        start: currentIndex,
-        length: Math.floor(12 + this.rng() * 8),
-        volatility: 0.01 + this.rng() * 0.008,
-      });
-    } else if (regime === "downtrend") {
-      phases.push({
-        type: "trend",
-        direction: "down",
-        start: currentIndex,
-        length: Math.floor(20 + this.rng() * 15),
-        volatility: 0.018 + this.rng() * 0.012,
-      });
-      currentIndex += phases[phases.length - 1].length;
-
-      // Rally
-      if (this.rng() < 0.7) {
-        phases.push({
-          type: "rally",
-          direction: "up",
-          start: currentIndex,
-          length: Math.floor(8 + this.rng() * 10),
-          volatility: 0.015 + this.rng() * 0.01,
-        });
-        currentIndex += phases[phases.length - 1].length;
-      }
-
-      // Setup phase
-      phases.push({
-        type: "setup",
-        subtype: this._pickSetupType("bearish"),
-        start: currentIndex,
-        length: Math.floor(12 + this.rng() * 8),
-        volatility: 0.012 + this.rng() * 0.01,
-      });
-    } else if (regime === "range") {
-      // Establish range
-      phases.push({
-        type: "range",
-        start: currentIndex,
-        length: Math.floor(25 + this.rng() * 20),
-        volatility: 0.01 + this.rng() * 0.008,
-      });
-      currentIndex += phases[phases.length - 1].length;
-
-      // Setup near edge
-      phases.push({
-        type: "setup",
-        subtype: this._pickSetupType("neutral"),
-        start: currentIndex,
-        length: Math.floor(10 + this.rng() * 8),
-        volatility: 0.008 + this.rng() * 0.006,
-      });
-    } else {
-      // Transition: trend → opposite trend
-      const initialDir = this.rng() < 0.5 ? "up" : "down";
-      phases.push({
-        type: "trend",
-        direction: initialDir,
-        start: currentIndex,
-        length: Math.floor(15 + this.rng() * 12),
-        volatility: 0.015 + this.rng() * 0.01,
-      });
-      currentIndex += phases[phases.length - 1].length;
-
-      // Transition zone
-      phases.push({
-        type: "transition",
-        start: currentIndex,
-        length: Math.floor(12 + this.rng() * 10),
-        volatility: 0.01 + this.rng() * 0.008,
-      });
-      currentIndex += phases[phases.length - 1].length;
-
-      // New trend hint
-      phases.push({
-        type: "setup",
-        subtype: this._pickSetupType(initialDir === "up" ? "bearish" : "bullish"),
-        start: currentIndex,
-        length: Math.floor(10 + this.rng() * 8),
-        volatility: 0.012 + this.rng() * 0.01,
-      });
-    }
-
-    return phases;
-  }
-
-  _pickSetupType(bias) {
-    const { cleanRatio } = this.config;
-    const isClean = this.rng() < cleanRatio;
-
-    const bullishSetups = [
-      "bull_flag",
-      "ascending_triangle",
-      "double_bottom",
-      "inverse_head_shoulders",
-      "cup_handle",
-    ];
-    const bearishSetups = [
-      "bear_flag",
-      "descending_triangle",
-      "double_top",
-      "head_shoulders",
-      "rising_wedge",
-    ];
-    const neutralSetups = ["symmetrical_triangle", "range_compression", "coil"];
-    const failedSetups = [
-      "failed_breakout",
-      "bull_trap",
-      "bear_trap",
-      "exhaustion",
-      "false_reversal",
-    ];
-
-    let pool = [];
-    if (bias === "bullish") {
-      pool = isClean ? bullishSetups : [...bullishSetups, ...failedSetups];
-    } else if (bias === "bearish") {
-      pool = isClean ? bearishSetups : [...bearishSetups, ...failedSetups];
-    } else {
-      pool = isClean
-        ? neutralSetups
-        : [...neutralSetups, ...failedSetups, ...bullishSetups, ...bearishSetups];
-    }
-
-    return pool[Math.floor(this.rng() * pool.length)];
-  }
-
-  _generateCandles(phases) {
-    const candles = [];
-    let currentPrice = 10000 + this.rng() * 5000; // Start somewhere in middle
-
-    for (const phase of phases) {
-      const phaseCandles = this._generatePhaseCandles(
-        phase,
-        currentPrice,
-        phase.length
-      );
-      candles.push(...phaseCandles);
-      currentPrice = phaseCandles[phaseCandles.length - 1].close;
-    }
-
-    return candles;
-  }
-
-  _generatePhaseCandles(phase, startPrice, count) {
-    const candles = [];
-    let price = startPrice;
-    const vol = phase.volatility;
-
-    if (phase.type === "trend") {
-      const drift = phase.direction === "up" ? 0.003 : -0.003;
-      for (let i = 0; i < count; i++) {
-        const bodySize = vol * price * (0.3 + this.rng() * 0.7);
-        const wickSize = bodySize * (0.2 + this.rng() * 0.8);
-        const isGreen = this.rng() < (phase.direction === "up" ? 0.65 : 0.35);
-
-        price *= 1 + drift + (this.rng() - 0.5) * vol * 0.5;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else if (phase.type === "pullback" || phase.type === "rally") {
-      const drift = phase.direction === "up" ? 0.0015 : -0.0015;
-      for (let i = 0; i < count; i++) {
-        const bodySize = vol * price * (0.4 + this.rng() * 0.6);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.7);
-        const isGreen = this.rng() < (phase.direction === "up" ? 0.55 : 0.45);
-
-        price *= 1 + drift + (this.rng() - 0.5) * vol;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else if (phase.type === "range") {
-      const rangeHigh = price * (1 + vol * 3);
-      const rangeLow = price * (1 - vol * 3);
-      for (let i = 0; i < count; i++) {
-        // Mean reversion
-        if (price > rangeHigh * 0.95) price *= 0.998;
-        if (price < rangeLow * 1.05) price *= 1.002;
-
-        const bodySize = vol * price * (0.3 + this.rng() * 0.5);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.8);
-        const isGreen = this.rng() < 0.5;
-
-        price += (this.rng() - 0.5) * vol * price * 0.3;
-        price = Math.max(rangeLow, Math.min(rangeHigh, price));
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else if (phase.type === "setup") {
-      // Pattern-specific generation
-      const patternCandles = this._generatePatternCandles(
-        phase.subtype,
-        price,
-        count,
-        vol
-      );
-      candles.push(...patternCandles);
-    } else if (phase.type === "transition") {
-      // Choppy, uncertain
-      for (let i = 0; i < count; i++) {
-        const bodySize = vol * price * (0.5 + this.rng() * 0.8);
-        const wickSize = bodySize * (0.5 + this.rng() * 1.0);
-        const isGreen = this.rng() < 0.5;
-
-        price += (this.rng() - 0.5) * vol * price * 2;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    }
-
-    return candles;
-  }
-
-  _generatePatternCandles(subtype, startPrice, count, vol) {
-    const candles = [];
-    let price = startPrice;
-
-    // Simplified pattern generation (can be expanded)
-    if (subtype === "bull_flag") {
-      // Strong move up, then tight consolidation
-      for (let i = 0; i < count; i++) {
-        const isEarly = i < count * 0.4;
-        const drift = isEarly ? 0.004 : -0.0005;
-        const localVol = isEarly ? vol : vol * 0.6;
-
-        const bodySize = localVol * price * (0.3 + this.rng() * 0.5);
-        const wickSize = bodySize * (0.2 + this.rng() * 0.6);
-        const isGreen = this.rng() < (isEarly ? 0.7 : 0.45);
-
-        price *= 1 + drift + (this.rng() - 0.5) * localVol * 0.5;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else if (subtype === "bear_flag") {
-      // Strong move down, then tight consolidation
-      for (let i = 0; i < count; i++) {
-        const isEarly = i < count * 0.4;
-        const drift = isEarly ? -0.004 : 0.0005;
-        const localVol = isEarly ? vol : vol * 0.6;
-
-        const bodySize = localVol * price * (0.3 + this.rng() * 0.5);
-        const wickSize = bodySize * (0.2 + this.rng() * 0.6);
-        const isGreen = this.rng() < (isEarly ? 0.3 : 0.55);
-
-        price *= 1 + drift + (this.rng() - 0.5) * localVol * 0.5;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else if (subtype === "double_bottom") {
-      // Two similar lows
-      for (let i = 0; i < count; i++) {
-        const phase = i / count;
-        let drift = 0;
-        if (phase < 0.3) drift = -0.002;
-        else if (phase < 0.5) drift = 0.002;
-        else if (phase < 0.75) drift = -0.002;
-        else drift = 0.001;
-
-        const bodySize = vol * price * (0.3 + this.rng() * 0.5);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.7);
-        const isGreen = this.rng() < 0.5;
-
-        price *= 1 + drift + (this.rng() - 0.5) * vol * 0.5;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else if (subtype === "failed_breakout") {
-      // Looks like breakout, but fails
-      for (let i = 0; i < count; i++) {
-        const phase = i / count;
-        let drift = phase < 0.7 ? 0.002 : -0.003;
-
-        const bodySize = vol * price * (0.4 + this.rng() * 0.6);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.8);
-        const isGreen = this.rng() < (phase < 0.7 ? 0.6 : 0.3);
-
-        price *= 1 + drift + (this.rng() - 0.5) * vol;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    } else {
-      // Generic compression/coil
-      for (let i = 0; i < count; i++) {
-        const bodySize = vol * price * (0.3 + this.rng() * 0.4) * (1 - i / count * 0.5);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
-        const isGreen = this.rng() < 0.5;
-
-        price += (this.rng() - 0.5) * vol * price * 0.3;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        candles.push({ open, high, low, close });
-      }
-    }
-
-    return candles;
-  }
-
-  _findDecisionPoint(candles, phases) {
-    // Decision point is near the end of the last (setup) phase
-    const setupPhase = phases[phases.length - 1];
-    const setupEnd = setupPhase.start + setupPhase.length;
-    
-    // Pause 2-5 candles before the end
-    const offset = Math.floor(2 + this.rng() * 3);
-    return Math.max(setupPhase.start + 5, setupEnd - offset);
-  }
-
-  _generateContinuation(candles, phases, decisionIndex) {
-    const setupPhase = phases[phases.length - 1];
-    const subtype = setupPhase.subtype;
-
-    // Determine if pattern succeeds or fails
-    const shouldSucceed = this._shouldPatternSucceed(subtype);
-
-    const lastCandle = candles[decisionIndex];
-    const continuationCandles = [];
-    let price = lastCandle.close;
-    const vol = setupPhase.volatility;
-
-    // Generate 8-12 continuation candles
-    const contLength = Math.floor(8 + this.rng() * 4);
-
-    let signal = "HOLD";
-    let patternName = this._getPatternName(subtype);
-
-    if (shouldSucceed) {
-      if (
-        subtype.includes("bull") ||
-        subtype === "double_bottom" ||
-        subtype === "inverse_head_shoulders" ||
-        subtype === "cup_handle" ||
-        subtype === "ascending_triangle"
-      ) {
-        signal = "BUY";
-        // Strong upward continuation
-        for (let i = 0; i < contLength; i++) {
-          const drift = 0.004 + this.rng() * 0.002;
-          const bodySize = vol * price * (0.5 + this.rng() * 0.6);
-          const wickSize = bodySize * (0.2 + this.rng() * 0.4);
-          const isGreen = this.rng() < 0.75;
-
-          price *= 1 + drift + (this.rng() - 0.5) * vol * 0.3;
-
-          const open = price;
-          const close = isGreen ? open + bodySize : open - bodySize;
-          const high = Math.max(open, close) + wickSize * this.rng();
-          const low = Math.min(open, close) - wickSize * this.rng();
-
-          continuationCandles.push({ open, high, low, close });
-        }
-      } else if (
-        subtype.includes("bear") ||
-        subtype === "double_top" ||
-        subtype === "head_shoulders" ||
-        subtype === "rising_wedge" ||
-        subtype === "descending_triangle"
-      ) {
-        signal = "SELL";
-        // Strong downward continuation
-        for (let i = 0; i < contLength; i++) {
-          const drift = -0.004 - this.rng() * 0.002;
-          const bodySize = vol * price * (0.5 + this.rng() * 0.6);
-          const wickSize = bodySize * (0.2 + this.rng() * 0.4);
-          const isGreen = this.rng() < 0.25;
-
-          price *= 1 + drift + (this.rng() - 0.5) * vol * 0.3;
-
-          const open = price;
-          const close = isGreen ? open + bodySize : open - bodySize;
-          const high = Math.max(open, close) + wickSize * this.rng();
-          const low = Math.min(open, close) - wickSize * this.rng();
-
-          continuationCandles.push({ open, high, low, close });
-        }
-      } else {
-        // Neutral patterns - no clear direction (HOLD is correct)
-        signal = "HOLD";
-        for (let i = 0; i < contLength; i++) {
-          const bodySize = vol * price * (0.3 + this.rng() * 0.4);
-          const wickSize = bodySize * (0.4 + this.rng() * 0.6);
-          const isGreen = this.rng() < 0.5;
-
-          price += (this.rng() - 0.5) * vol * price * 0.5;
-
-          const open = price;
-          const close = isGreen ? open + bodySize : open - bodySize;
-          const high = Math.max(open, close) + wickSize * this.rng();
-          const low = Math.min(open, close) - wickSize * this.rng();
-
-          continuationCandles.push({ open, high, low, close });
-        }
-      }
-    } else {
-      // Pattern fails - HOLD or opposite signal
-      signal = "HOLD";
-      patternName = "Failed " + patternName;
-
-      // Weak or opposite continuation
-      for (let i = 0; i < contLength; i++) {
-        const bodySize = vol * price * (0.3 + this.rng() * 0.5);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.8);
-        const isGreen = this.rng() < 0.5;
-
-        price += (this.rng() - 0.5) * vol * price;
-
-        const open = price;
-        const close = isGreen ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-
-        continuationCandles.push({ open, high, low, close });
-      }
-    }
-
-    return {
-      candles: continuationCandles,
       signal,
-      pattern: patternName,
-      succeeded: shouldSucceed,
+      context: {
+        trendBias: context.bias,
+        priorStructure: context.priorPattern,
+        momentum: setupType.momentum,
+        quality: setupType.quality,
+      },
+      pattern: setupType.name,
+      regime: context.regime,
     };
   }
 
-  _shouldPatternSucceed(subtype) {
+  _pickSetupType() {
+    const r = this.rng();
     const { cleanRatio } = this.config;
-    
-    // Failed patterns always fail
-    if (
-      subtype.includes("failed") ||
-      subtype.includes("trap") ||
-      subtype === "exhaustion"
-    ) {
-      return false;
+
+    // Distribution: 50% directional, 30% trap, 20% HOLD
+    if (r < 0.25) {
+      // Clean bullish continuation (12.5% each)
+      return {
+        type: "bullish_continuation",
+        signal: "BUY",
+        name: this.rng() < 0.5 ? "Bull Flag" : "Ascending Triangle",
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.5) {
+      // Clean bearish continuation
+      return {
+        type: "bearish_continuation",
+        signal: "SELL",
+        name: this.rng() < 0.5 ? "Bear Flag" : "Descending Triangle",
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.65) {
+      // Bullish reversal
+      return {
+        type: "bullish_reversal",
+        signal: "BUY",
+        name: this.rng() < 0.5 ? "Double Bottom" : "Inverse H&S",
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.8) {
+      // Bearish reversal
+      return {
+        type: "bearish_reversal",
+        signal: "SELL",
+        name: this.rng() < 0.5 ? "Double Top" : "Head & Shoulders",
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.9) {
+      // Trap - looks bullish but fails
+      return {
+        type: "bull_trap",
+        signal: "HOLD",
+        name: "Bull Trap",
+        momentum: "weak",
+        quality: "poor",
+        willSucceed: false,
+      };
+    } else if (r < 0.95) {
+      // Trap - looks bearish but fails
+      return {
+        type: "bear_trap",
+        signal: "HOLD",
+        name: "Bear Trap",
+        momentum: "weak",
+        quality: "poor",
+        willSucceed: false,
+      };
+    } else {
+      // True HOLD - no clear structure
+      return {
+        type: "consolidation",
+        signal: "HOLD",
+        name: "Consolidation",
+        momentum: "neutral",
+        quality: "incomplete",
+        willSucceed: false,
+      };
+    }
+  }
+
+  _buildContext(setupType, contextSize) {
+    const candles = [];
+    let price = 10000 + this.rng() * 5000;
+
+    // Determine context regime based on setup type
+    let regime, bias;
+    if (setupType.type === "bullish_continuation") {
+      regime = "uptrend";
+      bias = "Bullish";
+    } else if (setupType.type === "bearish_continuation") {
+      regime = "downtrend";
+      bias = "Bearish";
+    } else if (setupType.type === "bullish_reversal") {
+      regime = "downtrend_exhausting";
+      bias = "Turning Bullish";
+    } else if (setupType.type === "bearish_reversal") {
+      regime = "uptrend_exhausting";
+      bias = "Turning Bearish";
+    } else {
+      regime = "range";
+      bias = "Neutral";
     }
 
-    // Clean patterns have higher success rate
-    return this.rng() < cleanRatio + 0.2;
-  }
+    // Phase 1: Establish dominant trend/range (60% of context)
+    const phase1Length = Math.floor(contextSize * 0.6);
+    if (regime === "uptrend") {
+      candles.push(...this._trendCandles(price, phase1Length, 0.003, 0.012, 0.7));
+    } else if (regime === "downtrend" || regime === "downtrend_exhausting") {
+      candles.push(...this._trendCandles(price, phase1Length, -0.003, 0.015, 0.3));
+    } else if (regime === "uptrend_exhausting") {
+      candles.push(...this._trendCandles(price, phase1Length, 0.0025, 0.012, 0.65));
+    } else {
+      candles.push(...this._rangeCandles(price, phase1Length, 0.01));
+    }
 
-  _getPatternName(subtype) {
-    const names = {
-      bull_flag: "Bull Flag",
-      bear_flag: "Bear Flag",
-      ascending_triangle: "Ascending Triangle",
-      descending_triangle: "Descending Triangle",
-      double_bottom: "Double Bottom",
-      double_top: "Double Top",
-      inverse_head_shoulders: "Inverse Head & Shoulders",
-      head_shoulders: "Head & Shoulders",
-      cup_handle: "Cup & Handle",
-      rising_wedge: "Rising Wedge",
-      symmetrical_triangle: "Symmetrical Triangle",
-      range_compression: "Range Compression",
-      coil: "Coil",
-      failed_breakout: "Failed Breakout",
-      bull_trap: "Bull Trap",
-      bear_trap: "Bear Trap",
-      exhaustion: "Exhaustion Move",
-      false_reversal: "False Reversal",
-    };
-    return names[subtype] || "Pattern";
-  }
+    price = candles[candles.length - 1].close;
 
-  _analyzeContext(candles, decisionIndex, phases) {
-    const recentCandles = candles.slice(Math.max(0, decisionIndex - 20), decisionIndex);
-    const setupPhase = phases[phases.length - 1];
+    // Phase 2: Add prior structure (failed attempt or pullback) (25% of context)
+    const phase2Length = Math.floor(contextSize * 0.25);
+    let priorPattern = "None";
 
-    // Simple trend analysis
-    const firstPrice = recentCandles[0]?.close || candles[0].close;
-    const lastPrice = recentCandles[recentCandles.length - 1]?.close || candles[decisionIndex].close;
-    const pctChange = ((lastPrice - firstPrice) / firstPrice) * 100;
+    if (setupType.type.includes("continuation")) {
+      // Add pullback before continuation
+      const pullbackDir = setupType.type === "bullish_continuation" ? -0.0015 : 0.0015;
+      candles.push(...this._trendCandles(price, phase2Length, pullbackDir, 0.01, 0.45));
+      priorPattern = "Pullback";
+    } else if (setupType.type.includes("reversal")) {
+      // Add failed bounce/rejection
+      if (setupType.type === "bullish_reversal") {
+        candles.push(...this._failedRally(price, phase2Length));
+        priorPattern = "Failed Rally";
+      } else {
+        candles.push(...this._failedDip(price, phase2Length));
+        priorPattern = "Failed Dip";
+      }
+    } else if (setupType.type.includes("trap")) {
+      // Add deceptive move
+      candles.push(...this._rangeCandles(price, phase2Length, 0.008));
+      priorPattern = "Choppy Range";
+    } else {
+      candles.push(...this._rangeCandles(price, phase2Length, 0.008));
+      priorPattern = "Consolidation";
+    }
 
-    let trendBias = "Neutral";
-    if (pctChange > 2) trendBias = "Bullish";
-    else if (pctChange < -2) trendBias = "Bearish";
+    price = candles[candles.length - 1].close;
 
-    // Volatility
-    let totalRange = 0;
-    recentCandles.forEach((c) => {
-      totalRange += (c.high - c.low) / c.close;
-    });
-    const avgRange = totalRange / recentCandles.length;
-    const volatility = avgRange > 0.015 ? "High" : avgRange > 0.008 ? "Medium" : "Low";
+    // Phase 3: Compression (15% of context) - sets up the decision
+    const phase3Length = Math.floor(contextSize * 0.15);
+    candles.push(...this._compressionCandles(price, phase3Length, 0.006));
 
     return {
-      trendBias,
-      volatility,
-      regime: phases[0]?.type || "unknown",
-      patternType: setupPhase.subtype,
+      candles,
+      regime,
+      bias,
+      priorPattern,
     };
   }
+
+  // Realistic trend candles - standard OHLC behavior
+  _trendCandles(startPrice, count, drift, volatility, bullRatio) {
+    const candles = [];
+    let price = startPrice;
+
+    for (let i = 0; i < count; i++) {
+      const isBull = this.rng() < bullRatio;
+      const bodyPercent = 0.4 + this.rng() * 0.4; // 40-80% of range
+      const range = price * volatility;
+
+      const open = price;
+      price = price * (1 + drift + (this.rng() - 0.5) * volatility * 0.3);
+      const close = isBull ? open + range * bodyPercent : open - range * bodyPercent;
+
+      const high = Math.max(open, close) + range * (0.2 + this.rng() * 0.3);
+      const low = Math.min(open, close) - range * (0.2 + this.rng() * 0.3);
+
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+
+    return candles;
+  }
+
+  // Range-bound candles
+  _rangeCandles(centerPrice, count, rangeSize) {
+    const candles = [];
+    const high = centerPrice * (1 + rangeSize);
+    const low = centerPrice * (1 - rangeSize);
+    let price = centerPrice;
+
+    for (let i = 0; i < count; i++) {
+      // Mean reversion
+      if (price > high * 0.95) price *= 0.998;
+      if (price < low * 1.05) price *= 1.002;
+
+      const isBull = this.rng() < 0.5;
+      const bodySize = price * rangeSize * (0.3 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+
+      const open = price;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const candleHigh = Math.max(open, close) + wickSize * this.rng();
+      const candleLow = Math.min(open, close) - wickSize * this.rng();
+
+      candles.push({
+        open,
+        high: Math.min(candleHigh, high),
+        low: Math.max(candleLow, low),
+        close,
+      });
+
+      price = close + (this.rng() - 0.5) * bodySize * 0.3;
+    }
+
+    return candles;
+  }
+
+  // Compression candles - decreasing range
+  _compressionCandles(startPrice, count, baseVol) {
+    const candles = [];
+    let price = startPrice;
+
+    for (let i = 0; i < count; i++) {
+      const compressionFactor = 1 - (i / count) * 0.5; // Range decreases
+      const isBull = this.rng() < 0.5;
+      const bodySize = price * baseVol * compressionFactor * (0.3 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+
+      const open = price;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + wickSize * this.rng();
+      const low = Math.min(open, close) - wickSize * this.rng();
+
+      candles.push({ open, high, low, close });
+      price = close + (this.rng() - 0.5) * bodySize * 0.2;
+    }
+
+    return candles;
+  }
+
+  // Failed rally (for bearish reversal context)
+  _failedRally(startPrice, count) {
+    const candles = [];
+    let price = startPrice;
+
+    // Rally up
+    for (let i = 0; i < Math.floor(count * 0.6); i++) {
+      const isBull = this.rng() < 0.65;
+      const bodySize = price * 0.012 * (0.4 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+
+      const open = price;
+      price *= 1.002;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + wickSize * this.rng();
+      const low = Math.min(open, close) - wickSize * this.rng();
+
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+
+    // Rejection
+    for (let i = 0; i < Math.floor(count * 0.4); i++) {
+      const isBull = this.rng() < 0.3;
+      const bodySize = price * 0.012 * (0.4 + this.rng() * 0.5);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.7);
+
+      const open = price;
+      price *= 0.998;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + wickSize * this.rng();
+      const low = Math.min(open, close) - wickSize * this.rng();
+
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+
+    return candles;
+  }
+
+  // Failed dip (for bullish reversal context)
+  _failedDip(startPrice, count) {
+    const candles = [];
+    let price = startPrice;
+
+    // Dip down
+    for (let i = 0; i < Math.floor(count * 0.6); i++) {
+      const isBull = this.rng() < 0.35;
+      const bodySize = price * 0.012 * (0.4 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+
+      const open = price;
+      price *= 0.998;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + wickSize * this.rng();
+      const low = Math.min(open, close) - wickSize * this.rng();
+
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+
+    // Bounce
+    for (let i = 0; i < Math.floor(count * 0.4); i++) {
+      const isBull = this.rng() < 0.7;
+      const bodySize = price * 0.012 * (0.4 + this.rng() * 0.5);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.7);
+
+      const open = price;
+      price *= 1.002;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + wickSize * this.rng();
+      const low = Math.min(open, close) - wickSize * this.rng();
+
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+
+    return candles;
+  }
+
+  _buildSetup(setupType, context) {
+    const startPrice = context.candles[context.candles.length - 1].close;
+    const candles = [];
+    const setupLength = 8 + Math.floor(this.rng() * 6);
+
+    if (setupType.type === "bullish_continuation") {
+      // Bull flag: tight consolidation after context uptrend
+      for (let i = 0; i < setupLength; i++) {
+        const drift = -0.0003; // Slight drift down
+        const vol = 0.006 * (1 - i / setupLength * 0.3); // Tightening
+        const price = startPrice * (1 + drift * i);
+        const isBull = this.rng() < 0.48;
+        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+
+        const open = price;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (setupType.type === "bearish_continuation") {
+      // Bear flag: tight consolidation after context downtrend
+      for (let i = 0; i < setupLength; i++) {
+        const drift = 0.0003; // Slight drift up
+        const vol = 0.006 * (1 - i / setupLength * 0.3);
+        const price = startPrice * (1 + drift * i);
+        const isBull = this.rng() < 0.52;
+        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+
+        const open = price;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+      }
+    } else if (setupType.type === "bullish_reversal") {
+      // Double bottom or inverted H&S
+      let price = startPrice;
+      // First bottom
+      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
+        const isBull = this.rng() < 0.35;
+        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+        const open = price;
+        price *= 0.998;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+      // Bounce
+      for (let i = 0; i < Math.floor(setupLength * 0.3); i++) {
+        const isBull = this.rng() < 0.65;
+        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+        const open = price;
+        price *= 1.002;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+      // Second test
+      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
+        const isBull = this.rng() < 0.5;
+        const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+        const open = price;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close + (this.rng() - 0.5) * bodySize * 0.2;
+      }
+    } else if (setupType.type === "bearish_reversal") {
+      // Double top or H&S
+      let price = startPrice;
+      // First top
+      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
+        const isBull = this.rng() < 0.65;
+        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+        const open = price;
+        price *= 1.002;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+      // Dip
+      for (let i = 0; i < Math.floor(setupLength * 0.3); i++) {
+        const isBull = this.rng() < 0.35;
+        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+        const open = price;
+        price *= 0.998;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+      // Second top
+      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
+        const isBull = this.rng() < 0.5;
+        const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+        const open = price;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close + (this.rng() - 0.5) * bodySize * 0.2;
+      }
+    } else if (setupType.type.includes("trap") || setupType.type === "consolidation") {
+      // Looks like a pattern but lacks conviction
+      let price = startPrice;
+      for (let i = 0; i < setupLength; i++) {
+        const isBull = this.rng() < 0.5;
+        const bodySize = price * 0.008 * (0.5 + this.rng() * 0.5);
+        const wickSize = bodySize * (0.5 + this.rng() * 0.8); // Larger wicks = indecision
+        const open = price;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+        candles.push({ open, high, low, close });
+        price = close + (this.rng() - 0.5) * bodySize * 0.4;
+      }
+    }
+
+    return candles;
+  }
+
+  _generateContinuation(signal, setupType, allCandles) {
+    const lastPrice = allCandles[allCandles.length - 1].close;
+    const candles = [];
+    const length = 10 + Math.floor(this.rng() * 4);
+    let price = lastPrice;
+
+    if (signal === "BUY" && setupType.willSucceed) {
+      // Strong bullish continuation
+      for (let i = 0; i < length; i++) {
+        const drift = 0.004 + this.rng() * 0.002;
+        const vol = 0.012;
+        const isBull = this.rng() < 0.75;
+        const bodySize = price * vol * (0.5 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.4);
+
+        const open = price;
+        price *= 1 + drift;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+    } else if (signal === "SELL" && setupType.willSucceed) {
+      // Strong bearish continuation
+      for (let i = 0; i < length; i++) {
+        const drift = -0.004 - this.rng() * 0.002;
+        const vol = 0.012;
+        const isBull = this.rng() < 0.25;
+        const bodySize = price * vol * (0.5 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.4);
+
+        const open = price;
+        price *= 1 + drift;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+    } else {
+      // HOLD / failed pattern - choppy or weak continuation
+      for (let i = 0; i < length; i++) {
+        const drift = (this.rng() - 0.5) * 0.002;
+        const vol = 0.01;
+        const isBull = this.rng() < 0.5;
+        const bodySize = price * vol * (0.3 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.7);
+
+        const open = price;
+        price *= 1 + drift;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
+
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+    }
+
+    return {
+      candles,
+      signal,
+      pattern: setupType.name,
+      succeeded: setupType.willSucceed,
+    };
+  }
+
+
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -841,8 +802,8 @@ class ChartRenderer {
     this.ctx.scale(dpr, dpr);
   }
 
-  // Render all candles (no windowing)
-  renderAll(allCandles) {
+  // Render all candles with PREMIUM MODERN STYLE (no windowing, scrolling animation)
+  renderAll(allCandles, scrollOffset = 0) {
     const canvas = this.canvas;
     const ctx = this.ctx;
     const width = canvas.width / (window.devicePixelRatio || 1);
@@ -861,47 +822,31 @@ class ChartRenderer {
     });
 
     const priceRange = maxPrice - minPrice;
-    const padding = priceRange * 0.1;
+    const padding = priceRange * 0.12;
     minPrice -= padding;
     maxPrice += padding;
 
-    // Calculate candle width based on number of candles
-    const chartWidth = width - 60;
-    const candleWidth = Math.min(12, chartWidth / allCandles.length);
-    const bodyWidth = Math.max(1.5, candleWidth * 0.7);
-    const wickWidth = Math.max(0.5, bodyWidth * 0.2);
+    // Helper to convert price to Y coordinate
+    const toY = (price) => {
+      return height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
+    };
 
-    // Draw candles
-    allCandles.forEach((candle, i) => {
-      const x = 30 + i * candleWidth + candleWidth / 2;
-      const yHigh = height - 30 - ((candle.high - minPrice) / (maxPrice - minPrice)) * (height - 60);
-      const yLow = height - 30 - ((candle.low - minPrice) / (maxPrice - minPrice)) * (height - 60);
-      const yOpen = height - 30 - ((candle.open - minPrice) / (maxPrice - minPrice)) * (height - 60);
-      const yClose = height - 30 - ((candle.close - minPrice) / (maxPrice - minPrice)) * (height - 60);
-
-      const isGreen = candle.close >= candle.open;
-      const color = isGreen ? C.bull : C.bear;
-
-      // Wick
-      ctx.strokeStyle = color;
-      ctx.lineWidth = wickWidth;
-      ctx.beginPath();
-      ctx.moveTo(x, yHigh);
-      ctx.lineTo(x, yLow);
-      ctx.stroke();
-
-      // Body
-      ctx.fillStyle = color;
-      const bodyHeight = Math.abs(yClose - yOpen);
-      const bodyY = Math.min(yOpen, yClose);
-      ctx.fillRect(x - bodyWidth / 2, bodyY, bodyWidth, Math.max(0.5, bodyHeight));
-    });
-
-    // Grid lines
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    // Calculate candle layout with scrolling
+    const gap = 2;
+    const targetBodyWidth = 8;
+    const slotWidth = targetBodyWidth + gap;
+    const totalWidth = allCandles.length * slotWidth;
+    
+    // Scrolling: show last N candles, earlier ones scroll left
+    const visibleWidth = width - 60;
+    const maxVisible = Math.floor(visibleWidth / slotWidth);
+    const startIdx = Math.max(0, allCandles.length - maxVisible);
+    
+    // Grid lines - subtle
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
     ctx.lineWidth = 1;
     for (let i = 0; i < 5; i++) {
-      const y = 30 + (i / 4) * (height - 60);
+      const y = 50 + (i / 4) * (height - 100);
       ctx.beginPath();
       ctx.moveTo(30, y);
       ctx.lineTo(width - 30, y);
@@ -909,22 +854,123 @@ class ChartRenderer {
     }
 
     // Price labels (right side)
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.font = "11px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for (let i = 0; i < 5; i++) {
       const price = minPrice + (i / 4) * (maxPrice - minPrice);
-      const y = height - 30 - (i / 4) * (height - 60);
-      ctx.fillText(price.toFixed(0), width - 5, y);
+      const y = toY(price);
+      ctx.fillText(price.toFixed(0), width - 8, y);
     }
 
+    // Last price label - premium pill
+    if (allCandles.length > 0) {
+      const lastCandle = allCandles[allCandles.length - 1];
+      const lblY = toY(lastCandle.close);
+      const lblColor = lastCandle.close >= lastCandle.open ? C.bull : C.bear;
+      
+      ctx.save();
+      
+      // Clean pill background
+      const lblW = 62, lblH = 28;
+      ctx.fillStyle = "rgba(10,10,18,0.95)";
+      ctx.beginPath();
+      ctx.roundRect(width - lblW - 8, lblY - lblH/2, lblW, lblH, 14);
+      ctx.fill();
+      
+      // Subtle border
+      ctx.strokeStyle = lblColor + "30";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Clean price text
+      ctx.fillStyle = lblColor;
+      ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(lastCandle.close.toFixed(2), width - 18, lblY + 4.5);
+      
+      ctx.restore();
+    }
+
+    // ULTRA-CLEAN MODERN CANDLES
+    allCandles.forEach((candle, i) => {
+      // Scrolling position calculation
+      const localIdx = i - startIdx;
+      if (localIdx < 0) return; // Off screen left
+      
+      const x = 30 + localIdx * slotWidth + gap/2;
+      const isBull = candle.close >= candle.open;
+      const bodyColor = isBull ? C.bull : C.bear;
+      
+      const currentBodyW = targetBodyWidth - gap;
+      const isRecent = i >= allCandles.length - 5;
+
+      ctx.save();
+
+      // MINIMAL WICK
+      const wickTop = toY(candle.high);
+      const wickBot = toY(candle.low);
+      
+      ctx.strokeStyle = bodyColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + currentBodyW/2, wickTop);
+      ctx.lineTo(x + currentBodyW/2, wickBot);
+      ctx.stroke();
+
+      // CLEAN MODERN BODY
+      const bodyTop = toY(Math.max(candle.open, candle.close));
+      const bodyBottom = toY(Math.min(candle.open, candle.close));
+      const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+
+      // Solid fill with subtle gradient
+      const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
+      bodyGrad.addColorStop(0, bodyColor + "f0");
+      bodyGrad.addColorStop(1, bodyColor + "b8");
+      ctx.fillStyle = bodyGrad;
+      
+      // Rounded corners for modern look
+      ctx.beginPath();
+      ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
+      ctx.fill();
+
+      // Clean border
+      ctx.strokeStyle = bodyColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      
+      // Subtle highlight on top edge
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
+
+      // Premium glow on recent candles
+      if (isRecent) {
+        ctx.shadowColor = bodyColor;
+        ctx.shadowBlur = 12;
+        ctx.strokeStyle = bodyColor + "80";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    });
+
+    // Subtle ambient lighting
+    const ambientLight = ctx.createRadialGradient(width*0.5, height*0.3, 0, width*0.5, height*0.3, width*0.6);
+    ambientLight.addColorStop(0, "rgba(0,255,170,0.02)");
+    ambientLight.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = ambientLight;
+    ctx.fillRect(0, 0, width, height);
+
     // Candle count label (bottom left)
+    ctx.globalAlpha = 0.3;
     ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.font = "10px monospace";
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
-    ctx.fillText(`${allCandles.length} candles`, 5, height - 5);
+    ctx.fillText(`${allCandles.length} candles`, 10, height - 10);
+    ctx.globalAlpha = 1;
   }
 
   // Render candles with windowed view (DEPRECATED - keeping for compatibility)
@@ -1248,9 +1294,82 @@ export default function App() {
     }
   }, [difficulty]);
 
+  // ── Initialize round ──
+  const initializeRound = useCallback(
+    (roundNum) => {
+      const generator = new MarketStructureGenerator(difficulty);
+      generator.seed(Date.now() + roundNum * 12345);
+      const newStructure = generator.generate();
+
+      setStructure(newStructure);
+      setRound(roundNum);
+      setChoice(null);
+      setTimeLeft(DECISION_MS);
+      setScreen("building");
+      setRevealProgress(0);
+
+      // Smooth scrolling reveal animation
+      let progress = 0;
+      const duration = 2500; // 2.5 seconds to build full context
+      const startTime = Date.now();
+
+      const animateScroll = () => {
+        const elapsed = Date.now() - startTime;
+        progress = Math.min(1, elapsed / duration);
+        
+        // Ease out curve for smooth deceleration
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const currentCandle = Math.floor(eased * newStructure.decisionIndex);
+        setWindowStart(currentCandle);
+
+        if (progress < 1) {
+          animFrameRef.current = requestAnimationFrame(animateScroll);
+        } else {
+          // Scrolling complete - pause at decision point
+          setScreen("playing");
+
+          // Start decision timer
+          const timerStart = Date.now();
+          if (timerRef.current) clearInterval(timerRef.current);
+          timerRef.current = setInterval(() => {
+            const timerElapsed = Date.now() - timerStart;
+            const remaining = Math.max(0, DECISION_MS - timerElapsed);
+            setTimeLeft(remaining);
+
+            if (remaining === 0) {
+              clearInterval(timerRef.current);
+              // Call handleChoice directly - will be available in scope
+              handleChoice("TIMEOUT");
+            }
+          }, 50);
+        }
+      };
+
+      animateScroll();
+    },
+    [difficulty] // Don't include handleChoice - causes circular dependency
+  );
+
   // ── Start new game ──
   const startGame = useCallback(() => {
     sound.unlock();
+    
+    // Cleanup any running timers/animations
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    
+    // Reset all game state
+    setRound(0);
+    setScores([]);
+    setStreak(0);
+    setBestStreak(0);
+    setRoundStats([]);
+    setChoice(null);
+    setStructure(null);
+    setWindowStart(0);
+    setRevealProgress(0);
+    
+    // Start countdown
     setShowCountdown(true);
     setCountdownNum(3);
 
@@ -1269,52 +1388,7 @@ export default function App() {
         setCountdownNum(count);
       }
     }, 1000);
-  }, [difficulty]);
-
-  // ── Initialize round ──
-  const initializeRound = useCallback(
-    (roundNum) => {
-      const generator = new MarketStructureGenerator(difficulty);
-      generator.seed(Date.now() + roundNum * 12345); // Deterministic variety
-      const newStructure = generator.generate();
-
-      setStructure(newStructure);
-      setRound(roundNum);
-      setChoice(null);
-      setTimeLeft(DECISION_MS);
-      setScreen("building");
-      setRevealProgress(0);
-      setWindowStart(0);
-
-      // Animate the market structure building up
-      let currentCandle = 0;
-      const buildInterval = setInterval(() => {
-        currentCandle++;
-        setWindowStart(currentCandle);
-
-        // When we reach the decision point, pause and start timer
-        if (currentCandle >= newStructure.decisionIndex) {
-          clearInterval(buildInterval);
-          setScreen("playing");
-
-          // Start decision timer
-          const startTime = Date.now();
-          if (timerRef.current) clearInterval(timerRef.current);
-          timerRef.current = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const remaining = Math.max(0, DECISION_MS - elapsed);
-            setTimeLeft(remaining);
-
-            if (remaining === 0) {
-              clearInterval(timerRef.current);
-              handleChoice("TIMEOUT");
-            }
-          }, 50);
-        }
-      }, 50); // Show 1 candle every 50ms = ~20 candles/second
-    },
-    [difficulty]
-  );
+  }, [initializeRound]);
 
   // ── Handle user choice ──
   const handleChoice = useCallback(
