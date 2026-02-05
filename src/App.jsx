@@ -862,7 +862,11 @@ class ChartRenderer {
     
     // Apply scroll offset (in candles)
     const offsetCandles = Math.floor(scrollOffset / slotWidth);
-    const startIdx = Math.max(0, Math.min(allCandles.length - MAX_VISIBLE, allCandles.length - MAX_VISIBLE - offsetCandles));
+    
+    // Calculate start index with proper bounds to prevent jumping
+    const maxStartIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
+    const rawStartIdx = maxStartIdx - offsetCandles;
+    const startIdx = Math.max(0, Math.min(maxStartIdx, rawStartIdx));
     
     // Show visible candles
     const endIdx = Math.min(startIdx + MAX_VISIBLE, allCandles.length);
@@ -1723,7 +1727,7 @@ export default function App() {
             touchAction: screen === "outcome" ? "none" : "auto"
           }}
           onTouchStart={(e) => {
-            if (screen === "outcome") {
+            if (screen === "outcome" && structure && structure.candles && structure.candles.length > 0) {
               touchStartX.current = e.touches[0].clientX;
               touchStartOffset.current = swipeOffset;
               lastTouchX.current = e.touches[0].clientX;
@@ -1733,7 +1737,7 @@ export default function App() {
             }
           }}
           onTouchMove={(e) => {
-            if (screen === "outcome" && touchStartX.current !== null) {
+            if (screen === "outcome" && touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
               e.preventDefault();
               
               const currentX = e.touches[0].clientX;
@@ -1751,9 +1755,32 @@ export default function App() {
               
               const newOffset = touchStartOffset.current + deltaX;
               
-              // Apply resistance at boundaries
-              const maxOffset = 400;
-              const minOffset = -200;
+              // Calculate dynamic limits based on total candles
+              const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
+              const mobile = chartDims.width < 520;
+              const gap = mobile ? 4 : 2;
+              const MIN_BODY_WIDTH = mobile ? 3 : 4;
+              const MAX_BODY_WIDTH = mobile ? 14 : 18;
+              const leftPadding = mobile ? 10 : 30;
+              const rightPadding = mobile ? 15 : 30;
+              const availableWidth = chartDims.width - leftPadding - rightPadding;
+              
+              let slotWidth = availableWidth / totalCandles;
+              let bodyWidth = slotWidth - gap;
+              if (bodyWidth < MIN_BODY_WIDTH) {
+                bodyWidth = MIN_BODY_WIDTH;
+                slotWidth = bodyWidth + gap;
+              } else if (bodyWidth > MAX_BODY_WIDTH) {
+                bodyWidth = MAX_BODY_WIDTH;
+                slotWidth = bodyWidth + gap;
+              }
+              
+              const MAX_VISIBLE = Math.min(totalCandles, Math.floor(availableWidth / slotWidth));
+              const scrollableCandles = Math.max(0, totalCandles - MAX_VISIBLE);
+              
+              // Dynamic limits
+              const maxOffset = scrollableCandles * slotWidth;
+              const minOffset = -50; // Small negative allowance for bounce
               let limitedOffset;
               
               if (newOffset > maxOffset) {
@@ -1774,13 +1801,37 @@ export default function App() {
             }
           }}
           onTouchEnd={() => {
-            if (screen === "outcome" && touchStartX.current !== null) {
+            if (screen === "outcome" && touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
+              // Calculate dynamic limits based on total candles
+              const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
+              const mobile = chartDims.width < 520;
+              const gap = mobile ? 4 : 2;
+              const MIN_BODY_WIDTH = mobile ? 3 : 4;
+              const MAX_BODY_WIDTH = mobile ? 14 : 18;
+              const leftPadding = mobile ? 10 : 30;
+              const rightPadding = mobile ? 15 : 30;
+              const availableWidth = chartDims.width - leftPadding - rightPadding;
+              
+              let slotWidth = availableWidth / totalCandles;
+              let bodyWidth = slotWidth - gap;
+              if (bodyWidth < MIN_BODY_WIDTH) {
+                bodyWidth = MIN_BODY_WIDTH;
+                slotWidth = bodyWidth + gap;
+              } else if (bodyWidth > MAX_BODY_WIDTH) {
+                bodyWidth = MAX_BODY_WIDTH;
+                slotWidth = bodyWidth + gap;
+              }
+              
+              const MAX_VISIBLE = Math.min(totalCandles, Math.floor(availableWidth / slotWidth));
+              const scrollableCandles = Math.max(0, totalCandles - MAX_VISIBLE);
+              
               // Apply momentum with smooth animation
               const momentum = velocity.current * 100;
               let finalOffset = swipeOffset + momentum;
               
-              const maxOffset = 400;
-              const minOffset = -200;
+              // Dynamic limits
+              const maxOffset = scrollableCandles * slotWidth;
+              const minOffset = 0;
               finalOffset = Math.max(minOffset, Math.min(maxOffset, finalOffset));
               
               // Smooth snap animation
