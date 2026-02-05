@@ -780,6 +780,7 @@ class MarketStructureGenerator {
       5. CHART RENDERER
 
       Mobile-first, structure-preserving chart renderer – improved for mobile
+      2025–2026 finomhangolás: jobb olvashatóság, több gyertya mobilon
       ═══════════════════════════════════════════════════════════════ */
 
     class ChartRenderer {
@@ -831,7 +832,7 @@ class MarketStructureGenerator {
         let minPrice = Infinity;
         let maxPrice = -Infinity;
 
-        const SCALE_LOOKBACK = mobile ? 16 : 6;         // hosszabb lookback → nyugodtabb skála mobilon
+        const SCALE_LOOKBACK = mobile ? 16 : 6;         // hosszabb lookback mobilon → nyugodtabb skála
         const scaleSource = allCandles.slice(
           Math.max(0, startIdx - SCALE_LOOKBACK),
           startIdx + visible.length
@@ -861,7 +862,7 @@ class MarketStructureGenerator {
           height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
 
         /* ───────── LAYOUT ───────── */
-        const gap = mobile ? 2 : 2;                     // kisebb gap mobilon
+        const gap = mobile ? 2 : 2;
         const leftPadding  = mobile ? 16 : 30;
         const rightPadding = mobile ? 80 : 30;          // hely a price pill-nek
 
@@ -901,7 +902,7 @@ class MarketStructureGenerator {
           const y = toY(last.close);
           const col = last.close >= last.open ? C.bull : C.bear;
 
-          const w = mobile ? 64 : 62;                   // kicsit kisebb mobilon
+          const w = mobile ? 64 : 62;
           const h = mobile ? 30 : 28;
 
           ctx.save();
@@ -953,7 +954,7 @@ class MarketStructureGenerator {
           ctx.fill();
 
           ctx.strokeStyle = col;
-          ctx.lineWidth = mobile ? 1.5 : 1;             // vékonyabb body outline mobilon
+          ctx.lineWidth = mobile ? 1.5 : 1;             // vékonyabb body outline
           ctx.stroke();
 
           ctx.restore();
@@ -991,7 +992,6 @@ class MarketStructureGenerator {
         this.renderAll([...allCandles, ...continuation.slice(0, count)]);
       }
     }
-
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
@@ -1317,7 +1317,7 @@ export default function App() {
 
       // Smooth scrolling reveal animation
       let progress = 0;
-      const duration = 3500; // 2.5 seconds to build full context
+      const duration = 2500; // 2.5 seconds to build full context
       const startTime = Date.now();
 
       const animateScroll = () => {
