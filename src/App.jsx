@@ -1524,6 +1524,8 @@ export default function App() {
 
         if (screen === "building") {
           // ── ÚJ: Progress-alapú lassú építés + partial candle ──
+          const rawProgress = buildAnimationProgress.current;
+          const easedProgress = easeOutCubic(rawProgress);   // ← itt tedd be az ease-t
           const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
           const displayedIndex = Math.floor(targetIndex);
           const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
