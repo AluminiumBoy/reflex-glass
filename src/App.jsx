@@ -1727,11 +1727,14 @@ export default function App() {
       } else {
         clearInterval(countdownInterval);
         
-        // Wait 800ms after "1" disappears before starting game
+        // Set to 0 to trigger fade-out
+        setCountdownNum(0);
+        
+        // Wait for fade-out animation (200ms) then hide completely
         setTimeout(() => {
           setShowCountdown(false);
           
-          // Additional delay to ensure countdown is fully hidden
+          // Small delay to ensure countdown overlay is removed from DOM
           setTimeout(() => {
             if (chartRef.current && !rendererRef.current) {
               rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
@@ -1740,8 +1743,8 @@ export default function App() {
             }
             
             initializeRound(0);
-          }, 200);
-        }, 800);
+          }, 50);
+        }, 200);
       }
     }, 1000);
   }, [initializeRound]);
@@ -2440,6 +2443,8 @@ export default function App() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
+        opacity: countdownNum === 0 ? 0 : 1,
+        transition: "opacity 0.2s ease-out",
       }}
     >
       <div
@@ -2477,9 +2482,11 @@ export default function App() {
           position: "relative",
           zIndex: 1,
           lineHeight: 1,
+          opacity: countdownNum === 0 ? 0 : 1,
+          transition: "opacity 0.15s ease-out",
         }}
       >
-        {countdownNum}
+        {countdownNum > 0 ? countdownNum : ""}
       </div>
     </div>
   );
