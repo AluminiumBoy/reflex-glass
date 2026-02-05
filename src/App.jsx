@@ -903,7 +903,10 @@ class ChartRenderer {
       ctx.stroke();
     }
 
-    // Gyertyák
+    // Gyertyák - OPTIMIZED: batch rendering, no save/restore per candle
+    ctx.lineWidth = wickWidth;
+    
+    // Draw all wicks first (batched)
     visible.forEach((c, i) => {
       const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
       const bull = c.close >= c.open;
@@ -911,47 +914,64 @@ class ChartRenderer {
 
       const top = toY(Math.max(c.open, c.close));
       const bot = toY(Math.min(c.open, c.close));
-      const bodyHeight = Math.max(bot - top, minBodyHeight);
-
       const centerX = Math.round(x + bodyWidth / 2);
       const highY = toY(c.high);
       const lowY = toY(c.low);
 
-      // Wick always connects high to body top, body bottom to low
-      const wickTopEnd = Math.min(top, highY);
-      const wickBottomStart = Math.max(bot, lowY);
-
-      ctx.save();
       ctx.strokeStyle = col;
-      ctx.lineWidth = wickWidth;
       ctx.beginPath();
-      // Upper wick: from high to top of body
       if (highY < top) {
         ctx.moveTo(centerX, highY);
         ctx.lineTo(centerX, top);
       }
-      // Lower wick: from bottom of body to low
       if (lowY > bot) {
         ctx.moveTo(centerX, bot);
         ctx.lineTo(centerX, lowY);
       }
       ctx.stroke();
-
-      // Body
-      const grad = ctx.createLinearGradient(x, top, x, top + bodyHeight);
-      grad.addColorStop(0, col + "f0");
-      grad.addColorStop(1, col + "b8");
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.roundRect(x, top, bodyWidth, bodyHeight, mobile ? 2 : 1.5);
-      ctx.fill();
-
-      ctx.strokeStyle = col;
-      ctx.lineWidth = mobile ? 1.6 : 1;
-      ctx.stroke();
-      ctx.restore();
     });
+
+    // Draw all bodies (batched by color for better performance)
+    const bullCandles = [];
+    const bearCandles = [];
+    
+    visible.forEach((c, i) => {
+      const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
+      const bull = c.close >= c.open;
+      const top = toY(Math.max(c.open, c.close));
+      const bot = toY(Math.min(c.open, c.close));
+      const bodyHeight = Math.max(bot - top, minBodyHeight);
+      
+      const candleData = { x, top, bodyWidth, bodyHeight };
+      if (bull) bullCandles.push(candleData);
+      else bearCandles.push(candleData);
+    });
+
+    // Draw bull candles
+    if (bullCandles.length > 0) {
+      ctx.fillStyle = C.bull;
+      ctx.strokeStyle = C.bull;
+      ctx.lineWidth = mobile ? 1.6 : 1;
+      bullCandles.forEach(cd => {
+        ctx.beginPath();
+        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 2 : 1.5);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    // Draw bear candles
+    if (bearCandles.length > 0) {
+      ctx.fillStyle = C.bear;
+      ctx.strokeStyle = C.bear;
+      ctx.lineWidth = mobile ? 1.6 : 1;
+      bearCandles.forEach(cd => {
+        ctx.beginPath();
+        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 2 : 1.5);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
 
     // Price label-ek teljesen kikapcsolva
   }
@@ -1264,6 +1284,8 @@ export default function App() {
   const lastTouchX = useRef(null);
   const lastTouchTime = useRef(null);
   const velocity = useRef(0);
+  const renderRafId = useRef(null);
+  const lastRenderTime = useRef(0);
 
   // ── Initialize renderer ──
   useEffect(() => {
@@ -1432,19 +1454,7 @@ export default function App() {
     }
   }, [round, initializeRound]);
 
-    // Throttle segédfüggvény (változatlan)
-    const throttle = (func, limit) => {
-      let inThrottle;
-      return function (...args) {
-        if (!inThrottle) {
-          func.apply(this, args);
-          inThrottle = true;
-          setTimeout(() => (inThrottle = false), limit);
-        }
-      };
-    };
-
-    // ── Render chart ──
+    // ── Render chart with RAF ──
     useEffect(() => {
       if (!chartRef.current || !structure) return;
 
@@ -1458,42 +1468,56 @@ export default function App() {
       }
 
       const isMobile = window.innerWidth < 520;
-
-      // Gyertya szám alapján finomhangolás az elejére
-      const candleCount = structure?.candles?.length || 0;
-      const isEarlyPhase = candleCount < 10;  // az első 10 gyertyánál még lassabb
-
-      let throttleDelay;
+      
+      // Calculate candles to show
+      let candles = [];
+      let offset = 0;
+      
       if (screen === "building" || screen === "playing") {
-        if (isEarlyPhase) {
-          // ELEJÉN MÉG LASSABB – hogy ne rohanjon az első gyertyák
-          throttleDelay = isMobile ? 800 : 200;   // mobilon kb. 1.25 fps
-        } else {
-          // később már kicsit gyorsabb, de még mindig nyugodt
-          throttleDelay = isMobile ? 450 : 120;
-        }
-      } else {
-        // revealing / outcome – gyorsabb, hogy a continuation jól látszódjon
-        throttleDelay = isMobile ? 180 : 70;
-      }
-
-      const throttledRender = throttle((candles, offset = 0) => {
-        if (rendererRef.current) {
-          rendererRef.current.renderAll(candles, offset);
-        }
-      }, throttleDelay);
-
-      if (screen === "building" || screen === "playing") {
-        const visibleCandles = structure.candles.slice(0, windowStart + 1);
-        throttledRender(visibleCandles, 0);
+        candles = structure.candles.slice(0, windowStart + 1);
       } else if (screen === "revealing" || screen === "outcome") {
         const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
         const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
-        const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
-        // Use swipeOffset only on outcome screen
-        throttledRender(allCandles, screen === "outcome" ? swipeOffset : 0);
+        candles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
+        offset = screen === "outcome" ? swipeOffset : 0;
       }
 
+      // Adaptive frame rate based on screen state
+      let targetFps = 60;
+      if (screen === "building") {
+        // Smooth but not too fast during build
+        targetFps = isMobile ? 30 : 45;
+      } else if (screen === "playing") {
+        // Static view, lower fps ok
+        targetFps = 30;
+      } else {
+        // Revealing/outcome - smooth animations
+        targetFps = isMobile ? 45 : 60;
+      }
+      
+      const minFrameTime = 1000 / targetFps;
+
+      const render = (timestamp) => {
+        // Throttle to target FPS
+        if (timestamp - lastRenderTime.current < minFrameTime) {
+          renderRafId.current = requestAnimationFrame(render);
+          return;
+        }
+        
+        lastRenderTime.current = timestamp;
+        
+        if (rendererRef.current) {
+          rendererRef.current.renderAll(candles, offset);
+        }
+        
+        renderRafId.current = requestAnimationFrame(render);
+      };
+
+      renderRafId.current = requestAnimationFrame(render);
+
+      return () => {
+        if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
+      };
     }, [structure, windowStart, screen, revealProgress, swipeOffset]);
 
   // ── Compute stats ──
@@ -1880,6 +1904,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (swipeRafId.current) cancelAnimationFrame(swipeRafId.current);
+      if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
     };
   }, []);
 
