@@ -1170,153 +1170,6 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
   </GlassPanel>
 );
 
-// Chart Timeline Component - Professional slider for exploring the full chart
-const ChartTimeline = ({ onOffsetChange, totalCandles, currentOffset }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const sliderRef = useRef(null);
-
-  const handleInteraction = (clientX) => {
-    if (!sliderRef.current) return;
-    const rect = sliderRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const percent = Math.max(0, Math.min(1, x / rect.width));
-    // Map 0-1 to -200 to 400 (our scroll range)
-    const offset = -200 + percent * 600;
-    onOffsetChange(offset);
-  };
-
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    handleInteraction(e.clientX);
-  };
-
-  const handleMouseMove = (e) => {
-    if (isDragging) {
-      handleInteraction(e.clientX);
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (e) => {
-    setIsDragging(true);
-    handleInteraction(e.touches[0].clientX);
-  };
-
-  const handleTouchMove = (e) => {
-    if (isDragging) {
-      handleInteraction(e.touches[0].clientX);
-    }
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('touchmove', handleTouchMove);
-      document.addEventListener('touchend', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleMouseUp);
-      };
-    }
-  }, [isDragging]);
-
-  // Calculate thumb position (0-100%)
-  const thumbPosition = ((currentOffset + 200) / 600) * 100;
-
-  return (
-    <div style={{ padding: "12px 16px", background: C.glass, borderRadius: 14, border: `1px solid ${C.glassBr}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}>
-          CHART TIMELINE
-        </div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
-          Drag to explore →
-        </div>
-      </div>
-      
-      <div
-        ref={sliderRef}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        style={{
-          position: "relative",
-          height: 32,
-          background: "rgba(0,0,0,0.3)",
-          borderRadius: 8,
-          cursor: "grab",
-          userSelect: "none",
-          touchAction: "none",
-        }}
-      >
-        {/* Track fill */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width: `${thumbPosition}%`,
-            height: "100%",
-            background: `linear-gradient(90deg, ${C.nPurple}40, ${C.nBlue}40)`,
-            borderRadius: 8,
-            transition: isDragging ? "none" : "width 0.1s ease",
-          }}
-        />
-        
-        {/* Thumb */}
-        <div
-          style={{
-            position: "absolute",
-            left: `${thumbPosition}%`,
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 20,
-            height: 20,
-            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nBlue})`,
-            borderRadius: "50%",
-            border: "2px solid rgba(255,255,255,0.3)",
-            boxShadow: `0 0 12px ${C.nGreen}60`,
-            cursor: "grab",
-            transition: isDragging ? "none" : "left 0.1s ease",
-          }}
-        />
-        
-        {/* Decision point marker */}
-        <div
-          style={{
-            position: "absolute",
-            left: "33%",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 2,
-            height: 20,
-            background: C.nAmber,
-            opacity: 0.4,
-          }}
-        />
-      </div>
-      
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        marginTop: 6,
-        fontSize: 9,
-        color: "rgba(255,255,255,0.3)",
-        fontFamily: "monospace"
-      }}>
-        <span>Start</span>
-        <span>Decision</span>
-        <span>Result</span>
-      </div>
-    </div>
-  );
-};
-
 const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => (
   <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
     <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
@@ -1405,6 +1258,8 @@ export default function App() {
   const rendererRef = useRef(null);
   const timerRef = useRef(null);
   const animFrameRef = useRef(null);
+  const touchStartX = useRef(null);
+  const touchStartOffset = useRef(0);
 
   // ── Initialize renderer ──
   useEffect(() => {
@@ -1573,7 +1428,19 @@ export default function App() {
     }
   }, [round, initializeRound]);
 
-    // ── Render chart with requestAnimationFrame (anti-lag) ──
+    // Throttle segédfüggvény (változatlan)
+    const throttle = (func, limit) => {
+      let inThrottle;
+      return function (...args) {
+        if (!inThrottle) {
+          func.apply(this, args);
+          inThrottle = true;
+          setTimeout(() => (inThrottle = false), limit);
+        }
+      };
+    };
+
+    // ── Render chart ──
     useEffect(() => {
       if (!chartRef.current || !structure) return;
 
@@ -1586,31 +1453,43 @@ export default function App() {
         rendererRef.current.setDimensions(rect.width, rect.height);
       }
 
-      // Cancel any pending render
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
+      const isMobile = window.innerWidth < 520;
+
+      // Gyertya szám alapján finomhangolás az elejére
+      const candleCount = structure?.candles?.length || 0;
+      const isEarlyPhase = candleCount < 10;  // az első 10 gyertyánál még lassabb
+
+      let throttleDelay;
+      if (screen === "building" || screen === "playing") {
+        if (isEarlyPhase) {
+          // ELEJÉN MÉG LASSABB – hogy ne rohanjon az első gyertyák
+          throttleDelay = isMobile ? 800 : 200;   // mobilon kb. 1.25 fps
+        } else {
+          // később már kicsit gyorsabb, de még mindig nyugodt
+          throttleDelay = isMobile ? 450 : 120;
+        }
+      } else {
+        // revealing / outcome – gyorsabb, hogy a continuation jól látszódjon
+        throttleDelay = isMobile ? 180 : 70;
       }
 
-      // Use requestAnimationFrame for smooth 60fps rendering
-      animFrameRef.current = requestAnimationFrame(() => {
-        if (!rendererRef.current) return;
-        
-        if (screen === "building" || screen === "playing") {
-          const visibleCandles = structure.candles.slice(0, windowStart + 1);
-          rendererRef.current.renderAll(visibleCandles, 0);
-        } else if (screen === "revealing" || screen === "outcome") {
-          const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-          const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
-          const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
-          rendererRef.current.renderAll(allCandles, screen === "outcome" ? swipeOffset : 0);
+      const throttledRender = throttle((candles, offset = 0) => {
+        if (rendererRef.current) {
+          rendererRef.current.renderAll(candles, offset);
         }
-      });
+      }, throttleDelay);
 
-      return () => {
-        if (animFrameRef.current) {
-          cancelAnimationFrame(animFrameRef.current);
-        }
-      };
+      if (screen === "building" || screen === "playing") {
+        const visibleCandles = structure.candles.slice(0, windowStart + 1);
+        throttledRender(visibleCandles, 0);
+      } else if (screen === "revealing" || screen === "outcome") {
+        const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
+        const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
+        const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
+        // Use swipeOffset only on outcome screen
+        throttledRender(allCandles, screen === "outcome" ? swipeOffset : 0);
+      }
+
     }, [structure, windowStart, screen, revealProgress, swipeOffset]);
 
   // ── Compute stats ──
@@ -1762,26 +1641,64 @@ export default function App() {
             width: "100%", 
             height: "100%", 
             borderRadius: 16, 
-            display: "block"
+            display: "block",
+            touchAction: screen === "outcome" ? "pan-x" : "none"
+          }}
+          onTouchStart={(e) => {
+            if (screen === "outcome") {
+              touchStartX.current = e.touches[0].clientX;
+              touchStartOffset.current = swipeOffset;
+            }
+          }}
+          onTouchMove={(e) => {
+            if (screen === "outcome" && touchStartX.current !== null) {
+              const deltaX = touchStartX.current - e.touches[0].clientX;
+              const newOffset = touchStartOffset.current + deltaX;
+              // Limit scrolling range
+              setSwipeOffset(Math.max(-200, Math.min(400, newOffset)));
+            }
+          }}
+          onTouchEnd={() => {
+            touchStartX.current = null;
           }}
         />
         {screen === "outcome" && structure && (
-          <div
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 12,
-              fontSize: 9,
-              fontFamily: "monospace",
-              color: "rgba(255,255,255,0.18)",
-              background: "rgba(6,6,12,0.6)",
-              padding: "3px 7px",
-              borderRadius: 6,
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            {structure.continuation.pattern}
-          </div>
+          <>
+            <div
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 12,
+                fontSize: 9,
+                fontFamily: "monospace",
+                color: "rgba(255,255,255,0.18)",
+                background: "rgba(6,6,12,0.6)",
+                padding: "3px 7px",
+                borderRadius: 6,
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              {structure.continuation.pattern}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                bottom: 10,
+                left: "50%",
+                transform: "translateX(-50%)",
+                fontSize: 10,
+                fontFamily: "monospace",
+                color: "rgba(255,255,255,0.25)",
+                background: "rgba(6,6,12,0.7)",
+                padding: "4px 10px",
+                borderRadius: 8,
+                backdropFilter: "blur(8px)",
+                pointerEvents: "none",
+              }}
+            >
+              ← Swipe to explore →
+            </div>
+          </>
         )}
       </div>
 
@@ -1794,28 +1711,16 @@ export default function App() {
         )}
         {screen === "playing" && <DecisionButtons onChoose={handleChoice} disabled={false} />}
         {screen === "outcome" && (
-          <>
-            {/* Chart Timeline - appears first for exploration */}
-            <div style={{ marginBottom: 10 }}>
-              <ChartTimeline 
-                onOffsetChange={setSwipeOffset}
-                currentOffset={swipeOffset}
-                totalCandles={structure?.candles?.length || 0}
-              />
-            </div>
-            
-            {/* Outcome Card */}
-            <OutcomeCard
-              correct={roundStats[roundStats.length - 1]?.correct}
-              points={scores[scores.length - 1]}
-              streak={streak}
-              patternName={structure?.continuation.pattern}
-              choice={choice}
-              signal={structure?.signal}
-              onNext={advanceRound}
-              context={structure?.context}
-            />
-          </>
+          <OutcomeCard
+            correct={roundStats[roundStats.length - 1]?.correct}
+            points={scores[scores.length - 1]}
+            streak={streak}
+            patternName={structure?.continuation.pattern}
+            choice={choice}
+            signal={structure?.signal}
+            onNext={advanceRound}
+            context={structure?.context}
+          />
         )}
       </div>
     </div>
