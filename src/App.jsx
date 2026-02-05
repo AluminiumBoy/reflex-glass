@@ -820,7 +820,7 @@ class ChartRenderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  renderAll(allCandles, scrollOffset = 0) {
+  renderAll(allCandles, scrollOffset = 0, totalCandleCountOverride = null) {
     const ctx = this.ctx;
     const dpr = window.devicePixelRatio || 1;
     const width = this.canvas.width / dpr;
@@ -839,11 +839,12 @@ class ChartRenderer {
     const MIN_BODY_WIDTH = mobile ? 3 : 4;
     const MAX_BODY_WIDTH = mobile ? 14 : 18;
     
-    // CRITICAL: Calculate slot width based on TOTAL candles, not visible ones
-    // This prevents circular dependency and jumping
-    const totalCandleCount = allCandles.length;
+    // CRITICAL: Use override if provided (for reveal animation stability)
+    // Otherwise use actual candle count
+    // This prevents jumping when candles are being revealed progressively
+    const totalCandleCount = totalCandleCountOverride !== null ? totalCandleCountOverride : allCandles.length;
     
-    // Calculate ideal slot width to fit all candles
+    // Calculate ideal slot width to fit all candles (using stable total)
     let slotWidth = availableWidth / totalCandleCount;
     let bodyWidth = slotWidth - gap;
     
@@ -865,12 +866,12 @@ class ChartRenderer {
     const offsetCandles = Math.floor(scrollOffset / slotWidth);
     
     // Calculate start index with proper bounds to prevent jumping
-    const maxStartIdx = Math.max(0, totalCandleCount - MAX_VISIBLE);
+    const maxStartIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
     const rawStartIdx = maxStartIdx - offsetCandles;
     const startIdx = Math.max(0, Math.min(maxStartIdx, rawStartIdx));
     
-    // Show visible candles
-    const endIdx = Math.min(startIdx + MAX_VISIBLE, totalCandleCount);
+    // Show visible candles (using actual candles, not total count)
+    const endIdx = Math.min(startIdx + MAX_VISIBLE, allCandles.length);
     const visible = allCandles.slice(startIdx, endIdx);
     
     // Early exit if nothing to render
@@ -1562,7 +1563,12 @@ export default function App() {
         }
 
         if (rendererRef.current && currentCandles.length > 0) {
-          rendererRef.current.renderAll(currentCandles, currentOffset);
+          // Calculate total expected candles for stable rendering
+          const totalExpectedCandles = screen === "revealing" || screen === "outcome"
+            ? structure.candles.length + structure.continuation.candles.length
+            : currentCandles.length;
+          
+          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles);
         }
 
         renderRafId.current = requestAnimationFrame(render);
