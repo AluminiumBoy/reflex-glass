@@ -1260,6 +1260,10 @@ export default function App() {
   const animFrameRef = useRef(null);
   const touchStartX = useRef(null);
   const touchStartOffset = useRef(0);
+  const swipeRafId = useRef(null);
+  const lastTouchX = useRef(null);
+  const lastTouchTime = useRef(null);
+  const velocity = useRef(0);
 
   // ── Initialize renderer ──
   useEffect(() => {
@@ -1642,24 +1646,92 @@ export default function App() {
             height: "100%", 
             borderRadius: 16, 
             display: "block",
-            touchAction: screen === "outcome" ? "pan-x" : "none"
+            touchAction: screen === "outcome" ? "none" : "auto"
           }}
           onTouchStart={(e) => {
             if (screen === "outcome") {
               touchStartX.current = e.touches[0].clientX;
               touchStartOffset.current = swipeOffset;
+              lastTouchX.current = e.touches[0].clientX;
+              lastTouchTime.current = Date.now();
+              velocity.current = 0;
+              if (swipeRafId.current) cancelAnimationFrame(swipeRafId.current);
             }
           }}
           onTouchMove={(e) => {
             if (screen === "outcome" && touchStartX.current !== null) {
-              const deltaX = touchStartX.current - e.touches[0].clientX;
+              e.preventDefault();
+              
+              const currentX = e.touches[0].clientX;
+              const currentTime = Date.now();
+              const deltaX = touchStartX.current - currentX;
+              const timeDelta = currentTime - lastTouchTime.current;
+              
+              // Calculate velocity for momentum
+              if (timeDelta > 0) {
+                velocity.current = (lastTouchX.current - currentX) / timeDelta;
+              }
+              
+              lastTouchX.current = currentX;
+              lastTouchTime.current = currentTime;
+              
               const newOffset = touchStartOffset.current + deltaX;
-              // Limit scrolling range
-              setSwipeOffset(Math.max(-200, Math.min(400, newOffset)));
+              
+              // Apply resistance at boundaries
+              const maxOffset = 400;
+              const minOffset = -200;
+              let limitedOffset;
+              
+              if (newOffset > maxOffset) {
+                const excess = newOffset - maxOffset;
+                limitedOffset = maxOffset + excess * 0.3;
+              } else if (newOffset < minOffset) {
+                const excess = minOffset - newOffset;
+                limitedOffset = minOffset - excess * 0.3;
+              } else {
+                limitedOffset = newOffset;
+              }
+              
+              // Use RAF to prevent lag
+              if (swipeRafId.current) cancelAnimationFrame(swipeRafId.current);
+              swipeRafId.current = requestAnimationFrame(() => {
+                setSwipeOffset(limitedOffset);
+              });
             }
           }}
           onTouchEnd={() => {
+            if (screen === "outcome" && touchStartX.current !== null) {
+              // Apply momentum with smooth animation
+              const momentum = velocity.current * 100;
+              let finalOffset = swipeOffset + momentum;
+              
+              const maxOffset = 400;
+              const minOffset = -200;
+              finalOffset = Math.max(minOffset, Math.min(maxOffset, finalOffset));
+              
+              // Smooth snap animation
+              const startOffset = swipeOffset;
+              const startTime = Date.now();
+              const duration = 300;
+              
+              const animate = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+                
+                const offset = startOffset + (finalOffset - startOffset) * eased;
+                setSwipeOffset(offset);
+                
+                if (progress < 1) {
+                  swipeRafId.current = requestAnimationFrame(animate);
+                }
+              };
+              
+              animate();
+            }
+            
             touchStartX.current = null;
+            velocity.current = 0;
           }}
         />
         {screen === "outcome" && structure && (
@@ -1803,6 +1875,13 @@ export default function App() {
       </div>
     </div>
   );
+
+  // ── Cleanup RAF on unmount ──
+  useEffect(() => {
+    return () => {
+      if (swipeRafId.current) cancelAnimationFrame(swipeRafId.current);
+    };
+  }, []);
 
   // ── Main render ──
   return (
