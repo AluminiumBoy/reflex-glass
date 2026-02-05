@@ -1286,9 +1286,9 @@ export default function App() {
       setScreen("building");
       setRevealProgress(0);
 
-      // Smooth scrolling reveal animation
+      // Smooth scrolling reveal animation (slower)
       let progress = 0;
-      const duration = 2500; // 2.5 seconds to build full context
+      const duration = 4000; // 4 seconds to build full context (slower)
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -1378,10 +1378,10 @@ export default function App() {
       setChoice(userChoice);
       setScreen("revealing");
 
-      // Animate continuation reveal (slower animation)
+      // Animate continuation reveal (faster animation)
       let progress = 0;
       const animate = () => {
-        progress += 0.01; // Slower increment (was 0.02)
+        progress += 0.03; // Faster increment
         setRevealProgress(progress);
 
         if (progress < 1) {
