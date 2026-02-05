@@ -779,8 +779,7 @@ class MarketStructureGenerator {
 /* ═══════════════════════════════════════════════════════════════
    5. CHART RENDERER
 
-   Handles windowed view, auto-scaling, and smooth scrolling
-   Mobile-safe, structure-preserving version
+   Mobile-first, structure-preserving chart renderer
    ═══════════════════════════════════════════════════════════════ */
 
 class ChartRenderer {
@@ -794,12 +793,20 @@ class ChartRenderer {
     return width < 520;
   }
 
-  setDimensions(width, height) {
+  setDimensions(width) {
     const dpr = window.devicePixelRatio || 1;
+    const mobile = this.isMobile(width);
+
+    // 🔑 CRITICAL: taller canvas on mobile
+    const height = mobile
+      ? Math.floor(window.innerHeight * 0.65)
+      : 440;
+
     this.canvas.width = width * dpr;
     this.canvas.height = height * dpr;
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
+
     this.ctx = this.canvas.getContext("2d");
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
@@ -813,23 +820,33 @@ class ChartRenderer {
     ctx.clearRect(0, 0, width, height);
     if (!allCandles || allCandles.length === 0) return;
 
-    /* ───────── PLATFORM / WINDOW LOGIC ───────── */
+    /* ───────── PLATFORM LOGIC ───────── */
     const mobile = this.isMobile(width);
     const MAX_VISIBLE = mobile ? 14 : 32;
 
     const startIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
-    const visibleCandles = allCandles.slice(startIdx);
+    const visible = allCandles.slice(startIdx);
 
-    /* ───────── Y SCALE (VISIBLE ONLY) ───────── */
+    /* ───────── Y SCALE (STABLE, VISIBLE ONLY) ───────── */
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
-    visibleCandles.forEach(c => {
+    visible.forEach(c => {
       minPrice = Math.min(minPrice, c.low);
       maxPrice = Math.max(maxPrice, c.high);
     });
 
-    const range = maxPrice - minPrice || 1;
+    let range = maxPrice - minPrice || 1;
+
+    // 🔑 prevent micro-compression on mobile
+    const MIN_RANGE = mobile ? 12 : 6;
+    if (range < MIN_RANGE) {
+      const pad = (MIN_RANGE - range) / 2;
+      minPrice -= pad;
+      maxPrice += pad;
+      range = maxPrice - minPrice;
+    }
+
     minPrice -= range * 0.15;
     maxPrice += range * 0.15;
 
@@ -869,7 +886,7 @@ class ChartRenderer {
     }
 
     /* ───────── LAST PRICE PILL ───────── */
-    const last = visibleCandles.at(-1);
+    const last = visible.at(-1);
     if (last) {
       const y = toY(last.close);
       const col = last.close >= last.open ? C.bull : C.bear;
@@ -896,7 +913,7 @@ class ChartRenderer {
     }
 
     /* ───────── CANDLES ───────── */
-    visibleCandles.forEach((c, i) => {
+    visible.forEach((c, i) => {
       const x = 30 + i * slotWidth + gap / 2;
       const bull = c.close >= c.open;
       const col = bull ? C.bull : C.bear;
@@ -932,7 +949,7 @@ class ChartRenderer {
       ctx.restore();
     });
 
-    /* ───────── AMBIENT ───────── */
+    /* ───────── AMBIENT LIGHT ───────── */
     const glow = ctx.createRadialGradient(
       width * 0.5, height * 0.3, 0,
       width * 0.5, height * 0.3, width * 0.6
@@ -947,7 +964,7 @@ class ChartRenderer {
     ctx.fillStyle = "#fff";
     ctx.font = "10px monospace";
     ctx.fillText(
-      `${visibleCandles.length}/${allCandles.length} candles`,
+      `${visible.length}/${allCandles.length} candles`,
       10,
       height - 10
     );
@@ -1617,7 +1634,7 @@ export default function App() {
         flex: 1, 
         minHeight: 0, 
         position: "relative",
-        minHeight: "100vh" // Force minimum height for mobile
+        minHeight: "50vh" // Force minimum height for mobile
       }}>
         <canvas
           ref={chartRef}
