@@ -1487,7 +1487,7 @@ export default function App() {
           throttleDelay = isMobile ? 800 : 200;   // mobilon kb. 1.25 fps
         } else {
           // később már kicsit gyorsabb, de még mindig nyugodt
-          throttleDelay = isMobile ? 800 : 200;
+          throttleDelay = isMobile ? 450 : 120;
         }
       } else {
         // revealing / outcome – gyorsabb, hogy a continuation jól látszódjon
