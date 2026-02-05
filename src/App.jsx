@@ -402,60 +402,22 @@ class MarketStructureGenerator {
     };
   }
 
-  // Realistic trend candles - Binance 1m style
+  // Realistic trend candles - standard OHLC behavior
   _trendCandles(startPrice, count, drift, volatility, bullRatio) {
     const candles = [];
     let price = startPrice;
 
     for (let i = 0; i < count; i++) {
       const isBull = this.rng() < bullRatio;
-      
-      // Realistic body size distribution (1m candles are mostly small)
-      const bodyRoll = this.rng();
-      let bodyPercent;
-      if (bodyRoll < 0.65) {
-        bodyPercent = 0.15 + this.rng() * 0.25; // 65% small bodies (15-40%)
-      } else if (bodyRoll < 0.92) {
-        bodyPercent = 0.4 + this.rng() * 0.35; // 27% medium (40-75%)
-      } else {
-        bodyPercent = 0.75 + this.rng() * 0.25; // 8% large (75-100%)
-      }
-      
+      const bodyPercent = 0.4 + this.rng() * 0.4; // 40-80% of range
       const range = price * volatility;
+
       const open = price;
-      
-      // Add drift with micro-noise (real markets zigzag)
-      const microNoise = (this.rng() - 0.5) * volatility * 0.4;
-      price = price * (1 + drift + microNoise);
-      
-      const bodySize = range * bodyPercent;
-      const close = isBull ? open + bodySize : open - bodySize;
+      price = price * (1 + drift + (this.rng() - 0.5) * volatility * 0.3);
+      const close = isBull ? open + range * bodyPercent : open - range * bodyPercent;
 
-      // Realistic wicks (Binance 1m has varied wick distribution)
-      const wickRoll = this.rng();
-      let upperWick, lowerWick;
-      
-      if (wickRoll < 0.25) {
-        // 25% tiny/no wicks (clean candles)
-        upperWick = range * this.rng() * 0.08;
-        lowerWick = range * this.rng() * 0.08;
-      } else if (wickRoll < 0.75) {
-        // 50% normal wicks
-        upperWick = range * (0.1 + this.rng() * 0.25);
-        lowerWick = range * (0.1 + this.rng() * 0.25);
-      } else {
-        // 25% rejection wicks (one side has spike)
-        if (this.rng() < 0.5) {
-          upperWick = range * (0.4 + this.rng() * 0.6); // rejection top
-          lowerWick = range * this.rng() * 0.15;
-        } else {
-          upperWick = range * this.rng() * 0.15;
-          lowerWick = range * (0.4 + this.rng() * 0.6); // rejection bottom
-        }
-      }
-
-      const high = Math.max(open, close) + upperWick;
-      const low = Math.min(open, close) - lowerWick;
+      const high = Math.max(open, close) + range * (0.2 + this.rng() * 0.3);
+      const low = Math.min(open, close) - range * (0.2 + this.rng() * 0.3);
 
       candles.push({ open, high, low, close });
       price = close;
@@ -464,7 +426,7 @@ class MarketStructureGenerator {
     return candles;
   }
 
-  // Range-bound candles - Binance 1m choppy consolidation style
+  // Range-bound candles
   _rangeCandles(centerPrice, count, rangeSize) {
     const candles = [];
     const high = centerPrice * (1 + rangeSize);
@@ -472,38 +434,18 @@ class MarketStructureGenerator {
     let price = centerPrice;
 
     for (let i = 0; i < count; i++) {
-      // Mean reversion with realistic overshoot/undershoot
-      const distanceFromCenter = (price - centerPrice) / centerPrice;
-      const reversionPressure = -distanceFromCenter * 0.0015;
-      
-      // Choppy random walk
-      const randomWalk = (this.rng() - 0.5) * rangeSize * 0.3;
-      price = price * (1 + reversionPressure + randomWalk);
-      
-      // Keep within bounds
-      price = Math.max(low * 1.001, Math.min(high * 0.999, price));
+      // Mean reversion
+      if (price > high * 0.95) price *= 0.998;
+      if (price < low * 1.05) price *= 1.002;
 
       const isBull = this.rng() < 0.5;
-      
-      // Smaller bodies in range (1m candles in consolidation are tiny)
-      const bodyRoll = this.rng();
-      let bodyPercent;
-      if (bodyRoll < 0.75) {
-        bodyPercent = 0.1 + this.rng() * 0.2; // 75% very small
-      } else {
-        bodyPercent = 0.3 + this.rng() * 0.3; // 25% slightly larger
-      }
-      
-      const bodySize = price * rangeSize * bodyPercent;
-      
-      // More wicks in ranging markets (indecision)
-      const wickPercent = 0.5 + this.rng() * 0.8; // Larger wicks
-      const wickSize = bodySize * wickPercent;
+      const bodySize = price * rangeSize * (0.3 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
 
       const open = price;
       const close = isBull ? open + bodySize : open - bodySize;
-      const candleHigh = Math.max(open, close) + wickSize * (0.3 + this.rng() * 0.7);
-      const candleLow = Math.min(open, close) - wickSize * (0.3 + this.rng() * 0.7);
+      const candleHigh = Math.max(open, close) + wickSize * this.rng();
+      const candleLow = Math.min(open, close) - wickSize * this.rng();
 
       candles.push({
         open,
@@ -512,52 +454,30 @@ class MarketStructureGenerator {
         close,
       });
 
-      price = close;
+      price = close + (this.rng() - 0.5) * bodySize * 0.3;
     }
 
     return candles;
   }
 
-  // Compression candles - decreasing range (Binance 1m squeeze/coiling)
+  // Compression candles - decreasing range
   _compressionCandles(startPrice, count, baseVol) {
     const candles = [];
     let price = startPrice;
 
     for (let i = 0; i < count; i++) {
-      const compressionFactor = 1 - (i / count) * 0.65; // Tighter squeeze
+      const compressionFactor = 1 - (i / count) * 0.5; // Range decreases
       const isBull = this.rng() < 0.5;
-      
-      // Progressively smaller bodies (realistic coiling)
-      const bodyRoll = this.rng();
-      let bodyPercent;
-      if (i < count * 0.4) {
-        // Early: still some movement
-        bodyPercent = 0.25 + this.rng() * 0.35;
-      } else {
-        // Late: very tight (dojis and inside bars)
-        bodyPercent = 0.08 + this.rng() * 0.15;
-      }
-      
-      const bodySize = price * baseVol * compressionFactor * bodyPercent;
-      
-      // Wicks proportionally shrink too
-      const wickPercent = 0.3 + this.rng() * 0.5;
-      const wickSize = bodySize * wickPercent * compressionFactor;
+      const bodySize = price * baseVol * compressionFactor * (0.3 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
 
       const open = price;
       const close = isBull ? open + bodySize : open - bodySize;
-      
-      // Realistic wick distribution (even in compression, some wicks test)
-      const upperWick = wickSize * (0.2 + this.rng() * 0.8);
-      const lowerWick = wickSize * (0.2 + this.rng() * 0.8);
-      
-      const high = Math.max(open, close) + upperWick;
-      const low = Math.min(open, close) - lowerWick;
+      const high = Math.max(open, close) + wickSize * this.rng();
+      const low = Math.min(open, close) - wickSize * this.rng();
 
       candles.push({ open, high, low, close });
-      
-      // Micro drift (real markets don't sit perfectly still)
-      price = close + (this.rng() - 0.5) * bodySize * 0.15;
+      price = close + (this.rng() - 0.5) * bodySize * 0.2;
     }
 
     return candles;
@@ -649,64 +569,36 @@ class MarketStructureGenerator {
     const setupLength = 8 + Math.floor(this.rng() * 6);
 
     if (setupType.type === "bullish_continuation") {
-      // Bull flag: tight consolidation after context uptrend (realistic 1m)
+      // Bull flag: tight consolidation after context uptrend
       for (let i = 0; i < setupLength; i++) {
-        const progress = i / setupLength;
-        const drift = -0.0002 - this.rng() * 0.0003; // Micro drift down
-        const vol = 0.005 * (1 - progress * 0.4); // Progressive tightening
-        
+        const drift = -0.0003; // Slight drift down
+        const vol = 0.006 * (1 - i / setupLength * 0.3); // Tightening
         const price = startPrice * (1 + drift * i);
-        const isBull = this.rng() < 0.45; // Slightly bearish bias in flag
-        
-        // Small bodies (flags have tight candles)
-        const bodyRoll = this.rng();
-        let bodyPercent;
-        if (bodyRoll < 0.7) {
-          bodyPercent = 0.15 + this.rng() * 0.2; // 70% tiny
-        } else {
-          bodyPercent = 0.35 + this.rng() * 0.25; // 30% small-medium
-        }
-        
-        const bodySize = price * vol * bodyPercent;
-        
-        // Wicks (more in flags - indecision)
-        const wickPercent = 0.4 + this.rng() * 0.6;
-        const wickSize = bodySize * wickPercent;
+        const isBull = this.rng() < 0.48;
+        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * (0.3 + this.rng() * 0.7);
-        const low = Math.min(open, close) - wickSize * (0.3 + this.rng() * 0.7);
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
 
         candles.push({ open, high, low, close });
       }
     } else if (setupType.type === "bearish_continuation") {
-      // Bear flag: tight consolidation after context downtrend (realistic 1m)
+      // Bear flag: tight consolidation after context downtrend
       for (let i = 0; i < setupLength; i++) {
-        const progress = i / setupLength;
-        const drift = 0.0002 + this.rng() * 0.0003; // Micro drift up
-        const vol = 0.005 * (1 - progress * 0.4);
-        
+        const drift = 0.0003; // Slight drift up
+        const vol = 0.006 * (1 - i / setupLength * 0.3);
         const price = startPrice * (1 + drift * i);
-        const isBull = this.rng() < 0.55; // Slightly bullish bias in flag
-        
-        // Small bodies
-        const bodyRoll = this.rng();
-        let bodyPercent;
-        if (bodyRoll < 0.7) {
-          bodyPercent = 0.15 + this.rng() * 0.2;
-        } else {
-          bodyPercent = 0.35 + this.rng() * 0.25;
-        }
-        
-        const bodySize = price * vol * bodyPercent;
-        const wickPercent = 0.4 + this.rng() * 0.6;
-        const wickSize = bodySize * wickPercent;
+        const isBull = this.rng() < 0.52;
+        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * (0.3 + this.rng() * 0.7);
-        const low = Math.min(open, close) - wickSize * (0.3 + this.rng() * 0.7);
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
 
         candles.push({ open, high, low, close });
       }
@@ -818,44 +710,13 @@ class MarketStructureGenerator {
     let price = lastPrice;
 
     if (signal === "BUY" && setupType.willSucceed) {
-      // Realistic bullish breakout (Binance 1m style)
+      // Strong bullish continuation
       for (let i = 0; i < length; i++) {
-        // Breakout momentum: strong at first, then consolidates
-        const momentumPhase = i / length;
-        let drift, vol, bullProb;
-        
-        if (momentumPhase < 0.3) {
-          // Initial impulse (first 3-4 candles)
-          drift = 0.004 + this.rng() * 0.003;
-          vol = 0.015;
-          bullProb = 0.85;
-        } else if (momentumPhase < 0.7) {
-          // Follow-through (mixed momentum)
-          drift = 0.002 + this.rng() * 0.002;
-          vol = 0.012;
-          bullProb = 0.65;
-        } else {
-          // Cooling off / micro pullback
-          drift = -0.0005 + this.rng() * 0.0015;
-          vol = 0.01;
-          bullProb = 0.55;
-        }
-        
-        const isBull = this.rng() < bullProb;
-        
-        // Body distribution (breakouts have larger bodies initially)
-        const bodyRoll = this.rng();
-        let bodyPercent;
-        if (momentumPhase < 0.3 && bodyRoll < 0.5) {
-          bodyPercent = 0.6 + this.rng() * 0.35; // Big impulse candles
-        } else if (bodyRoll < 0.7) {
-          bodyPercent = 0.35 + this.rng() * 0.35;
-        } else {
-          bodyPercent = 0.15 + this.rng() * 0.25;
-        }
-        
-        const bodySize = price * vol * bodyPercent;
-        const wickSize = bodySize * (0.2 + this.rng() * 0.5);
+        const drift = 0.004 + this.rng() * 0.002;
+        const vol = 0.012;
+        const isBull = this.rng() < 0.75;
+        const bodySize = price * vol * (0.5 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.4);
 
         const open = price;
         price *= 1 + drift;
@@ -867,42 +728,13 @@ class MarketStructureGenerator {
         price = close;
       }
     } else if (signal === "SELL" && setupType.willSucceed) {
-      // Realistic bearish breakdown (Binance 1m style)
+      // Strong bearish continuation
       for (let i = 0; i < length; i++) {
-        const momentumPhase = i / length;
-        let drift, vol, bearProb;
-        
-        if (momentumPhase < 0.3) {
-          // Initial cascade
-          drift = -0.004 - this.rng() * 0.003;
-          vol = 0.015;
-          bearProb = 0.85;
-        } else if (momentumPhase < 0.7) {
-          // Follow-through selling
-          drift = -0.002 - this.rng() * 0.002;
-          vol = 0.012;
-          bearProb = 0.65;
-        } else {
-          // Exhaustion / bounce attempt
-          drift = 0.0005 - this.rng() * 0.0015;
-          vol = 0.01;
-          bearProb = 0.55;
-        }
-        
-        const isBull = this.rng() < (1 - bearProb);
-        
-        const bodyRoll = this.rng();
-        let bodyPercent;
-        if (momentumPhase < 0.3 && bodyRoll < 0.5) {
-          bodyPercent = 0.6 + this.rng() * 0.35;
-        } else if (bodyRoll < 0.7) {
-          bodyPercent = 0.35 + this.rng() * 0.35;
-        } else {
-          bodyPercent = 0.15 + this.rng() * 0.25;
-        }
-        
-        const bodySize = price * vol * bodyPercent;
-        const wickSize = bodySize * (0.2 + this.rng() * 0.5);
+        const drift = -0.004 - this.rng() * 0.002;
+        const vol = 0.012;
+        const isBull = this.rng() < 0.25;
+        const bodySize = price * vol * (0.5 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.2 + this.rng() * 0.4);
 
         const open = price;
         price *= 1 + drift;
@@ -914,28 +746,19 @@ class MarketStructureGenerator {
         price = close;
       }
     } else {
-      // HOLD / failed pattern - realistic chop/fakeout (Binance 1m whipsaw)
+      // HOLD / failed pattern - choppy or weak continuation
       for (let i = 0; i < length; i++) {
-        // Random walk with mean reversion
-        const drift = (this.rng() - 0.5) * 0.003;
-        const vol = 0.01 + this.rng() * 0.005;
+        const drift = (this.rng() - 0.5) * 0.002;
+        const vol = 0.01;
         const isBull = this.rng() < 0.5;
-        
-        // Choppy candles (more wicks, smaller bodies)
-        const bodyPercent = 0.1 + this.rng() * 0.3;
-        const bodySize = price * vol * bodyPercent;
-        const wickSize = bodySize * (0.6 + this.rng() * 1.0); // Larger wicks in chop
+        const bodySize = price * vol * (0.3 + this.rng() * 0.4);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.7);
 
         const open = price;
         price *= 1 + drift;
         const close = isBull ? open + bodySize : open - bodySize;
-        
-        // Whipsaw wicks (both sides get tested)
-        const upperWick = wickSize * (0.4 + this.rng() * 0.6);
-        const lowerWick = wickSize * (0.4 + this.rng() * 0.6);
-        
-        const high = Math.max(open, close) + upperWick;
-        const low = Math.min(open, close) - lowerWick;
+        const high = Math.max(open, close) + wickSize * this.rng();
+        const low = Math.min(open, close) - wickSize * this.rng();
 
         candles.push({ open, high, low, close });
         price = close;
@@ -1008,10 +831,9 @@ class ChartRenderer {
       return height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
     };
 
-    // Calculate candle layout with RESPONSIVE sizing
-    const gap = width < 400 ? 1 : 2; // Smaller gap on mobile
-    // Responsive candle width based on screen size
-    const targetBodyWidth = width < 400 ? 6 : width < 600 ? 8 : 10;
+    // Calculate candle layout with scrolling
+    const gap = 2;
+    const targetBodyWidth = 8;
     const slotWidth = targetBodyWidth + gap;
     const totalWidth = allCandles.length * slotWidth;
     
@@ -1071,7 +893,7 @@ class ChartRenderer {
       ctx.restore();
     }
 
-    // ULTRA-CLEAN MODERN CANDLES - MOBILE OPTIMIZED
+    // ULTRA-CLEAN MODERN CANDLES
     allCandles.forEach((candle, i) => {
       // Scrolling position calculation
       const localIdx = i - startIdx;
@@ -1081,17 +903,17 @@ class ChartRenderer {
       const isBull = candle.close >= candle.open;
       const bodyColor = isBull ? C.bull : C.bear;
       
-      const currentBodyW = Math.max(targetBodyWidth - gap, 4); // Minimum 4px width
+      const currentBodyW = targetBodyWidth - gap;
       const isRecent = i >= allCandles.length - 5;
 
       ctx.save();
 
-      // VISIBLE WICK - thicker on mobile
+      // MINIMAL WICK
       const wickTop = toY(candle.high);
       const wickBot = toY(candle.low);
       
       ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = width < 400 ? 2 : 1.5; // Thicker on mobile
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(x + currentBodyW/2, wickTop);
       ctx.lineTo(x + currentBodyW/2, wickBot);
@@ -1113,21 +935,19 @@ class ChartRenderer {
       ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
       ctx.fill();
 
-      // Clean border - thicker on mobile
+      // Clean border
       ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = width < 400 ? 1.5 : 1;
+      ctx.lineWidth = 1;
       ctx.stroke();
       
       // Subtle highlight on top edge
-      if (currentBodyW > 5) {
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
-        ctx.fillRect(x + 1, bodyTop + 1, currentBodyW - 2, 1);
-      }
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
 
       // Premium glow on recent candles
       if (isRecent) {
         ctx.shadowColor = bodyColor;
-        ctx.shadowBlur = width < 400 ? 8 : 12;
+        ctx.shadowBlur = 12;
         ctx.strokeStyle = bodyColor + "80";
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -1450,15 +1270,12 @@ export default function App() {
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdownNum, setCountdownNum] = useState(3);
   const [revealProgress, setRevealProgress] = useState(0);
-  const [playerName, setPlayerName] = useState("");
-  const [leaderboard, setLeaderboard] = useState([]);
 
   // ── Refs ──
   const chartRef = useRef(null);
   const rendererRef = useRef(null);
   const timerRef = useRef(null);
   const animFrameRef = useRef(null);
-
 
   // ── Initialize renderer ──
   useEffect(() => {
@@ -1537,15 +1354,9 @@ export default function App() {
   const startGame = useCallback(() => {
     sound.unlock();
     
-    // Cleanup any running timers/animations FIRST
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
+    // Cleanup any running timers/animations
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     
     // Reset all game state
     setRound(0);
@@ -1557,7 +1368,6 @@ export default function App() {
     setStructure(null);
     setWindowStart(0);
     setRevealProgress(0);
-    setTimeLeft(DECISION_MS);
     
     // Start countdown
     setShowCountdown(true);
@@ -1565,17 +1375,16 @@ export default function App() {
 
     let count = 3;
     const countInterval = setInterval(() => {
-      count--;
-      if (count === 0) {
+      if (count === 1) {
         clearInterval(countInterval);
         sound.tick(1);
         setTimeout(() => {
           setShowCountdown(false);
-          setScreen("building"); // Explicitly set to building
           initializeRound(0);
         }, 300);
       } else {
         sound.tick(count);
+        count--;
         setCountdownNum(count);
       }
     }, 1000);
@@ -1627,23 +1436,11 @@ export default function App() {
   const advanceRound = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (round + 1 >= ROUNDS) {
-      // Game finished - save to leaderboard
       setScreen("verdict");
-      setTimeout(() => {
-        const totalScore = scores.reduce((a, b) => a + b, 0);
-        const correct = roundStats.filter((r) => r.correct).length;
-        const total = roundStats.length;
-        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
-        const stats = { totalScore, correct, total, accuracy, bestStreak };
-        
-        if (playerName && stats.totalScore > 0) {
-          saveToLeaderboard(playerName, stats);
-        }
-      }, 100);
     } else {
       initializeRound(round + 1);
     }
-  }, [round, initializeRound, scores, roundStats, bestStreak, playerName, saveToLeaderboard]);
+  }, [round, initializeRound]);
 
   // ── Render chart ──
   useEffect(() => {
@@ -1681,90 +1478,6 @@ export default function App() {
 
     return { totalScore, correct, total, accuracy, bestStreak };
   }, [scores, roundStats, bestStreak]);
-
-  // ── Load leaderboard ──
-  const loadLeaderboard = useCallback(async () => {
-    // Check if storage API is available
-    if (typeof window === 'undefined' || !window.storage) {
-      console.log("Storage API not available");
-      setLeaderboard([]);
-      return;
-    }
-    
-    try {
-      const result = await window.storage.list("leaderboard:", true);
-      if (result && result.keys) {
-        const entries = [];
-        for (const key of result.keys) {
-          const data = await window.storage.get(key, true);
-          if (data && data.value) {
-            entries.push(JSON.parse(data.value));
-          }
-        }
-        // Sort by score descending
-        entries.sort((a, b) => b.score - a.score);
-        setLeaderboard(entries.slice(0, 10)); // Top 10
-      }
-    } catch (err) {
-      console.log("Leaderboard not available yet");
-      setLeaderboard([]);
-    }
-  }, []);
-
-  // ── Save to leaderboard ──
-  const saveToLeaderboard = useCallback(async (name, stats) => {
-    if (!name || name.trim().length === 0) return;
-    
-    // Check if storage API is available
-    if (typeof window === 'undefined' || !window.storage) {
-      console.log("Storage API not available");
-      return;
-    }
-    
-    try {
-      // Get existing entry for this player
-      const playerKey = `leaderboard:${name.trim().toLowerCase()}`;
-      let existingScore = 0;
-      
-      try {
-        const existing = await window.storage.get(playerKey, true);
-        if (existing && existing.value) {
-          const data = JSON.parse(existing.value);
-          existingScore = data.score || 0;
-        }
-      } catch (err) {
-        // No existing entry
-      }
-      
-      // Update if new score is higher
-      const newScore = existingScore + stats.totalScore;
-      const entry = {
-        name: name.trim(),
-        score: newScore,
-        accuracy: stats.accuracy,
-        bestStreak: stats.bestStreak,
-        timestamp: Date.now(),
-      };
-      
-      await window.storage.set(playerKey, JSON.stringify(entry), true);
-      await loadLeaderboard();
-    } catch (err) {
-      console.error("Failed to save to leaderboard:", err);
-    }
-  }, [loadLeaderboard]);
-
-  // Load leaderboard on mount
-  useEffect(() => {
-    console.log("App mounted, loading leaderboard...");
-    loadLeaderboard().catch(err => {
-      console.error("Error loading leaderboard on mount:", err);
-    });
-  }, [loadLeaderboard]);
-
-  // Debug: log screen changes
-  useEffect(() => {
-    console.log("Screen changed to:", screen);
-  }, [screen]);
 
   // ── Home screen ──
   const renderHome = () => (
@@ -1840,53 +1553,9 @@ export default function App() {
         </div>
       </div>
 
-      {/* Player name input */}
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div
-          style={{
-            fontSize: 12,
-            color: "rgba(255,255,255,0.5)",
-            marginBottom: 8,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Your Name
-        </div>
-        <input
-          type="text"
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
-          placeholder="Enter your name..."
-          maxLength={20}
-          style={{
-            width: "100%",
-            padding: "12px 16px",
-            background: C.glass,
-            border: `1.5px solid ${C.glassBr}`,
-            borderRadius: 12,
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 500,
-            backdropFilter: "blur(16px)",
-            outline: "none",
-            transition: "all 0.2s",
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = C.nGreen + "88";
-            e.target.style.background = `${C.glass}cc`;
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = C.glassBr;
-            e.target.style.background = C.glass;
-          }}
-        />
-      </div>
-
       <GlassButton
         onClick={startGame}
         color={C.nGreen}
-        disabled={!playerName || playerName.trim().length === 0}
         style={{ padding: "18px 56px", fontSize: 18, position: "relative", overflow: "hidden" }}
       >
         <div
@@ -2024,93 +1693,8 @@ export default function App() {
       <FinalVerdict
         stats={computeStats()}
         onRestart={startGame}
-        onLeaderboard={() => {
-          loadLeaderboard();
-          setScreen("leaderboard");
-        }}
+        onLeaderboard={() => setScreen("leaderboard")}
       />
-    </div>
-  );
-
-  // ── Leaderboard screen ──
-  const renderLeaderboard = () => (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        justifyContent: "center",
-        padding: 16,
-        gap: 14,
-      }}
-    >
-      <GlassPanel style={{ padding: "24px 20px", maxWidth: 500, margin: "0 auto", width: "100%" }}>
-        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 20, textAlign: "center" }}>
-          🏆 Leaderboard
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-          {leaderboard.length === 0 ? (
-            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: 20 }}>
-              No scores yet. Be the first!
-            </div>
-          ) : (
-            leaderboard.map((entry, idx) => (
-              <div
-                key={entry.name}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 16px",
-                  background: idx === 0 ? `${C.nGreen}15` : C.glass,
-                  border: `1px solid ${idx === 0 ? C.nGreen + "40" : C.glassBr}`,
-                  borderRadius: 12,
-                  backdropFilter: "blur(8px)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 800,
-                    width: 32,
-                    textAlign: "center",
-                    color: idx === 0 ? C.nGreen : idx === 1 ? C.nBlue : idx === 2 ? C.nPurple : "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
-                    {entry.name}
-                  </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                    {entry.accuracy}% • Streak {entry.bestStreak}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    fontFamily: "monospace",
-                    color: idx === 0 ? C.nGreen : C.nBlue,
-                  }}
-                >
-                  {entry.score.toLocaleString()}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <GlassButton
-          onClick={() => setScreen("home")}
-          color={C.nGreen}
-          style={{ width: "100%", padding: "14px 0" }}
-        >
-          Back to Home
-        </GlassButton>
-      </GlassPanel>
     </div>
   );
 
@@ -2217,7 +1801,6 @@ export default function App() {
         {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
           renderPlaying()}
         {screen === "verdict" && renderVerdict()}
-        {screen === "leaderboard" && renderLeaderboard()}
       </div>
 
       {/* Countdown overlay */}
