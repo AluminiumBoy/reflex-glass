@@ -1449,32 +1449,54 @@ export default function App() {
     }
   }, [round, initializeRound]);
 
-  // ── Render chart ──
-  useEffect(() => {
-    if (!chartRef.current || !structure) return;
+    // Throttle segédfüggvény (lodash nélkül, egyszerű implementáció)
+    const throttle = (func, limit) => {
+      let inThrottle;
+      return function (...args) {
+        if (!inThrottle) {
+          func.apply(this, args);
+          inThrottle = true;
+          setTimeout(() => (inThrottle = false), limit);
+        }
+      };
+    };
 
-    // Ensure renderer is initialized
-    if (!rendererRef.current) {
-      rendererRef.current = new ChartRenderer(
-        chartRef.current,
-        DIFFICULTY_CONFIG[difficulty]
-      );
-      const rect = chartRef.current.getBoundingClientRect();
-      rendererRef.current.setDimensions(rect.width, rect.height);
-    }
+    // ── Render chart ──
+    useEffect(() => {
+      if (!chartRef.current || !structure) return;
 
-    if (screen === "building" || screen === "playing") {
-      // Show all candles up to current point (building animation or at decision)
-      const visibleCandles = structure.candles.slice(0, windowStart + 1);
-      rendererRef.current.renderAll(visibleCandles);
-    } else if (screen === "revealing" || screen === "outcome") {
-      // Show decision point + continuation
-      const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-      const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
-      const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
-      rendererRef.current.renderAll(allCandles);
-    }
-  }, [structure, windowStart, difficulty, screen, revealProgress]);
+      // Ensure renderer is initialized
+      if (!rendererRef.current) {
+        rendererRef.current = new ChartRenderer(
+          chartRef.current,
+          DIFFICULTY_CONFIG[difficulty]
+        );
+        const rect = chartRef.current.getBoundingClientRect();
+        rendererRef.current.setDimensions(rect.width, rect.height);
+      }
+
+      // Throttled render függvény létrehozása (csak egyszer fusson le)
+      const isMobile = window.innerWidth < 520;
+      const throttleDelay = isMobile ? 120 : 60;  // mobilon kb. 8 fps, asztali kb. 16 fps
+
+      const throttledRender = throttle((candles) => {
+        if (rendererRef.current) {
+          rendererRef.current.renderAll(candles);
+        }
+      }, throttleDelay);
+
+      // Most már a throttled verziót használjuk
+      if (screen === "building" || screen === "playing") {
+        const visibleCandles = structure.candles.slice(0, windowStart + 1);
+        throttledRender(visibleCandles);
+      } else if (screen === "revealing" || screen === "outcome") {
+        const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
+        const contCount = Math.floor(revealProgress * structure.continuation.candles.length);
+        const allCandles = [...baseCandles, ...structure.continuation.candles.slice(0, contCount)];
+        throttledRender(allCandles);
+      }
+
+    }, [structure, windowStart, difficulty, screen, revealProgress]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
