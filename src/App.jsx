@@ -1224,11 +1224,14 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
-        await window.storage.set(
-          `score:${playerName}:${timestamp}`,
-          JSON.stringify(scoreData),
-          true // shared
-        );
+        // Get existing scores
+        const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+        
+        // Add new score
+        existingScores.push(scoreData);
+        
+        // Save back
+        localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
         
         setSaved(true);
         haptic([50, 30, 50]);
@@ -1336,47 +1339,43 @@ const Leaderboard = ({ onBack }) => {
   const loadLeaderboard = async () => {
     try {
       setLoading(true);
-      const result = await window.storage.list("score:", true);
-      if (result && result.keys) {
-        // Load all scores
-        const scores = await Promise.all(
-          result.keys.map(async (key) => {
-            const data = await window.storage.get(key, true);
-            return data ? JSON.parse(data.value) : null;
-          })
-        );
-        
-        // Filter out nulls and aggregate by player name
-        const validScores = scores.filter(s => s);
-        const aggregated = {};
-        
-        validScores.forEach(score => {
-          if (!aggregated[score.name]) {
-            aggregated[score.name] = {
-              name: score.name,
-              totalScore: 0,
-              games: 0,
-              bestScore: 0,
-              bestStreak: 0
-            };
-          }
-          aggregated[score.name].totalScore += score.score;
-          aggregated[score.name].games += 1;
-          aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
-          aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
-        });
-        
-        // Convert to array and sort by total score
-        const leaderboard = Object.values(aggregated)
-          .sort((a, b) => b.totalScore - a.totalScore)
-          .slice(0, 10); // Top 10
-        
-        setEntries(leaderboard);
-      } else {
+      
+      // Get all scores from localStorage
+      const scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+      
+      if (scores.length === 0) {
         setEntries([]);
+        setLoading(false);
+        return;
       }
+      
+      // Aggregate by player name
+      const aggregated = {};
+      
+      scores.forEach(score => {
+        if (!aggregated[score.name]) {
+          aggregated[score.name] = {
+            name: score.name,
+            totalScore: 0,
+            games: 0,
+            bestScore: 0,
+            bestStreak: 0
+          };
+        }
+        aggregated[score.name].totalScore += score.score;
+        aggregated[score.name].games += 1;
+        aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
+        aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
+      });
+      
+      // Convert to array and sort by total score
+      const leaderboard = Object.values(aggregated)
+        .sort((a, b) => b.totalScore - a.totalScore)
+        .slice(0, 10); // Top 10
+      
+      setEntries(leaderboard);
     } catch (err) {
-      console.log("No leaderboard data yet");
+      console.error("Error loading leaderboard:", err);
       setEntries([]);
     } finally {
       setLoading(false);
@@ -1421,7 +1420,7 @@ const Leaderboard = ({ onBack }) => {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {entries.map((entry, idx) => (
             <div
-              key={entry.name}
+              key={entry.name + idx}
               style={{
                 background: C.glass,
                 border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
@@ -1558,10 +1557,10 @@ export default function App() {
   useEffect(() => {
     const loadPlayerName = async () => {
       try {
-        const result = await window.storage.get("playerName", false);
-        if (result && result.value) {
-          setPlayerName(result.value);
-          setTempName(result.value);
+        const savedName = localStorage.getItem("reflexGlassPlayerName");
+        if (savedName) {
+          setPlayerName(savedName);
+          setTempName(savedName);
           setIsEditingName(false);
         }
       } catch (err) {
@@ -1847,7 +1846,7 @@ export default function App() {
     if (!tempName.trim()) return;
     
     try {
-      await window.storage.set("playerName", tempName.trim(), false);
+      localStorage.setItem("reflexGlassPlayerName", tempName.trim());
       setPlayerName(tempName.trim());
       setIsEditingName(false);
       haptic([30, 20, 30]);
