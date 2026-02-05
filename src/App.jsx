@@ -1711,7 +1711,6 @@ export default function App() {
     setWindowStart(0);
     setRevealProgress(0);
     setSwipeOffset(0);
-    setScreen("home"); // Explicitly reset screen
     buildAnimationProgress.current = 0;
     lastCandleCount.current = 0;
     cachedCandles.current = [];
@@ -1719,6 +1718,7 @@ export default function App() {
     // Start countdown
     setShowCountdown(true);
     setCountdownNum(3);
+    setScreen("building"); // Set to building immediately to hide home screen
     
     let countdownValue = 3;
     sound.tick(3);
@@ -1731,28 +1731,27 @@ export default function App() {
       } else {
         clearInterval(countdownInterval);
         
-        // Set to 0 to trigger fade-out
+        // Initialize renderer immediately
+        if (chartRef.current && !rendererRef.current) {
+          rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+          const rect = chartRef.current.getBoundingClientRect();
+          rendererRef.current.setDimensions(rect.width, rect.height);
+        }
+        
+        // Reset animation state
+        buildAnimationProgress.current = 0;
+        lastCandleCount.current = 0;
+        
+        // Start the round immediately
+        initializeRound(0);
+        
+        // Set countdown to 0 for fade-out
         setCountdownNum(0);
         
-        // Wait for fade-out animation to complete
+        // Quick fade-out - hide countdown overlay fast
         setTimeout(() => {
           setShowCountdown(false);
-          
-          // Initialize renderer and start building animation
-          setTimeout(() => {
-            if (chartRef.current && !rendererRef.current) {
-              rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-              const rect = chartRef.current.getBoundingClientRect();
-              rendererRef.current.setDimensions(rect.width, rect.height);
-            }
-            
-            // Reset animation state before starting
-            buildAnimationProgress.current = 0;
-            lastCandleCount.current = 0;
-            
-            initializeRound(0);
-          }, 150);
-        }, 250);
+        }, 150); // Shortened from 250ms
       }
     }, 1000);
   }, [initializeRound]);
@@ -2452,7 +2451,8 @@ export default function App() {
         alignItems: "center",
         justifyContent: "center",
         opacity: countdownNum === 0 ? 0 : 1,
-        transition: "opacity 0.2s ease-out",
+        transition: "opacity 0.15s ease-out",
+        pointerEvents: "none",
       }}
     >
       <div
@@ -2491,7 +2491,7 @@ export default function App() {
           zIndex: 1,
           lineHeight: 1,
           opacity: countdownNum === 0 ? 0 : 1,
-          transition: "opacity 0.15s ease-out",
+          transition: "opacity 0.1s ease-out",
         }}
       >
         {countdownNum > 0 ? countdownNum : ""}
