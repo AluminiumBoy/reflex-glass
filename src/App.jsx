@@ -32,12 +32,8 @@ const DECISION_MS = 5000; // Increased to 5s for context analysis
 const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
-// Difficulty affects window size and pattern complexity
-const DIFFICULTY_CONFIG = {
-  easy: { windowSize: 35, contextSize: 50, cleanRatio: 0.6 },
-  medium: { windowSize: 28, contextSize: 65, cleanRatio: 0.4 },
-  hard: { windowSize: 22, contextSize: 80, cleanRatio: 0.25 },
-};
+// Single difficulty mode
+const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
 
 const C = {
   nGreen: "#00ffaa",
@@ -193,9 +189,8 @@ const sound = new SoundEngine();
    ═══════════════════════════════════════════════════════════════ */
 
 class MarketStructureGenerator {
-  constructor(difficulty = "medium") {
-    this.difficulty = difficulty;
-    this.config = DIFFICULTY_CONFIG[difficulty];
+  constructor() {
+    this.config = DIFFICULTY_CONFIG;
     this.rng = Math.random;
   }
 
@@ -919,21 +914,24 @@ class ChartRenderer {
       const highY = toY(c.high);
       const lowY = toY(c.low);
 
-      // Wick arányos high-low, max magasság limit
-      let wickTop = highY;
-      let wickBottom = lowY;
-      if (wickBottom - wickTop > maxWickHeight) {
-        const mid = (top + bot) / 2;
-        wickTop = mid - maxWickHeight / 2;
-        wickBottom = mid + maxWickHeight / 2;
-      }
+      // Wick always connects high to body top, body bottom to low
+      const wickTopEnd = Math.min(top, highY);
+      const wickBottomStart = Math.max(bot, lowY);
 
       ctx.save();
       ctx.strokeStyle = col;
       ctx.lineWidth = wickWidth;
       ctx.beginPath();
-      ctx.moveTo(centerX, wickTop);
-      ctx.lineTo(centerX, wickBottom);
+      // Upper wick: from high to top of body
+      if (highY < top) {
+        ctx.moveTo(centerX, highY);
+        ctx.lineTo(centerX, top);
+      }
+      // Lower wick: from bottom of body to low
+      if (lowY > bot) {
+        ctx.moveTo(centerX, bot);
+        ctx.lineTo(centerX, lowY);
+      }
       ctx.stroke();
 
       // Body
@@ -1238,7 +1236,6 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard }) => (
 export default function App() {
   // ── State ──
   const [screen, setScreen] = useState("home");
-  const [difficulty, setDifficulty] = useState("medium");
   const [round, setRound] = useState(0);
   const [scores, setScores] = useState([]);
   const [streak, setStreak] = useState(0);
@@ -1263,7 +1260,7 @@ export default function App() {
     if (chartRef.current) {
       rendererRef.current = new ChartRenderer(
         chartRef.current,
-        DIFFICULTY_CONFIG[difficulty]
+        DIFFICULTY_CONFIG
       );
       const updateSize = () => {
         const rect = chartRef.current.getBoundingClientRect();
@@ -1273,12 +1270,12 @@ export default function App() {
       window.addEventListener("resize", updateSize);
       return () => window.removeEventListener("resize", updateSize);
     }
-  }, [difficulty]);
+  }, []);
 
   // ── Initialize round ──
   const initializeRound = useCallback(
     (roundNum) => {
-      const generator = new MarketStructureGenerator(difficulty);
+      const generator = new MarketStructureGenerator();
       generator.seed(Date.now() + roundNum * 12345);
       const newStructure = generator.generate();
 
@@ -1328,7 +1325,7 @@ export default function App() {
 
       animateScroll();
     },
-    [difficulty] // Don't include handleChoice - causes circular dependency
+    [] // Don't include handleChoice - causes circular dependency
   );
 
   // ── Start new game ──
@@ -1381,10 +1378,10 @@ export default function App() {
       setChoice(userChoice);
       setScreen("revealing");
 
-      // Animate continuation reveal
+      // Animate continuation reveal (slower animation)
       let progress = 0;
       const animate = () => {
-        progress += 0.02;
+        progress += 0.01; // Slower increment (was 0.02)
         setRevealProgress(progress);
 
         if (progress < 1) {
@@ -1442,7 +1439,7 @@ export default function App() {
       if (!rendererRef.current) {
         rendererRef.current = new ChartRenderer(
           chartRef.current,
-          DIFFICULTY_CONFIG[difficulty]
+          DIFFICULTY_CONFIG
         );
         const rect = chartRef.current.getBoundingClientRect();
         rendererRef.current.setDimensions(rect.width, rect.height);
@@ -1484,7 +1481,7 @@ export default function App() {
         throttledRender(allCandles);
       }
 
-    }, [structure, windowStart, difficulty, screen, revealProgress]);
+    }, [structure, windowStart, screen, revealProgress]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
@@ -1534,41 +1531,6 @@ export default function App() {
           to wait. Focus on context, not memorization.
         </div>
       </GlassPanel>
-
-      {/* Difficulty selector */}
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div
-          style={{
-            fontSize: 12,
-            color: "rgba(255,255,255,0.5)",
-            marginBottom: 8,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Select Difficulty
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {["easy", "medium", "hard"].map((d) => (
-            <GlassButton
-              key={d}
-              onClick={() => setDifficulty(d)}
-              color={difficulty === d ? C.nGreen : C.glassBr}
-              style={{
-                flex: 1,
-                padding: "12px 0",
-                background:
-                  difficulty === d
-                    ? `linear-gradient(135deg, ${C.nGreen}33, ${C.nGreen}11)`
-                    : C.glass,
-                border: `1.5px solid ${difficulty === d ? C.nGreen : C.glassBr}`,
-              }}
-            >
-              {d.toUpperCase()}
-            </GlassButton>
-          ))}
-        </div>
-      </div>
 
       <GlassButton
         onClick={startGame}
