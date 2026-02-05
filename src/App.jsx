@@ -402,22 +402,60 @@ class MarketStructureGenerator {
     };
   }
 
-  // Realistic trend candles - standard OHLC behavior
+  // Realistic trend candles - Binance 1m style
   _trendCandles(startPrice, count, drift, volatility, bullRatio) {
     const candles = [];
     let price = startPrice;
 
     for (let i = 0; i < count; i++) {
       const isBull = this.rng() < bullRatio;
-      const bodyPercent = 0.4 + this.rng() * 0.4; // 40-80% of range
+      
+      // Realistic body size distribution (1m candles are mostly small)
+      const bodyRoll = this.rng();
+      let bodyPercent;
+      if (bodyRoll < 0.65) {
+        bodyPercent = 0.15 + this.rng() * 0.25; // 65% small bodies (15-40%)
+      } else if (bodyRoll < 0.92) {
+        bodyPercent = 0.4 + this.rng() * 0.35; // 27% medium (40-75%)
+      } else {
+        bodyPercent = 0.75 + this.rng() * 0.25; // 8% large (75-100%)
+      }
+      
       const range = price * volatility;
-
       const open = price;
-      price = price * (1 + drift + (this.rng() - 0.5) * volatility * 0.3);
-      const close = isBull ? open + range * bodyPercent : open - range * bodyPercent;
+      
+      // Add drift with micro-noise (real markets zigzag)
+      const microNoise = (this.rng() - 0.5) * volatility * 0.4;
+      price = price * (1 + drift + microNoise);
+      
+      const bodySize = range * bodyPercent;
+      const close = isBull ? open + bodySize : open - bodySize;
 
-      const high = Math.max(open, close) + range * (0.2 + this.rng() * 0.3);
-      const low = Math.min(open, close) - range * (0.2 + this.rng() * 0.3);
+      // Realistic wicks (Binance 1m has varied wick distribution)
+      const wickRoll = this.rng();
+      let upperWick, lowerWick;
+      
+      if (wickRoll < 0.25) {
+        // 25% tiny/no wicks (clean candles)
+        upperWick = range * this.rng() * 0.08;
+        lowerWick = range * this.rng() * 0.08;
+      } else if (wickRoll < 0.75) {
+        // 50% normal wicks
+        upperWick = range * (0.1 + this.rng() * 0.25);
+        lowerWick = range * (0.1 + this.rng() * 0.25);
+      } else {
+        // 25% rejection wicks (one side has spike)
+        if (this.rng() < 0.5) {
+          upperWick = range * (0.4 + this.rng() * 0.6); // rejection top
+          lowerWick = range * this.rng() * 0.15;
+        } else {
+          upperWick = range * this.rng() * 0.15;
+          lowerWick = range * (0.4 + this.rng() * 0.6); // rejection bottom
+        }
+      }
+
+      const high = Math.max(open, close) + upperWick;
+      const low = Math.min(open, close) - lowerWick;
 
       candles.push({ open, high, low, close });
       price = close;
@@ -426,7 +464,7 @@ class MarketStructureGenerator {
     return candles;
   }
 
-  // Range-bound candles
+  // Range-bound candles - Binance 1m choppy consolidation style
   _rangeCandles(centerPrice, count, rangeSize) {
     const candles = [];
     const high = centerPrice * (1 + rangeSize);
@@ -434,18 +472,38 @@ class MarketStructureGenerator {
     let price = centerPrice;
 
     for (let i = 0; i < count; i++) {
-      // Mean reversion
-      if (price > high * 0.95) price *= 0.998;
-      if (price < low * 1.05) price *= 1.002;
+      // Mean reversion with realistic overshoot/undershoot
+      const distanceFromCenter = (price - centerPrice) / centerPrice;
+      const reversionPressure = -distanceFromCenter * 0.0015;
+      
+      // Choppy random walk
+      const randomWalk = (this.rng() - 0.5) * rangeSize * 0.3;
+      price = price * (1 + reversionPressure + randomWalk);
+      
+      // Keep within bounds
+      price = Math.max(low * 1.001, Math.min(high * 0.999, price));
 
       const isBull = this.rng() < 0.5;
-      const bodySize = price * rangeSize * (0.3 + this.rng() * 0.4);
-      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+      
+      // Smaller bodies in range (1m candles in consolidation are tiny)
+      const bodyRoll = this.rng();
+      let bodyPercent;
+      if (bodyRoll < 0.75) {
+        bodyPercent = 0.1 + this.rng() * 0.2; // 75% very small
+      } else {
+        bodyPercent = 0.3 + this.rng() * 0.3; // 25% slightly larger
+      }
+      
+      const bodySize = price * rangeSize * bodyPercent;
+      
+      // More wicks in ranging markets (indecision)
+      const wickPercent = 0.5 + this.rng() * 0.8; // Larger wicks
+      const wickSize = bodySize * wickPercent;
 
       const open = price;
       const close = isBull ? open + bodySize : open - bodySize;
-      const candleHigh = Math.max(open, close) + wickSize * this.rng();
-      const candleLow = Math.min(open, close) - wickSize * this.rng();
+      const candleHigh = Math.max(open, close) + wickSize * (0.3 + this.rng() * 0.7);
+      const candleLow = Math.min(open, close) - wickSize * (0.3 + this.rng() * 0.7);
 
       candles.push({
         open,
@@ -454,30 +512,52 @@ class MarketStructureGenerator {
         close,
       });
 
-      price = close + (this.rng() - 0.5) * bodySize * 0.3;
+      price = close;
     }
 
     return candles;
   }
 
-  // Compression candles - decreasing range
+  // Compression candles - decreasing range (Binance 1m squeeze/coiling)
   _compressionCandles(startPrice, count, baseVol) {
     const candles = [];
     let price = startPrice;
 
     for (let i = 0; i < count; i++) {
-      const compressionFactor = 1 - (i / count) * 0.5; // Range decreases
+      const compressionFactor = 1 - (i / count) * 0.65; // Tighter squeeze
       const isBull = this.rng() < 0.5;
-      const bodySize = price * baseVol * compressionFactor * (0.3 + this.rng() * 0.4);
-      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+      
+      // Progressively smaller bodies (realistic coiling)
+      const bodyRoll = this.rng();
+      let bodyPercent;
+      if (i < count * 0.4) {
+        // Early: still some movement
+        bodyPercent = 0.25 + this.rng() * 0.35;
+      } else {
+        // Late: very tight (dojis and inside bars)
+        bodyPercent = 0.08 + this.rng() * 0.15;
+      }
+      
+      const bodySize = price * baseVol * compressionFactor * bodyPercent;
+      
+      // Wicks proportionally shrink too
+      const wickPercent = 0.3 + this.rng() * 0.5;
+      const wickSize = bodySize * wickPercent * compressionFactor;
 
       const open = price;
       const close = isBull ? open + bodySize : open - bodySize;
-      const high = Math.max(open, close) + wickSize * this.rng();
-      const low = Math.min(open, close) - wickSize * this.rng();
+      
+      // Realistic wick distribution (even in compression, some wicks test)
+      const upperWick = wickSize * (0.2 + this.rng() * 0.8);
+      const lowerWick = wickSize * (0.2 + this.rng() * 0.8);
+      
+      const high = Math.max(open, close) + upperWick;
+      const low = Math.min(open, close) - lowerWick;
 
       candles.push({ open, high, low, close });
-      price = close + (this.rng() - 0.5) * bodySize * 0.2;
+      
+      // Micro drift (real markets don't sit perfectly still)
+      price = close + (this.rng() - 0.5) * bodySize * 0.15;
     }
 
     return candles;
@@ -569,36 +649,64 @@ class MarketStructureGenerator {
     const setupLength = 8 + Math.floor(this.rng() * 6);
 
     if (setupType.type === "bullish_continuation") {
-      // Bull flag: tight consolidation after context uptrend
+      // Bull flag: tight consolidation after context uptrend (realistic 1m)
       for (let i = 0; i < setupLength; i++) {
-        const drift = -0.0003; // Slight drift down
-        const vol = 0.006 * (1 - i / setupLength * 0.3); // Tightening
+        const progress = i / setupLength;
+        const drift = -0.0002 - this.rng() * 0.0003; // Micro drift down
+        const vol = 0.005 * (1 - progress * 0.4); // Progressive tightening
+        
         const price = startPrice * (1 + drift * i);
-        const isBull = this.rng() < 0.48;
-        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+        const isBull = this.rng() < 0.45; // Slightly bearish bias in flag
+        
+        // Small bodies (flags have tight candles)
+        const bodyRoll = this.rng();
+        let bodyPercent;
+        if (bodyRoll < 0.7) {
+          bodyPercent = 0.15 + this.rng() * 0.2; // 70% tiny
+        } else {
+          bodyPercent = 0.35 + this.rng() * 0.25; // 30% small-medium
+        }
+        
+        const bodySize = price * vol * bodyPercent;
+        
+        // Wicks (more in flags - indecision)
+        const wickPercent = 0.4 + this.rng() * 0.6;
+        const wickSize = bodySize * wickPercent;
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        const high = Math.max(open, close) + wickSize * (0.3 + this.rng() * 0.7);
+        const low = Math.min(open, close) - wickSize * (0.3 + this.rng() * 0.7);
 
         candles.push({ open, high, low, close });
       }
     } else if (setupType.type === "bearish_continuation") {
-      // Bear flag: tight consolidation after context downtrend
+      // Bear flag: tight consolidation after context downtrend (realistic 1m)
       for (let i = 0; i < setupLength; i++) {
-        const drift = 0.0003; // Slight drift up
-        const vol = 0.006 * (1 - i / setupLength * 0.3);
+        const progress = i / setupLength;
+        const drift = 0.0002 + this.rng() * 0.0003; // Micro drift up
+        const vol = 0.005 * (1 - progress * 0.4);
+        
         const price = startPrice * (1 + drift * i);
-        const isBull = this.rng() < 0.52;
-        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+        const isBull = this.rng() < 0.55; // Slightly bullish bias in flag
+        
+        // Small bodies
+        const bodyRoll = this.rng();
+        let bodyPercent;
+        if (bodyRoll < 0.7) {
+          bodyPercent = 0.15 + this.rng() * 0.2;
+        } else {
+          bodyPercent = 0.35 + this.rng() * 0.25;
+        }
+        
+        const bodySize = price * vol * bodyPercent;
+        const wickPercent = 0.4 + this.rng() * 0.6;
+        const wickSize = bodySize * wickPercent;
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        const high = Math.max(open, close) + wickSize * (0.3 + this.rng() * 0.7);
+        const low = Math.min(open, close) - wickSize * (0.3 + this.rng() * 0.7);
 
         candles.push({ open, high, low, close });
       }
@@ -710,13 +818,44 @@ class MarketStructureGenerator {
     let price = lastPrice;
 
     if (signal === "BUY" && setupType.willSucceed) {
-      // Strong bullish continuation
+      // Realistic bullish breakout (Binance 1m style)
       for (let i = 0; i < length; i++) {
-        const drift = 0.004 + this.rng() * 0.002;
-        const vol = 0.012;
-        const isBull = this.rng() < 0.75;
-        const bodySize = price * vol * (0.5 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.2 + this.rng() * 0.4);
+        // Breakout momentum: strong at first, then consolidates
+        const momentumPhase = i / length;
+        let drift, vol, bullProb;
+        
+        if (momentumPhase < 0.3) {
+          // Initial impulse (first 3-4 candles)
+          drift = 0.004 + this.rng() * 0.003;
+          vol = 0.015;
+          bullProb = 0.85;
+        } else if (momentumPhase < 0.7) {
+          // Follow-through (mixed momentum)
+          drift = 0.002 + this.rng() * 0.002;
+          vol = 0.012;
+          bullProb = 0.65;
+        } else {
+          // Cooling off / micro pullback
+          drift = -0.0005 + this.rng() * 0.0015;
+          vol = 0.01;
+          bullProb = 0.55;
+        }
+        
+        const isBull = this.rng() < bullProb;
+        
+        // Body distribution (breakouts have larger bodies initially)
+        const bodyRoll = this.rng();
+        let bodyPercent;
+        if (momentumPhase < 0.3 && bodyRoll < 0.5) {
+          bodyPercent = 0.6 + this.rng() * 0.35; // Big impulse candles
+        } else if (bodyRoll < 0.7) {
+          bodyPercent = 0.35 + this.rng() * 0.35;
+        } else {
+          bodyPercent = 0.15 + this.rng() * 0.25;
+        }
+        
+        const bodySize = price * vol * bodyPercent;
+        const wickSize = bodySize * (0.2 + this.rng() * 0.5);
 
         const open = price;
         price *= 1 + drift;
@@ -728,13 +867,42 @@ class MarketStructureGenerator {
         price = close;
       }
     } else if (signal === "SELL" && setupType.willSucceed) {
-      // Strong bearish continuation
+      // Realistic bearish breakdown (Binance 1m style)
       for (let i = 0; i < length; i++) {
-        const drift = -0.004 - this.rng() * 0.002;
-        const vol = 0.012;
-        const isBull = this.rng() < 0.25;
-        const bodySize = price * vol * (0.5 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.2 + this.rng() * 0.4);
+        const momentumPhase = i / length;
+        let drift, vol, bearProb;
+        
+        if (momentumPhase < 0.3) {
+          // Initial cascade
+          drift = -0.004 - this.rng() * 0.003;
+          vol = 0.015;
+          bearProb = 0.85;
+        } else if (momentumPhase < 0.7) {
+          // Follow-through selling
+          drift = -0.002 - this.rng() * 0.002;
+          vol = 0.012;
+          bearProb = 0.65;
+        } else {
+          // Exhaustion / bounce attempt
+          drift = 0.0005 - this.rng() * 0.0015;
+          vol = 0.01;
+          bearProb = 0.55;
+        }
+        
+        const isBull = this.rng() < (1 - bearProb);
+        
+        const bodyRoll = this.rng();
+        let bodyPercent;
+        if (momentumPhase < 0.3 && bodyRoll < 0.5) {
+          bodyPercent = 0.6 + this.rng() * 0.35;
+        } else if (bodyRoll < 0.7) {
+          bodyPercent = 0.35 + this.rng() * 0.35;
+        } else {
+          bodyPercent = 0.15 + this.rng() * 0.25;
+        }
+        
+        const bodySize = price * vol * bodyPercent;
+        const wickSize = bodySize * (0.2 + this.rng() * 0.5);
 
         const open = price;
         price *= 1 + drift;
@@ -746,19 +914,28 @@ class MarketStructureGenerator {
         price = close;
       }
     } else {
-      // HOLD / failed pattern - choppy or weak continuation
+      // HOLD / failed pattern - realistic chop/fakeout (Binance 1m whipsaw)
       for (let i = 0; i < length; i++) {
-        const drift = (this.rng() - 0.5) * 0.002;
-        const vol = 0.01;
+        // Random walk with mean reversion
+        const drift = (this.rng() - 0.5) * 0.003;
+        const vol = 0.01 + this.rng() * 0.005;
         const isBull = this.rng() < 0.5;
-        const bodySize = price * vol * (0.3 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.7);
+        
+        // Choppy candles (more wicks, smaller bodies)
+        const bodyPercent = 0.1 + this.rng() * 0.3;
+        const bodySize = price * vol * bodyPercent;
+        const wickSize = bodySize * (0.6 + this.rng() * 1.0); // Larger wicks in chop
 
         const open = price;
         price *= 1 + drift;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        
+        // Whipsaw wicks (both sides get tested)
+        const upperWick = wickSize * (0.4 + this.rng() * 0.6);
+        const lowerWick = wickSize * (0.4 + this.rng() * 0.6);
+        
+        const high = Math.max(open, close) + upperWick;
+        const low = Math.min(open, close) - lowerWick;
 
         candles.push({ open, high, low, close });
         price = close;
