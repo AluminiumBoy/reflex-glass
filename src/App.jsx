@@ -1486,7 +1486,7 @@ export default function App() {
       let targetFps = 60;
       if (screen === "building") {
         // Smooth but not too fast during build
-        targetFps = isMobile ? 30 : 45;
+        targetFps = isMobile ? 20 : 30;
       } else if (screen === "playing") {
         // Static view, lower fps ok
         targetFps = 30;
