@@ -1211,7 +1211,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const saveScore = () => {
+    const saveScore = async () => {
       if (!playerName || saved) return;
       
       try {
@@ -1224,9 +1224,11 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
-        let scores = JSON.parse(localStorage.getItem("reflexScores") || "[]");
-        scores.push(scoreData);
-        localStorage.setItem("reflexScores", JSON.stringify(scores));
+        await window.storage.set(
+          `score:${playerName}:${timestamp}`,
+          JSON.stringify(scoreData),
+          true // shared
+        );
         
         setSaved(true);
         haptic([50, 30, 50]);
@@ -1331,19 +1333,23 @@ const Leaderboard = ({ onBack }) => {
     loadLeaderboard();
   }, []);
 
-
-    const loadLeaderboard = () => {
-      try {
-        const scoresStr = localStorage.getItem("reflexScores");
-        if (!scoresStr) {
-          setEntries([]);
-          setLoading(false);
-          return;
-        }
-
-        const validScores = JSON.parse(scoresStr);
+  const loadLeaderboard = async () => {
+    try {
+      setLoading(true);
+      const result = await window.storage.list("score:", true);
+      if (result && result.keys) {
+        // Load all scores
+        const scores = await Promise.all(
+          result.keys.map(async (key) => {
+            const data = await window.storage.get(key, true);
+            return data ? JSON.parse(data.value) : null;
+          })
+        );
+        
+        // Filter out nulls and aggregate by player name
+        const validScores = scores.filter(s => s);
         const aggregated = {};
-
+        
         validScores.forEach(score => {
           if (!aggregated[score.name]) {
             aggregated[score.name] = {
@@ -1359,19 +1365,23 @@ const Leaderboard = ({ onBack }) => {
           aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
           aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
         });
-
+        
+        // Convert to array and sort by total score
         const leaderboard = Object.values(aggregated)
           .sort((a, b) => b.totalScore - a.totalScore)
-          .slice(0, 10);
-
+          .slice(0, 10); // Top 10
+        
         setEntries(leaderboard);
-      } catch (err) {
-        console.log("No leaderboard data");
+      } else {
         setEntries([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.log("No leaderboard data yet");
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{ 
@@ -1507,6 +1517,8 @@ export default function App() {
   const [revealProgress, setRevealProgress] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [playerName, setPlayerName] = useState("");
+  const [isEditingName, setIsEditingName] = useState(true);
+  const [tempName, setTempName] = useState("");
 
   // ── Refs ──
   const chartRef = useRef(null);
@@ -1543,12 +1555,15 @@ export default function App() {
   }, []);
 
   // ── Load saved player name ──
-  // ── Load saved player name ──
   useEffect(() => {
-    const loadPlayerName = () => {
+    const loadPlayerName = async () => {
       try {
-        const saved = localStorage.getItem("playerName");
-        if (saved) setPlayerName(saved);
+        const result = await window.storage.get("playerName", false);
+        if (result && result.value) {
+          setPlayerName(result.value);
+          setTempName(result.value);
+          setIsEditingName(false);
+        }
       } catch (err) {
         console.log("No saved name");
       }
@@ -1828,35 +1843,30 @@ export default function App() {
   }, [scores, roundStats, bestStreak]);
 
   // ── Home screen ──
-  const renderHome = () => {
-    const [isEditing, setIsEditing] = useState(!playerName);
-    const [tempName, setTempName] = useState(playerName);
+  const handleSaveName = async () => {
+    if (!tempName.trim()) return;
+    
+    try {
+      await window.storage.set("playerName", tempName.trim(), false);
+      setPlayerName(tempName.trim());
+      setIsEditingName(false);
+      haptic([30, 20, 30]);
+    } catch (err) {
+      console.error("Failed to save name:", err);
+    }
+  };
 
-    const handleSaveName = () => {
-      const trimmed = tempName.trim();
-      if (!trimmed) return;
+  const handleCancelEdit = () => {
+    setTempName(playerName);
+    setIsEditingName(false);
+  };
 
-      try {
-        localStorage.setItem("playerName", trimmed);
-        setPlayerName(trimmed);
-        setIsEditing(false);
-        haptic([30, 20, 30]);
-      } catch (err) {
-        console.error("Failed to save name:", err);
-      }
-    };
+  const handleStartGame = () => {
+    if (!playerName.trim()) return;
+    startGame();
+  };
 
-    const handleCancelEdit = () => {
-      setTempName(playerName);
-      setIsEditing(false);
-    };
-
-    const handleStartGame = () => {
-      if (!playerName.trim()) return;
-      startGame();
-    };
-
-    return (
+  const renderHome = () => (
     <div
       style={{
         display: "flex",
@@ -1897,11 +1907,11 @@ export default function App() {
           <input
             type="text"
             placeholder="Enter your name"
-            value={isEditing ? tempName : playerName}
-            onChange={(e) => isEditing && setTempName(e.target.value)}
+            value={isEditingName ? tempName : playerName}
+            onChange={(e) => isEditingName && setTempName(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === "Enter") {
-                if (isEditing) {
+                if (isEditingName) {
                   handleSaveName();
                 } else {
                   handleStartGame();
@@ -1909,24 +1919,24 @@ export default function App() {
               }
             }}
             maxLength={20}
-            disabled={!isEditing}
+            disabled={!isEditingName}
             style={{
               width: "100%",
               padding: "12px 48px 12px 16px",
               fontSize: 16,
               fontWeight: 600,
               background: C.glass,
-              border: `1px solid ${isEditing ? C.nGreen : C.glassBr}`,
+              border: `1px solid ${isEditingName ? C.nGreen : C.glassBr}`,
               borderRadius: 12,
               color: "#fff",
               textAlign: "center",
               outline: "none",
               backdropFilter: "blur(20px)",
-              cursor: isEditing ? "text" : "default",
-              opacity: isEditing ? 1 : 0.9
+              cursor: isEditingName ? "text" : "default",
+              opacity: isEditingName ? 1 : 0.9
             }}
           />
-          {isEditing ? (
+          {isEditingName ? (
             <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4 }}>
               <button
                 onClick={handleSaveName}
@@ -1978,7 +1988,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setTempName(playerName);
-                  setIsEditing(true);
+                  setIsEditingName(true);
                 }}
                 style={{
                   position: "absolute",
@@ -2044,8 +2054,7 @@ export default function App() {
         Learn when NOT to trade • {ROUNDS} rounds • Context matters
       </div>
     </div>
-    );
-  };
+  );
 
   // ── Playing screen ──
   const renderPlaying = () => {
