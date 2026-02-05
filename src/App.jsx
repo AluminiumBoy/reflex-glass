@@ -1662,33 +1662,32 @@ export default function App() {
     lastCandleCount.current = 0;
     cachedCandles.current = [];
     
-    // Start countdown - 3, 2, 1
+    // Start countdown
     setShowCountdown(true);
     setCountdownNum(3);
+    
+    let countdownValue = 3;
     sound.tick(3);
     
-    setTimeout(() => {
-      setCountdownNum(2);
-      sound.tick(2);
-    }, 1000);
-    
-    setTimeout(() => {
-      setCountdownNum(1);
-      sound.tick(1);
-    }, 2000);
-    
-    setTimeout(() => {
-      setShowCountdown(false);
-      
-      // Reinitialize renderer if needed
-      if (chartRef.current && !rendererRef.current) {
-        rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-        const rect = chartRef.current.getBoundingClientRect();
-        rendererRef.current.setDimensions(rect.width, rect.height);
+    const countdownInterval = setInterval(() => {
+      countdownValue--;
+      if (countdownValue > 0) {
+        setCountdownNum(countdownValue);
+        sound.tick(countdownValue);
+      } else {
+        clearInterval(countdownInterval);
+        setShowCountdown(false);
+        
+        // Reinitialize renderer if needed
+        if (chartRef.current && !rendererRef.current) {
+          rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+          const rect = chartRef.current.getBoundingClientRect();
+          rendererRef.current.setDimensions(rect.width, rect.height);
+        }
+        
+        initializeRound(0);
       }
-      
-      initializeRound(0);
-    }, 3000);
+    }, 1000);
   }, [initializeRound]);
 
   // ── Handle user choice ──
