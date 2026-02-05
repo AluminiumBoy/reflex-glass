@@ -839,11 +839,12 @@ class ChartRenderer {
     const MIN_BODY_WIDTH = mobile ? 3 : 4;
     const MAX_BODY_WIDTH = mobile ? 14 : 18;
     
-    // Calculate how many candles we need to show
-    const candleCount = allCandles.length;
+    // CRITICAL: Calculate slot width based on TOTAL candles, not visible ones
+    // This prevents circular dependency and jumping
+    const totalCandleCount = allCandles.length;
     
     // Calculate ideal slot width to fit all candles
-    let slotWidth = availableWidth / candleCount;
+    let slotWidth = availableWidth / totalCandleCount;
     let bodyWidth = slotWidth - gap;
     
     // Clamp body width to min/max
@@ -855,21 +856,21 @@ class ChartRenderer {
       slotWidth = bodyWidth + gap;
     }
     
-    // Now we show ALL candles that fit, or scroll if needed
-    let MAX_VISIBLE = Math.min(candleCount, Math.floor(availableWidth / slotWidth));
+    // Now calculate how many candles fit in view
+    const MAX_VISIBLE = Math.min(totalCandleCount, Math.floor(availableWidth / slotWidth));
 
     const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
     
-    // Apply scroll offset (in candles)
+    // Apply scroll offset (in candles) - now using stable slotWidth
     const offsetCandles = Math.floor(scrollOffset / slotWidth);
     
     // Calculate start index with proper bounds to prevent jumping
-    const maxStartIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
+    const maxStartIdx = Math.max(0, totalCandleCount - MAX_VISIBLE);
     const rawStartIdx = maxStartIdx - offsetCandles;
     const startIdx = Math.max(0, Math.min(maxStartIdx, rawStartIdx));
     
     // Show visible candles
-    const endIdx = Math.min(startIdx + MAX_VISIBLE, allCandles.length);
+    const endIdx = Math.min(startIdx + MAX_VISIBLE, totalCandleCount);
     const visible = allCandles.slice(startIdx, endIdx);
     
     // Early exit if nothing to render
@@ -1755,15 +1756,18 @@ export default function App() {
               
               const newOffset = touchStartOffset.current + deltaX;
               
+              // Get current canvas dimensions
+              const canvasWidth = chartRef.current ? chartRef.current.getBoundingClientRect().width : 400;
+              
               // Calculate dynamic limits based on total candles
               const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
-              const mobile = chartDims.width < 520;
+              const mobile = canvasWidth < 520;
               const gap = mobile ? 4 : 2;
               const MIN_BODY_WIDTH = mobile ? 3 : 4;
               const MAX_BODY_WIDTH = mobile ? 14 : 18;
               const leftPadding = mobile ? 10 : 30;
               const rightPadding = mobile ? 15 : 30;
-              const availableWidth = chartDims.width - leftPadding - rightPadding;
+              const availableWidth = canvasWidth - leftPadding - rightPadding;
               
               let slotWidth = availableWidth / totalCandles;
               let bodyWidth = slotWidth - gap;
@@ -1802,15 +1806,18 @@ export default function App() {
           }}
           onTouchEnd={() => {
             if (screen === "outcome" && touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
+              // Get current canvas dimensions
+              const canvasWidth = chartRef.current ? chartRef.current.getBoundingClientRect().width : 400;
+              
               // Calculate dynamic limits based on total candles
               const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
-              const mobile = chartDims.width < 520;
+              const mobile = canvasWidth < 520;
               const gap = mobile ? 4 : 2;
               const MIN_BODY_WIDTH = mobile ? 3 : 4;
               const MAX_BODY_WIDTH = mobile ? 14 : 18;
               const leftPadding = mobile ? 10 : 30;
               const rightPadding = mobile ? 15 : 30;
-              const availableWidth = chartDims.width - leftPadding - rightPadding;
+              const availableWidth = canvasWidth - leftPadding - rightPadding;
               
               let slotWidth = availableWidth / totalCandles;
               let bodyWidth = slotWidth - gap;
