@@ -831,9 +831,10 @@ class ChartRenderer {
       return height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
     };
 
-    // Calculate candle layout with scrolling
-    const gap = 2;
-    const targetBodyWidth = 8;
+    // Calculate candle layout with MOBILE-RESPONSIVE sizing
+    const isMobile = width < 500;
+    const gap = isMobile ? 3 : 2; // More space on mobile
+    const targetBodyWidth = isMobile ? 12 : 8; // MUCH wider on mobile (12px vs 8px)
     const slotWidth = targetBodyWidth + gap;
     const totalWidth = allCandles.length * slotWidth;
     
@@ -908,12 +909,12 @@ class ChartRenderer {
 
       ctx.save();
 
-      // MINIMAL WICK
+      // VISIBLE WICK - thicker on mobile
       const wickTop = toY(candle.high);
       const wickBot = toY(candle.low);
       
       ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = isMobile ? 2.5 : 1.5; // MUCH thicker wick on mobile
       ctx.beginPath();
       ctx.moveTo(x + currentBodyW/2, wickTop);
       ctx.lineTo(x + currentBodyW/2, wickBot);
@@ -922,7 +923,7 @@ class ChartRenderer {
       // CLEAN MODERN BODY
       const bodyTop = toY(Math.max(candle.open, candle.close));
       const bodyBottom = toY(Math.min(candle.open, candle.close));
-      const bodyHeight = Math.max(bodyBottom - bodyTop, 2);
+      const bodyHeight = Math.max(bodyBottom - bodyTop, isMobile ? 3 : 2); // Taller minimum on mobile
 
       // Solid fill with subtle gradient
       const bodyGrad = ctx.createLinearGradient(x, bodyTop, x, bodyTop + bodyHeight);
@@ -935,19 +936,21 @@ class ChartRenderer {
       ctx.roundRect(x, bodyTop, currentBodyW, bodyHeight, 1.5);
       ctx.fill();
 
-      // Clean border
+      // Clean border - thicker on mobile
       ctx.strokeStyle = bodyColor;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = isMobile ? 1.5 : 1; // Thicker border on mobile
       ctx.stroke();
       
       // Subtle highlight on top edge
-      ctx.fillStyle = "rgba(255,255,255,0.15)";
-      ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
+      if (currentBodyW > 6) { // Only show if candle is wide enough
+        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        ctx.fillRect(x + 2, bodyTop + 1, currentBodyW - 4, 1);
+      }
 
       // Premium glow on recent candles
       if (isRecent) {
         ctx.shadowColor = bodyColor;
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = isMobile ? 10 : 12;
         ctx.strokeStyle = bodyColor + "80";
         ctx.lineWidth = 1;
         ctx.stroke();
