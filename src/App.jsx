@@ -1511,8 +1511,6 @@ export default function App() {
   const [choice, setChoice] = useState(null);
   const [structure, setStructure] = useState(null);
   const [windowStart, setWindowStart] = useState(0);
-  const [showCountdown, setShowCountdown] = useState(false);
-  const [countdownNum, setCountdownNum] = useState(3);
   const [revealProgress, setRevealProgress] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [playerName, setPlayerName] = useState("");
@@ -1648,6 +1646,7 @@ export default function App() {
     }
     
     // Reset all game state
+    setScreen("game"); // Reset screen to prevent verdict from showing
     setRound(0);
     setScores([]);
     setStreak(0);
@@ -1662,34 +1661,14 @@ export default function App() {
     lastCandleCount.current = 0;
     cachedCandles.current = [];
     
-    // Start countdown
-    setShowCountdown(true);
-    setCountdownNum(3);
+    // Initialize game directly without countdown
+    if (chartRef.current && !rendererRef.current) {
+      rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+      const rect = chartRef.current.getBoundingClientRect();
+      rendererRef.current.setDimensions(rect.width, rect.height);
+    }
     
-    let countdownValue = 3;
-    sound.tick(3);
-    
-    const countdownInterval = setInterval(() => {
-      countdownValue--;
-      if (countdownValue > 0) {
-        setCountdownNum(countdownValue);
-        sound.tick(countdownValue);
-      } else {
-        clearInterval(countdownInterval);
-        setShowCountdown(false);
-        
-        // Wait for fade out transition to complete before initializing
-        setTimeout(() => {
-          if (chartRef.current && !rendererRef.current) {
-            rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-            const rect = chartRef.current.getBoundingClientRect();
-            rendererRef.current.setDimensions(rect.width, rect.height);
-          }
-          
-          initializeRound(0);
-        }, 500);
-      }
-    }, 1000);
+    initializeRound(0);
   }, [initializeRound]);
 
   // ── Handle user choice ──
@@ -2374,64 +2353,6 @@ export default function App() {
   );
 
   // ── Countdown overlay ──
-  const renderCountdown = () => (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        background: `radial-gradient(ellipse at 50% 50%, ${C.bg2}dd 0%, ${C.bg1}f5 100%)`,
-        backdropFilter: "blur(20px)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: showCountdown ? 1 : 0,
-        transition: "opacity 0.3s ease-out",
-        pointerEvents: showCountdown ? "auto" : "none"
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          width: 400,
-          height: 400,
-          borderRadius: "50%",
-          background: `radial-gradient(circle, ${C.nGreen}25 0%, transparent 70%)`,
-          filter: "blur(80px)",
-          animation: "pulse 1s ease-in-out infinite",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          width: 280,
-          height: 280,
-          borderRadius: "50%",
-          border: `6px solid ${C.nGreen}50`,
-          animation: "ringPulse 1s ease-out infinite",
-        }}
-      />
-      <div
-        key={countdownNum}
-        style={{
-          fontSize: 200,
-          fontWeight: 900,
-          fontFamily: "'SF Mono','Fira Code',monospace",
-          background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 50%, ${C.nPink} 100%)`,
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          filter: "drop-shadow(0 0 60px rgba(0,255,170,0.6))",
-          animation: "ringPulse 1s ease-out infinite",
-          position: "relative",
-          zIndex: 1,
-          lineHeight: 1,
-        }}
-      >
-        {countdownNum}
-      </div>
-    </div>
-  );
 
   // ── Cleanup RAF on unmount ──
   useEffect(() => {
@@ -2499,9 +2420,6 @@ export default function App() {
           </div>
         )}
       </div>
-
-      {/* Countdown overlay */}
-      {renderCountdown()}
 
       {/* Animations */}
       <style>{`
