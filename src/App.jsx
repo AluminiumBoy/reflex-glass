@@ -508,6 +508,1204 @@ function generateAnnotation(structure) {
       }
       break;
 
+    case 'bull_pennant':
+      explanation = isBullish ? 'Converging trendlines + breakout → bullish continuation' : 'Pattern detected';
+      {
+        const start = safeIdx(-12);
+        const mid = safeIdx(-6);
+        const end = safeIdx(-1);
+        
+        // Upper converging line
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-12), 
+            endIdx: end, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5, dashed: false }
+        );
+        
+        // Lower converging line
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-12), 
+            endIdx: end, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5, dashed: false }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bear_pennant':
+      explanation = isBullish ? 'Pattern detected' : 'Converging trendlines + breakdown → bearish continuation';
+      {
+        const start = safeIdx(-12);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-12), 
+            endIdx: end, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5, dashed: false }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-12), 
+            endIdx: end, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5, dashed: false }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'rising_wedge_(continuation)':
+    case 'rising_wedge_continuation':
+      explanation = isBullish ? 'Narrowing upward channel → breakout → bullish continuation' : 'Pattern detected';
+      {
+        const start = safeIdx(-16);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-16), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-16), 
+            endIdx: end, endPrice: getLow(-1) + (getHigh(-1) - getLow(-1)) * 0.3, 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'falling_wedge_(continuation)':
+    case 'falling_wedge_continuation':
+      explanation = isBullish ? 'Pattern detected' : 'Narrowing downward channel → breakdown → bearish continuation';
+      {
+        const start = safeIdx(-16);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-16), 
+            endIdx: end, endPrice: getHigh(-1) - (getHigh(-1) - getLow(-1)) * 0.3, 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-16), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'ascending_channel':
+      explanation = isBullish ? 'Parallel rising trendlines → channel breakout → bullish move' : 'Pattern detected';
+      {
+        const start = safeIdx(-20);
+        const end = safeIdx(-1);
+        
+        const slope = (getHigh(-1) - getHigh(-20)) / 19;
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-20), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-20), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'descending_channel':
+      explanation = isBullish ? 'Pattern detected' : 'Parallel falling trendlines → channel breakdown → bearish move';
+      {
+        const start = safeIdx(-20);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-20), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-20), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'cup_and_handle':
+    case 'cup_&_handle':
+      explanation = isBullish ? 'Rounded bottom + handle consolidation → breakout → bullish reversal' : 'Pattern detected';
+      {
+        // Mark the cup bottom
+        const cupBottomIdx = safeIdx(-15);
+        highlights.push(
+          { type: 'circle', idx: cupBottomIdx, price: getLow(-15), 
+            radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        // Handle range
+        const handleStart = safeIdx(-8);
+        const handleEnd = safeIdx(-1);
+        highlights.push(
+          { type: 'line', startIdx: handleStart, startPrice: getHigh(-8), 
+            endIdx: handleEnd, endPrice: getHigh(-2), 
+            color: '#fbbf24', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'inverse_cup_and_handle':
+    case 'inverse_cup_&_handle':
+      explanation = isBullish ? 'Pattern detected' : 'Rounded top + handle consolidation → breakdown → bearish reversal';
+      {
+        const cupTopIdx = safeIdx(-15);
+        highlights.push(
+          { type: 'circle', idx: cupTopIdx, price: getHigh(-15), 
+            radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        const handleStart = safeIdx(-8);
+        const handleEnd = safeIdx(-1);
+        highlights.push(
+          { type: 'line', startIdx: handleStart, startPrice: getLow(-8), 
+            endIdx: handleEnd, endPrice: getLow(-2), 
+            color: '#fbbf24', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'falling_wedge_(reversal)':
+    case 'falling_wedge_reversal':
+      explanation = isBullish ? 'Narrowing downward wedge → bullish breakout → reversal' : 'Pattern detected';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'rising_wedge_(reversal)':
+    case 'rising_wedge_reversal':
+      explanation = isBullish ? 'Pattern detected' : 'Narrowing upward wedge → bearish breakdown → reversal';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'triple_bottom':
+      explanation = isBullish ? 'Three equal lows + neckline break → strong bullish reversal' : 'Pattern detected';
+      {
+        const leftIdx = safeIdx(-22);
+        highlights.push(
+          { type: 'circle', idx: leftIdx, price: getLow(-22), 
+            radius: 5, color: '#10b981', pulse: true }
+        );
+        
+        const midIdx = safeIdx(-14);
+        highlights.push(
+          { type: 'circle', idx: midIdx, price: getLow(-14), 
+            radius: 5, color: '#10b981', pulse: true }
+        );
+        
+        const rightIdx = safeIdx(-6);
+        highlights.push(
+          { type: 'circle', idx: rightIdx, price: getLow(-6), 
+            radius: 5, color: '#10b981', pulse: true }
+        );
+        
+        const necklinePrice = Math.max(getHigh(-18), getHigh(-10));
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-24), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            color: '#fbbf24', dashed: false, width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'triple_top':
+      explanation = isBullish ? 'Pattern detected' : 'Three equal highs + neckline break → strong bearish reversal';
+      {
+        const leftIdx = safeIdx(-22);
+        highlights.push(
+          { type: 'circle', idx: leftIdx, price: getHigh(-22), 
+            radius: 5, color: '#ef4444', pulse: true }
+        );
+        
+        const midIdx = safeIdx(-14);
+        highlights.push(
+          { type: 'circle', idx: midIdx, price: getHigh(-14), 
+            radius: 5, color: '#ef4444', pulse: true }
+        );
+        
+        const rightIdx = safeIdx(-6);
+        highlights.push(
+          { type: 'circle', idx: rightIdx, price: getHigh(-6), 
+            radius: 5, color: '#ef4444', pulse: true }
+        );
+        
+        const necklinePrice = Math.min(getLow(-18), getLow(-10));
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-24), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            color: '#fbbf24', dashed: false, width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'rounding_bottom':
+      explanation = isBullish ? 'Smooth U-shaped recovery → bullish reversal' : 'Pattern detected';
+      {
+        const bottomIdx = safeIdx(-12);
+        highlights.push(
+          { type: 'circle', idx: bottomIdx, price: getLow(-12), 
+            radius: 7, color: '#10b981', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'rounding_top':
+      explanation = isBullish ? 'Pattern detected' : 'Smooth inverted U → bearish reversal';
+      {
+        const topIdx = safeIdx(-12);
+        highlights.push(
+          { type: 'circle', idx: topIdx, price: getHigh(-12), 
+            radius: 7, color: '#ef4444', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'v-bottom':
+    case 'v_bottom':
+      explanation = isBullish ? 'Sharp reversal from low → strong bullish momentum' : 'Pattern detected';
+      {
+        const vBottomIdx = safeIdx(-5);
+        highlights.push(
+          { type: 'circle', idx: vBottomIdx, price: getLow(-5), 
+            radius: 6, color: '#10b981', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'v-top':
+    case 'v_top':
+      explanation = isBullish ? 'Pattern detected' : 'Sharp reversal from high → strong bearish momentum';
+      {
+        const vTopIdx = safeIdx(-5);
+        highlights.push(
+          { type: 'circle', idx: vTopIdx, price: getHigh(-5), 
+            radius: 6, color: '#ef4444', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bullish_engulfing_pattern':
+      explanation = isBullish ? 'Large bullish candle engulfs prior bearish → reversal signal' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bearish_engulfing_pattern':
+      explanation = isBullish ? 'Pattern detected' : 'Large bearish candle engulfs prior bullish → reversal signal';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bull_flag_tight':
+      explanation = isBullish ? 'Tight consolidation + volume surge → breakout imminent' : 'Pattern detected';
+      {
+        const flagStart = safeIdx(-8);
+        const flagEnd = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-7), 
+            endIdx: flagEnd, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-7), 
+            endIdx: flagEnd, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 8, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bear_flag_tight':
+      explanation = isBullish ? 'Pattern detected' : 'Tight consolidation + volume surge → breakdown imminent';
+      {
+        const flagStart = safeIdx(-8);
+        const flagEnd = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-7), 
+            endIdx: flagEnd, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-7), 
+            endIdx: flagEnd, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 8, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'flat_base_breakout':
+      explanation = isBullish ? 'Extended flat consolidation → volume breakout → bullish move' : 'Pattern detected';
+      {
+        const baseStart = safeIdx(-16);
+        const baseEnd = safeIdx(-1);
+        const basePrice = (getHigh(-8) + getLow(-8)) / 2;
+        
+        highlights.push(
+          { type: 'line', startIdx: baseStart, startPrice: basePrice + basePrice * 0.01, 
+            endIdx: baseEnd, endPrice: basePrice + basePrice * 0.01, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: baseStart, startPrice: basePrice - basePrice * 0.01, 
+            endIdx: baseEnd, endPrice: basePrice - basePrice * 0.01, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'distribution_pattern':
+      explanation = isBullish ? 'Pattern detected' : 'Extended topping + volume decrease → bearish breakdown';
+      {
+        const distStart = safeIdx(-16);
+        const distEnd = safeIdx(-1);
+        const distPrice = (getHigh(-8) + getLow(-8)) / 2;
+        
+        highlights.push(
+          { type: 'line', startIdx: distStart, startPrice: distPrice + distPrice * 0.015, 
+            endIdx: distEnd, endPrice: distPrice + distPrice * 0.01, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: distStart, startPrice: distPrice - distPrice * 0.01, 
+            endIdx: distEnd, endPrice: distPrice - distPrice * 0.015, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Classic Candlestick Patterns
+    case 'three_white_soldiers':
+      explanation = isBullish ? 'Three consecutive strong bullish candles → powerful uptrend' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getClose(-2), radius: 4, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 4, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 4, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'three_black_crows':
+      explanation = isBullish ? 'Pattern detected' : 'Three consecutive strong bearish candles → powerful downtrend';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getClose(-2), radius: 4, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 4, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 4, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bullish_harami':
+      explanation = isBullish ? 'Small candle inside large bearish → potential bullish reversal' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bearish_harami':
+      explanation = isBullish ? 'Pattern detected' : 'Small candle inside large bullish → potential bearish reversal';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'morning_star':
+      explanation = isBullish ? 'Bearish → small doji → bullish → strong reversal signal' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 5, color: '#fbbf24', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'evening_star':
+      explanation = isBullish ? 'Pattern detected' : 'Bullish → small doji → bearish → strong reversal signal';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 5, color: '#fbbf24', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'piercing_pattern':
+      explanation = isBullish ? 'Bullish candle pierces midpoint of prior bearish → reversal' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'dark_cloud_cover':
+      explanation = isBullish ? 'Pattern detected' : 'Bearish candle covers midpoint of prior bullish → reversal';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'shooting_star':
+      explanation = isBullish ? 'Pattern detected' : 'Long upper wick after uptrend → bearish reversal signal';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 5, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'hanging_man':
+      explanation = isBullish ? 'Pattern detected' : 'Long lower wick after uptrend → potential bearish reversal';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 5, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Modern Technical Patterns
+    case 'darvas_box':
+      explanation = isBullish ? 'Consolidation box + volume breakout → bullish continuation' : 'Pattern detected';
+      {
+        const boxStart = safeIdx(-12);
+        const boxEnd = safeIdx(-1);
+        const boxHigh = Math.max(...candles.slice(Math.max(0, decisionIndex - 12), decisionIndex).map(c => c.high));
+        const boxLow = Math.min(...candles.slice(Math.max(0, decisionIndex - 12), decisionIndex).map(c => c.low));
+        
+        highlights.push(
+          { type: 'line', startIdx: boxStart, startPrice: boxHigh, 
+            endIdx: boxEnd, endPrice: boxHigh, 
+            color: '#ef4444', width: 2, dashed: false }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: boxStart, startPrice: boxLow, 
+            endIdx: boxEnd, endPrice: boxLow, 
+            color: '#10b981', width: 2, dashed: false }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'high_tight_flag':
+      explanation = isBullish ? 'Steep rally + tight pullback → explosive breakout potential' : 'Pattern detected';
+      {
+        const flagStart = safeIdx(-6);
+        const flagEnd = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-5), 
+            endIdx: flagEnd, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-5), 
+            endIdx: flagEnd, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 20 }
+        );
+      }
+      break;
+
+    case 'pocket_pivot':
+      explanation = isBullish ? 'Volume surge above avg on up-day → institutional buying' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 7, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'vcp_(volatility_contraction)':
+    case 'vcp_volatility_contraction':
+      explanation = isBullish ? 'Multiple tightening bases → coiling spring → breakout imminent' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: getHigh(-16), 
+            endIdx: safeIdx(-1), endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: getLow(-16), 
+            endIdx: safeIdx(-1), endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bullish_rectangle':
+      explanation = isBullish ? 'Horizontal consolidation + breakout → continuation' : 'Pattern detected';
+      {
+        const rectStart = safeIdx(-14);
+        const rectEnd = safeIdx(-1);
+        const rectHigh = Math.max(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.high));
+        const rectLow = Math.min(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.low));
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectHigh, 
+            endIdx: rectEnd, endPrice: rectHigh, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectLow, 
+            endIdx: rectEnd, endPrice: rectLow, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bearish_rectangle':
+      explanation = isBullish ? 'Pattern detected' : 'Horizontal consolidation + breakdown → continuation';
+      {
+        const rectStart = safeIdx(-14);
+        const rectEnd = safeIdx(-1);
+        const rectHigh = Math.max(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.high));
+        const rectLow = Math.min(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.low));
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectHigh, 
+            endIdx: rectEnd, endPrice: rectHigh, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectLow, 
+            endIdx: rectEnd, endPrice: rectLow, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'broadening_formation':
+      explanation = isBullish ? 'Pattern detected' : 'Expanding volatility → megaphone top → bearish breakdown';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'death_cross_setup':
+      explanation = isBullish ? 'Pattern detected' : 'Short MA crosses below long MA → bearish momentum';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-3), price: getClose(-3), radius: 6, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Harmonic Patterns - Bullish
+    case 'gartley_bullish':
+      explanation = isBullish ? 'Fibonacci ratios align: XA→AB→BC→CD → bullish reversal zone' : 'Pattern detected';
+      {
+        const points = [
+          { idx: safeIdx(-20), price: getHigh(-20), label: 'X' },
+          { idx: safeIdx(-15), price: getLow(-15), label: 'A' },
+          { idx: safeIdx(-10), price: getHigh(-10), label: 'B' },
+          { idx: safeIdx(-5), price: getLow(-5), label: 'C' },
+          { idx: safeIdx(0), price: getLow(0), label: 'D' }
+        ];
+        
+        points.forEach(p => {
+          highlights.push(
+            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#a855f7', pulse: true }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bat_pattern_bullish':
+      explanation = isBullish ? 'Bat harmonic: precise Fib retracement → high-probability reversal' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'crab_pattern_bullish':
+      explanation = isBullish ? 'Crab harmonic: extreme extension → powerful reversal zone' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-20), price: getHigh(-20), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-14), price: getLow(-14), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-7), price: getHigh(-7), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 16, direction: 'up', 
+            color: '#10b981', size: 20 }
+        );
+      }
+      break;
+
+    case 'butterfly_pattern_bullish':
+      explanation = isBullish ? 'Butterfly harmonic: 127.2% extension → reversal imminent' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    // Harmonic Patterns - Bearish
+    case 'gartley_bearish':
+      explanation = isBullish ? 'Pattern detected' : 'Fibonacci ratios align: XA→AB→BC→CD → bearish reversal zone';
+      {
+        const points = [
+          { idx: safeIdx(-20), price: getLow(-20) },
+          { idx: safeIdx(-15), price: getHigh(-15) },
+          { idx: safeIdx(-10), price: getLow(-10) },
+          { idx: safeIdx(-5), price: getHigh(-5) },
+          { idx: safeIdx(0), price: getHigh(0) }
+        ];
+        
+        points.forEach(p => {
+          highlights.push(
+            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#a855f7', pulse: true }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bat_pattern_bearish':
+      explanation = isBullish ? 'Pattern detected' : 'Bat harmonic: precise Fib retracement → high-probability reversal';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'crab_pattern_bearish':
+      explanation = isBullish ? 'Pattern detected' : 'Crab harmonic: extreme extension → powerful reversal zone';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-20), price: getLow(-20), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-14), price: getHigh(-14), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-7), price: getLow(-7), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 16, direction: 'down', 
+            color: '#ef4444', size: 20 }
+        );
+      }
+      break;
+
+    case 'butterfly_pattern_bearish':
+      explanation = isBullish ? 'Pattern detected' : 'Butterfly harmonic: 127.2% extension → reversal imminent';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#a855f7', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Wyckoff Patterns
+    case 'wyckoff_spring':
+      explanation = isBullish ? 'False breakdown below support → smart money accumulation → bullish reversal' : 'Pattern detected';
+      {
+        const supportLevel = getLow(-8);
+        
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: supportLevel, 
+            endIdx: safeIdx(2), endPrice: supportLevel, 
+            color: '#10b981', width: 2, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getLow(-2), radius: 7, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 20 }
+        );
+      }
+      break;
+
+    case 'wyckoff_upthrust':
+      explanation = isBullish ? 'Pattern detected' : 'False breakout above resistance → smart money distribution → bearish reversal';
+      {
+        const resistanceLevel = getHigh(-8);
+        
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: resistanceLevel, 
+            endIdx: safeIdx(2), endPrice: resistanceLevel, 
+            color: '#ef4444', width: 2, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getHigh(-2), radius: 7, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 20 }
+        );
+      }
+      break;
+
+    // Elliott Wave Patterns
+    case 'elliott_wave_5_complete':
+      explanation = isBullish ? 'Wave 5 exhaustion → ABC correction begins → bullish opportunity ahead' : 'Pattern detected';
+      {
+        const waves = [
+          { idx: safeIdx(-20), price: getLow(-20) },
+          { idx: safeIdx(-16), price: getHigh(-16) },
+          { idx: safeIdx(-12), price: getLow(-12) },
+          { idx: safeIdx(-6), price: getHigh(-6) },
+          { idx: safeIdx(0), price: getLow(0) }
+        ];
+        
+        waves.forEach((w, i) => {
+          highlights.push(
+            { type: 'circle', idx: w.idx, price: w.price, 
+              radius: i === waves.length - 1 ? 7 : 4, 
+              color: '#38bdf8', pulse: i === waves.length - 1 }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'elliott_wave_c_complete':
+      explanation = isBullish ? 'Pattern detected' : 'Wave C exhaustion → new trend begins → bearish opportunity ahead';
+      {
+        const waves = [
+          { idx: safeIdx(-20), price: getHigh(-20) },
+          { idx: safeIdx(-16), price: getLow(-16) },
+          { idx: safeIdx(-12), price: getHigh(-12) },
+          { idx: safeIdx(-6), price: getLow(-6) },
+          { idx: safeIdx(0), price: getHigh(0) }
+        ];
+        
+        waves.forEach((w, i) => {
+          highlights.push(
+            { type: 'circle', idx: w.idx, price: w.price, 
+              radius: i === waves.length - 1 ? 7 : 4, 
+              color: '#38bdf8', pulse: i === waves.length - 1 }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Advanced Broadening Wedges
+    case 'descending_broadening_wedge':
+      explanation = isBullish ? 'Expanding range with downward bias → breakout → bullish reversal' : 'Pattern detected';
+      {
+        const start = safeIdx(-18);
+        const mid = safeIdx(-9);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1) + (getHigh(-1) - getHigh(-18)) * 0.3, 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1) - (getLow(-18) - getLow(-1)) * 0.3, 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'ascending_broadening_wedge':
+      explanation = isBullish ? 'Pattern detected' : 'Expanding range with upward bias → breakdown → bearish reversal';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1) + (getHigh(-1) - getHigh(-18)) * 0.3, 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1) - (getLow(-18) - getLow(-1)) * 0.3, 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Scallop Patterns
+    case 'inverse_scallop':
+      explanation = isBullish ? 'J-shaped recovery → accelerating momentum → bullish continuation' : 'Pattern detected';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-10), price: getLow(-10), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'scallop_top':
+      explanation = isBullish ? 'Pattern detected' : 'Inverted J-shape → decelerating momentum → bearish reversal';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-10), price: getHigh(-10), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
     default:
       explanation = isBullish ? 'Bullish pattern detected' : 'Bearish pattern detected';
       highlights.push(
@@ -802,42 +2000,179 @@ class MarketStructureGenerator {
     const { cleanRatio } = this.config;
 
     // Distribution: 50% BUY, 50% SELL - no HOLD
-    if (r < 0.25) {
-      // Clean bullish continuation
+    // Massively expanded pattern library with classic and modern patterns
+    if (r < 0.0625) {
+      // Bullish continuation - Classic flags and pennants
+      const patterns = ["Bull Flag", "Bull Pennant", "Ascending Triangle", "Rising Wedge (Continuation)"];
       return {
         type: "bullish_continuation",
         signal: "BUY",
-        name: this.rng() < 0.5 ? "Bull Flag" : "Ascending Triangle",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.125) {
+      // Bullish continuation - Channels and breakouts
+      const patterns = ["Ascending Channel", "Bull Flag Tight", "Flat Base Breakout", "Darvas Box"];
+      return {
+        type: "bullish_continuation",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.1875) {
+      // Bullish continuation - Modern patterns
+      const patterns = ["Bullish Rectangle", "High Tight Flag", "Pocket Pivot", "VCP (Volatility Contraction)"];
+      return {
+        type: "bullish_continuation",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.25) {
+      // Bullish continuation - Advanced patterns
+      const patterns = ["Three White Soldiers", "Bullish Harami", "Morning Star", "Piercing Pattern"];
+      return {
+        type: "bullish_continuation",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.3125) {
+      // Bearish continuation - Classic flags and pennants
+      const patterns = ["Bear Flag", "Bear Pennant", "Descending Triangle", "Falling Wedge (Continuation)"];
+      return {
+        type: "bearish_continuation",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.375) {
+      // Bearish continuation - Channels and breakdowns
+      const patterns = ["Descending Channel", "Bear Flag Tight", "Distribution Pattern", "Broadening Formation"];
+      return {
+        type: "bearish_continuation",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "strong",
+        quality: "clean",
+        willSucceed: true,
+      };
+    } else if (r < 0.4375) {
+      // Bearish continuation - Modern patterns
+      const patterns = ["Bearish Rectangle", "Death Cross Setup", "Dark Cloud Cover", "Evening Star"];
+      return {
+        type: "bearish_continuation",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "strong",
         quality: "clean",
         willSucceed: true,
       };
     } else if (r < 0.5) {
-      // Clean bearish continuation
+      // Bearish continuation - Advanced patterns
+      const patterns = ["Three Black Crows", "Bearish Harami", "Shooting Star", "Hanging Man"];
       return {
         type: "bearish_continuation",
         signal: "SELL",
-        name: this.rng() < 0.5 ? "Bear Flag" : "Descending Triangle",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "strong",
         quality: "clean",
         willSucceed: true,
       };
-    } else if (r < 0.75) {
-      // Bullish reversal
+    } else if (r < 0.5625) {
+      // Bullish reversal - Classic patterns
+      const patterns = ["Double Bottom", "Inverse H&S", "Falling Wedge (Reversal)", "Cup & Handle"];
       return {
         type: "bullish_reversal",
         signal: "BUY",
-        name: this.rng() < 0.5 ? "Double Bottom" : "Inverse H&S",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.625) {
+      // Bullish reversal - Advanced classic patterns
+      const patterns = ["Triple Bottom", "Rounding Bottom", "V-Bottom", "Bullish Engulfing Pattern"];
+      return {
+        type: "bullish_reversal",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.6875) {
+      // Bullish reversal - Harmonic patterns
+      const patterns = ["Gartley Bullish", "Bat Pattern Bullish", "Crab Pattern Bullish", "Butterfly Pattern Bullish"];
+      return {
+        type: "bullish_reversal",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.75) {
+      // Bullish reversal - Wyckoff & Elliott Wave
+      const patterns = ["Wyckoff Spring", "Elliott Wave 5 Complete", "Descending Broadening Wedge", "Inverse Scallop"];
+      return {
+        type: "bullish_reversal",
+        signal: "BUY",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.8125) {
+      // Bearish reversal - Classic patterns
+      const patterns = ["Double Top", "Head & Shoulders", "Rising Wedge (Reversal)", "Inverse Cup & Handle"];
+      return {
+        type: "bearish_reversal",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.875) {
+      // Bearish reversal - Advanced classic patterns
+      const patterns = ["Triple Top", "Rounding Top", "V-Top", "Bearish Engulfing Pattern"];
+      return {
+        type: "bearish_reversal",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
+        momentum: "building",
+        quality: "good",
+        willSucceed: true,
+      };
+    } else if (r < 0.9375) {
+      // Bearish reversal - Harmonic patterns
+      const patterns = ["Gartley Bearish", "Bat Pattern Bearish", "Crab Pattern Bearish", "Butterfly Pattern Bearish"];
+      return {
+        type: "bearish_reversal",
+        signal: "SELL",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "building",
         quality: "good",
         willSucceed: true,
       };
     } else {
-      // Bearish reversal
+      // Bearish reversal - Wyckoff & Elliott Wave
+      const patterns = ["Wyckoff Upthrust", "Elliott Wave C Complete", "Ascending Broadening Wedge", "Scallop Top"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
-        name: this.rng() < 0.5 ? "Double Top" : "Head & Shoulders",
+        name: patterns[Math.floor(this.rng() * patterns.length)],
         momentum: "building",
         quality: "good",
         willSucceed: true,
