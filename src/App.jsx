@@ -876,17 +876,18 @@ class MarketStructureGenerator {
       ═══════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════
-  5. CHART RENDERER - Profi verzió, stabil kanóc, arányos wick
+    5. CHART RENDERER - Profi verzió, stabil kanóc, arányos wick
 
-  Javítva:
-  - Kanóc mindig arányos a high-low különbséggel
-  - Wick max magasság limit
-  - Body minimum magasság
-  - Price label-ek eltávolítva
-  - Animáció progress-szel
-  - Grid és ambient light megmarad
-  - Mobil és desktop optimalizálva
-  ═══════════════════════════════════════════════════════════════ */
+    Javítva:
+    - Kanóc mindig arányos a high-low különbséggel
+    - Wick max magasság limit
+    - Body minimum magasság
+    - Price label-ek eltávolítva
+    - Animáció progress-szel
+    - Grid és ambient light megmarad
+    - Mobil és desktop optimalizálva
+    - drawAnnotations teljesen kompatibilis a generateAnnotation ár-alapú struktúrájával
+    ═══════════════════════════════════════════════════════════════ */
 
 class ChartRenderer {
   constructor(canvas, config) {
@@ -931,17 +932,13 @@ class ChartRenderer {
 
     const MIN_BODY_WIDTH = mobile ? 3 : 4;
     const MAX_BODY_WIDTH = mobile ? 14 : 18;
-    
+
     // CRITICAL: Use override if provided (for reveal animation stability)
-    // Otherwise use actual candle count
-    // This prevents jumping when candles are being revealed progressively
     const totalCandleCount = totalCandleCountOverride !== null ? totalCandleCountOverride : allCandles.length;
-    
-    // Calculate ideal slot width to fit all candles (using stable total)
+
     let slotWidth = availableWidth / totalCandleCount;
     let bodyWidth = slotWidth - gap;
-    
-    // Clamp body width to min/max
+
     if (bodyWidth < MIN_BODY_WIDTH) {
       bodyWidth = MIN_BODY_WIDTH;
       slotWidth = bodyWidth + gap;
@@ -949,25 +946,19 @@ class ChartRenderer {
       bodyWidth = MAX_BODY_WIDTH;
       slotWidth = bodyWidth + gap;
     }
-    
-    // Now calculate how many candles fit in view
+
     const MAX_VISIBLE = Math.min(totalCandleCount, Math.floor(availableWidth / slotWidth));
 
     const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
-    
-    // Apply scroll offset (in candles) - now using stable slotWidth
+
     const offsetCandles = Math.floor(scrollOffset / slotWidth);
-    
-    // Calculate start index with proper bounds to prevent jumping
     const maxStartIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
     const rawStartIdx = maxStartIdx - offsetCandles;
     const startIdx = Math.max(0, Math.min(maxStartIdx, rawStartIdx));
-    
-    // Show visible candles (using actual candles, not total count)
+
     const endIdx = Math.min(startIdx + MAX_VISIBLE, allCandles.length);
     const visible = allCandles.slice(startIdx, endIdx);
-    
-    // Early exit if nothing to render
+
     if (visible.length === 0) return;
 
     // Y skála
@@ -1013,10 +1004,9 @@ class ChartRenderer {
       ctx.stroke();
     }
 
-    // Gyertyák - OPTIMIZED: batch rendering, no save/restore per candle
+    // Gyertyák - wicks first (batched)
     ctx.lineWidth = wickWidth;
-    
-    // Draw all wicks first (batched)
+
     visible.forEach((c, i) => {
       const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
       const bull = c.close >= c.open;
@@ -1041,23 +1031,22 @@ class ChartRenderer {
       ctx.stroke();
     });
 
-    // Draw all bodies (batched by color for better performance)
+    // Bodies batched by color
     const bullCandles = [];
     const bearCandles = [];
-    
+
     visible.forEach((c, i) => {
       const x = leftPadding + i * slotWidth + (slotWidth - bodyWidth) / 2;
       const bull = c.close >= c.open;
       const top = toY(Math.max(c.open, c.close));
       const bot = toY(Math.min(c.open, c.close));
       const bodyHeight = Math.max(bot - top, minBodyHeight);
-      
+
       const candleData = { x, top, bodyWidth, bodyHeight };
       if (bull) bullCandles.push(candleData);
       else bearCandles.push(candleData);
     });
 
-    // Draw bull candles
     if (bullCandles.length > 0) {
       ctx.fillStyle = C.bull;
       ctx.strokeStyle = C.bull;
@@ -1070,7 +1059,6 @@ class ChartRenderer {
       });
     }
 
-    // Draw bear candles
     if (bearCandles.length > 0) {
       ctx.fillStyle = C.bear;
       ctx.strokeStyle = C.bear;
@@ -1083,12 +1071,12 @@ class ChartRenderer {
       });
     }
 
-    // Draw annotations if provided and we're on outcome screen
+    // Annotations
     if (annotation && annotation.highlights) {
       this.drawAnnotations(annotation, visible, startIdx, toY, leftPadding, slotWidth, bodyWidth);
     }
 
-    // Price label-ek teljesen kikapcsolva
+    // Price label-ek kikapcsolva
   }
 
   render(allCandles, windowStart, windowSize) {
@@ -1107,56 +1095,44 @@ class ChartRenderer {
     const ctx = this.ctx;
 
     highlights.forEach(h => {
-      const getCandleX = (idx) => leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
-      const getCandleY = (idx, point) => {
-        const candle = visibleCandles[idx - startIdx];
-        if (!candle) return 0;
-        return toY(candle[point]);
-      };
+      // X koordináta segédfüggvény
+      const getX = idx => leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
 
       ctx.save();
 
       switch (h.type) {
         case 'circle': {
-          const x = getCandleX(h.candleIdx);
-          const y = getCandleY(h.candleIdx, h.point);
-          
-          ctx.strokeStyle = h.color;
-          ctx.lineWidth = 2;
+          const x = getX(h.idx);
+          const y = toY(h.price);
+
+          ctx.strokeStyle = h.color || C.nGreen;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(x, y, 8, 0, Math.PI * 2);
+          ctx.arc(x, y, h.radius || 12, 0, Math.PI * 2);
           ctx.stroke();
 
           if (h.label) {
-            ctx.fillStyle = h.color;
-            ctx.font = 'bold 11px system-ui';
+            ctx.fillStyle = "#ffffff";
+            ctx.font = 'bold 11px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(h.label, x, y - 15);
+            ctx.fillText(h.label, x, y - (h.radius || 12) - 6);
           }
           break;
         }
 
         case 'line': {
-          const x1 = getCandleX(h.fromIdx);
-          const x2 = getCandleX(h.toIdx);
-          let y1 = getCandleY(h.fromIdx, h.point);
-          let y2 = getCandleY(h.toIdx, h.point);
+          const x1 = getX(h.startIdx);
+          const y1 = toY(h.startPrice);
+          const x2 = getX(h.endIdx);
+          const y2 = toY(h.endPrice);
 
-          if (h.slope === 'up') {
-            const rise = (y1 - y2) * 0.3;
-            y2 -= rise;
-          } else if (h.slope === 'down') {
-            const fall = (y2 - y1) * 0.3;
-            y2 += fall;
-          }
-
-          ctx.strokeStyle = h.color;
+          ctx.strokeStyle = h.color || C.neut;
           ctx.lineWidth = h.width || 2;
-          
-          if (h.style === 'dashed') {
+
+          if (h.dashed || h.style === 'dashed') {
             ctx.setLineDash([5, 5]);
           }
-          
+
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x2, y2);
@@ -1164,79 +1140,99 @@ class ChartRenderer {
           ctx.setLineDash([]);
 
           if (h.label) {
-            ctx.fillStyle = h.color;
-            ctx.font = 'bold 11px system-ui';
+            ctx.fillStyle = h.color || C.neut;
+            ctx.font = 'bold 11px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(h.label, (x1 + x2) / 2, y1 - 10);
+            const midX = (x1 + x2) / 2;
+            const midY = Math.min(y1, y2) - 10;
+            ctx.fillText(h.label, midX, midY);
           }
           break;
         }
 
         case 'rect': {
-          const x1 = getCandleX(h.fromIdx);
-          const x2 = getCandleX(h.toIdx);
-          const y1 = getCandleY(h.fromIdx, h.topPoint);
-          const y2 = getCandleY(h.toIdx, h.bottomPoint);
+          const x1 = leftPadding + (h.startIdx - startIdx) * slotWidth;
+          const x2 = leftPadding + (h.endIdx - startIdx) * slotWidth + slotWidth;
+          const yTop = toY(h.priceTop);
+          const yBot = toY(h.priceBot);
 
-          ctx.fillStyle = h.color + Math.round((h.alpha || 0.2) * 255).toString(16).padStart(2, '0');
-          ctx.fillRect(x1 - slotWidth / 2, y1, x2 - x1 + slotWidth / 2, y2 - y1);
+          ctx.fillStyle = (h.color || C.nAmber) + '33'; // könnyű kitöltés
+          ctx.fillRect(x1, yTop, x2 - x1, yBot - yTop);
 
-          ctx.strokeStyle = h.color;
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.strokeRect(x1 - slotWidth / 2, y1, x2 - x1 + slotWidth / 2, y2 - y1);
+          ctx.strokeStyle = h.color || C.nAmber;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 3]);
+          ctx.strokeRect(x1, yTop, x2 - x1, yBot - yTop);
           ctx.setLineDash([]);
 
           if (h.label) {
-            ctx.fillStyle = h.color;
-            ctx.font = 'bold 11px system-ui';
+            ctx.fillStyle = h.color || C.nAmber;
+            ctx.font = 'bold 11px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(h.label, (x1 + x2) / 2, y1 - 5);
+            ctx.fillText(h.label, (x1 + x2) / 2, yTop - 8);
           }
           break;
         }
 
         case 'arrow': {
-          const x1 = getCandleX(h.fromIdx);
-          const x2 = getCandleX(h.toIdx);
-          const y1 = getCandleY(h.fromIdx, 'close');
-          const y2 = h.direction === 'up' 
-            ? getCandleY(h.toIdx, 'high') - 20
-            : getCandleY(h.toIdx, 'low') + 20;
+          const x = getX(h.idx);
+          const yBase = toY(h.price);
+          const dirUp = h.direction === 'up';
+          const color = h.color || (dirUp ? C.bull : C.bear);
+          const size = h.size || 18;
 
-          ctx.strokeStyle = h.color;
-          ctx.fillStyle = h.color;
+          ctx.strokeStyle = color;
+          ctx.fillStyle = color;
           ctx.lineWidth = 3;
 
+          // Szár
           ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
+          ctx.moveTo(x, yBase);
+          ctx.lineTo(x, dirUp ? yBase - size * 1.2 : yBase + size * 1.2);
           ctx.stroke();
 
-          const angle = Math.atan2(y2 - y1, x2 - x1);
-          const headSize = 10;
-          
+          // Nyílhegy
           ctx.beginPath();
-          ctx.moveTo(x2, y2);
-          ctx.lineTo(
-            x2 - headSize * Math.cos(angle - Math.PI / 6),
-            y2 - headSize * Math.sin(angle - Math.PI / 6)
-          );
-          ctx.lineTo(
-            x2 - headSize * Math.cos(angle + Math.PI / 6),
-            y2 - headSize * Math.sin(angle + Math.PI / 6)
-          );
+          if (dirUp) {
+            ctx.moveTo(x - size / 2, yBase - size * 0.6);
+            ctx.lineTo(x, yBase - size * 1.2);
+            ctx.lineTo(x + size / 2, yBase - size * 0.6);
+          } else {
+            ctx.moveTo(x - size / 2, yBase + size * 0.6);
+            ctx.lineTo(x, yBase + size * 1.2);
+            ctx.lineTo(x + size / 2, yBase + size * 0.6);
+          }
           ctx.closePath();
           ctx.fill();
+
+          if (h.label) {
+            ctx.fillStyle = color;
+            ctx.font = 'bold 12px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(h.label, x, dirUp ? yBase - size * 1.4 - 5 : yBase + size * 1.4 + 10);
+          }
           break;
         }
+
+        case 'text': {
+          const x = getX(h.idx);
+          const y = toY(h.price);
+
+          ctx.fillStyle = h.color || '#ffffff';
+          ctx.font = 'bold 12px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(h.label, x, y - 10);
+          break;
+        }
+
+        default:
+          console.warn('Ismeretlen annotation típus:', h.type);
       }
 
       ctx.restore();
     });
   }
 }
-
 
 /* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
