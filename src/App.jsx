@@ -231,7 +231,6 @@ class SoundEngine {
 
 const sound = new SoundEngine();
 
-
 /* ═══════════════════════════════════════════════════════════════
     ROAST GENERATOR - Crypto Bro Style
    ═══════════════════════════════════════════════════════════════ */
@@ -284,7 +283,7 @@ function getMemeForScore(accuracy) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-    SHARE FUNCTIONS - Base + Twitter
+    SHARE FUNCTIONS - Base + Twitter  
    ═══════════════════════════════════════════════════════════════ */
 
 function shareToTwitter(stats, roast) {
@@ -315,16 +314,15 @@ function shareToBase(stats, roast) {
   return shareText;
 }
 
-
 /* ═══════════════════════════════════════════════════════════════
     4  PATTERN ANNOTATION GENERATOR
-    Accurate, understandable annotations for every pattern
+    Pontosabb, érthetőbb annotációk minden pattern-hez
    ═══════════════════════════════════════════════════════════════ */
 
 function generateAnnotation(structure) {
   const { pattern, signal, candles, decisionIndex } = structure;
 
-  // Normalize pattern name
+  // Normalizáljuk a pattern nevet
   const p = pattern.toLowerCase().trim().replace(/&/g, 'and').replace(/\s+/g, '_');
 
   const highlights = [];
@@ -332,7 +330,7 @@ function generateAnnotation(structure) {
 
   const isBullish = signal === 'BUY';
   
-  // Safe index access
+  // Biztonságos index hozzáférés
   const safeIdx = (offset) => Math.max(0, Math.min(candles.length - 1, decisionIndex + offset));
   const getHigh  = (o) => candles[safeIdx(o)]?.high  ?? candles[decisionIndex].high;
   const getLow   = (o) => candles[safeIdx(o)]?.low   ?? candles[decisionIndex].low;
@@ -444,7 +442,7 @@ function generateAnnotation(structure) {
     case 'double_bottom':
       explanation = isBullish ? 'Equal lows + neckline break → bullish reversal' : 'Pattern detected';
       {
-        // Két pulzáló pts a mélyptsokon - NINCS label
+        // Két pulzáló pont a mélypontokon - NINCS label
         const leftIdx = safeIdx(-18);
         const leftPrice = getLow(-18);
         highlights.push(
@@ -478,7 +476,7 @@ function generateAnnotation(structure) {
     case 'double_top':
       explanation = isBullish ? 'Pattern detected' : 'Equal highs + neckline break → bearish reversal';
       {
-        // Két pulzáló pts a csúcsokon - NINCS label
+        // Két pulzáló pont a csúcsokon - NINCS label
         const leftIdx = safeIdx(-18);
         const leftPrice = getHigh(-18);
         highlights.push(
@@ -513,7 +511,7 @@ function generateAnnotation(structure) {
     case 'head_shoulders':
       explanation = isBullish ? 'Pattern detected' : 'Left shoulder < Head > Right shoulder → neckline break → bearish reversal';
       {
-        // Három pulzáló pts - NINCS label, csak kis és nagy különbség jelzi a fejet
+        // Három pulzáló pont - NINCS label, csak kis és nagy különbség jelzi a fejet
         const leftShoulderIdx = safeIdx(-20);
         const leftShoulderPrice = getHigh(-20);
         highlights.push(
@@ -781,9 +779,9 @@ function generateAnnotation(structure) {
     case 'inverse_cup_&_handle':
       explanation = isBullish ? 'Pattern detected' : 'Rounded top + handle consolidation → breakdown → bearish reversal';
       {
-        const cupTopDegensIdx = safeIdx(-15);
+        const cupTopIdx = safeIdx(-15);
         highlights.push(
-          { type: 'circle', idx: cupTopDegensIdx, price: getHigh(-15), 
+          { type: 'circle', idx: cupTopIdx, price: getHigh(-15), 
             radius: 6, color: '#ef4444', pulse: true }
         );
         
@@ -977,9 +975,9 @@ function generateAnnotation(structure) {
     case 'v_top':
       explanation = isBullish ? 'Pattern detected' : 'Sharp reversal from high → strong bearish momentum';
       {
-        const vTopDegensIdx = safeIdx(-5);
+        const vTopIdx = safeIdx(-5);
         highlights.push(
-          { type: 'circle', idx: vTopDegensIdx, price: getHigh(-5), 
+          { type: 'circle', idx: vTopIdx, price: getHigh(-5), 
             radius: 6, color: '#ef4444', pulse: true }
         );
 
@@ -2220,7 +2218,7 @@ class MarketStructureGenerator {
       };
     } else if (r < 0.8125) {
       // Bearish reversal - Classic patterns
-      const patterns = ["Double Top Degens", "Head & Shoulders", "Rising Wedge (Reversal)", "Inverse Cup & Handle"];
+      const patterns = ["Double Top", "Head & Shoulders", "Rising Wedge (Reversal)", "Inverse Cup & Handle"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
@@ -2231,7 +2229,7 @@ class MarketStructureGenerator {
       };
     } else if (r < 0.875) {
       // Bearish reversal - Advanced classic patterns
-      const patterns = ["Triple Top Degens", "Rounding Top Degens", "V-Top Degens", "Bearish Engulfing Pattern"];
+      const patterns = ["Triple Top", "Rounding Top", "V-Top", "Bearish Engulfing Pattern"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
@@ -2253,7 +2251,7 @@ class MarketStructureGenerator {
       };
     } else {
       // Bearish reversal - Wyckoff & Elliott Wave
-      const patterns = ["Wyckoff Upthrust", "Elliott Wave C Complete", "Ascending Broadening Wedge", "Scallop Top Degens"];
+      const patterns = ["Wyckoff Upthrust", "Elliott Wave C Complete", "Ascending Broadening Wedge", "Scallop Top"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
@@ -2973,7 +2971,7 @@ class ChartRenderer {
       return { x: labelX, y: adjustedY };
     };
 
-    // Rajzoljuk meg az összetevőket (roundök, vonalak, stb.)
+    // Rajzoljuk meg az összetevőket (körök, vonalak, stb.)
     highlights.forEach(h => {
       if (!h || !h.type) return;
       ctx.save();
@@ -2984,7 +2982,7 @@ class ChartRenderer {
           if (x === null) break;
           const y = toY(h.price);
 
-          // Pulzáló round - NINCS LABEL
+          // Pulzáló kör - NINCS LABEL
           const isPulsing = h.pulse === true;
           const pulseScale = isPulsing ? 1 + Math.sin(Date.now() / 300) * 0.15 : 1;
           const radius = (h.radius || 6) * pulseScale;
@@ -3028,16 +3026,16 @@ class ChartRenderer {
           
           const x1 = leftPadding + Math.max(0, (h.startIdx - startIdx)) * slotWidth;
           const x2 = leftPadding + Math.min(visibleCandles.length, (h.endIdx - startIdx + 1)) * slotWidth;
-          const yTopDegens = toY(h.priceTopDegens);
+          const yTop = toY(h.priceTop);
           const yBot = toY(h.priceBot);
 
           ctx.fillStyle = (h.color || C.nAmber) + '10';
-          ctx.fillRect(x1, yTopDegens, x2 - x1, yBot - yTopDegens);
+          ctx.fillRect(x1, yTop, x2 - x1, yBot - yTop);
 
           ctx.strokeStyle = h.color || C.nAmber;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([6, 4]);
-          ctx.strokeRect(x1, yTopDegens, x2 - x1, yBot - yTopDegens);
+          ctx.strokeRect(x1, yTop, x2 - x1, yBot - yTop);
           ctx.setLineDash([]);
           break;
         }
@@ -3387,12 +3385,12 @@ function DeveloperSupport({ onClose, onSupport }) {
             transition: 'all 0.2s',
           }}
         >
-          {isProcessing ? 'Feldolgozás...' : '💰 Support Dev (Base) küldése'}
+          {isProcessing ? 'Feldolgozás...' : 'Támogatás küldése'}
         </button>
 
         <div
           style={{
-            marginTopDegens: 16,
+            marginTop: 16,
             padding: 12,
             background: C.bg1,
             borderRadius: 8,
@@ -3556,7 +3554,7 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
             marginBottom: 2,
           }}
         >
-          {correct ? "Correct!" : "Incorrect"}
+          {correct ? "BASED! ✅" : "Incorrect"}
         </div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}>
           You chose {choice} • Signal was {signal}
@@ -3645,6 +3643,24 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
 const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const roast = useMemo(() => generateRoast(stats), [stats]);
+  const meme = useMemo(() => getMemeForScore(stats.accuracy), [stats.accuracy]);
+
+  const handleTwitterShare = useCallback(() => {
+    shareToTwitter(stats, roast);
+    sound.click();
+    haptic([20]);
+  }, [stats, roast]);
+
+  const handleBaseShare = useCallback(() => {
+    shareToBase(stats, roast);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    sound.click();
+    haptic([20]);
+  }, [stats, roast]);
 
   useEffect(() => {
     const saveScore = async () => {
@@ -3679,13 +3695,42 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     saveScore();
   }, [playerName, stats, saved]);
 
+  // Determine grade
+  let grade, gradeColor;
+  if (stats.accuracy >= 90) {
+    grade = "LEGENDARY 🐐";
+    gradeColor = "#ffd700";
+  } else if (stats.accuracy >= 75) {
+    grade = "DEGEN PRO 💎";
+    gradeColor = C.nGreen;
+  } else if (stats.accuracy >= 60) {
+    grade = "SOLID APE 🦍";
+    gradeColor = C.nBlue;
+  } else if (stats.accuracy >= 40) {
+    grade = "PAPER HANDS 📄";
+    gradeColor = C.nAmber;
+  } else {
+    grade = "NGMI 💀";
+    gradeColor = C.bear;
+  }
+
   return (
     <>
       <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
-        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
+        {/* Meme emoji */}
+        <div style={{ fontSize: 48, marginBottom: 8 }}>{meme}</div>
+        
+        {/* Grade */}
+        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: gradeColor }}>
+          {grade}
+        </div>
+        
+        {/* Player name */}
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>
           {playerName}
         </div>
+        
+        {/* Score */}
         <div
           style={{
             fontSize: 48,
@@ -3700,6 +3745,22 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           {stats.totalScore.toLocaleString()}
         </div>
 
+        {/* Roast Section */}
+        <div
+          style={{
+            padding: "16px",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12,
+            marginBottom: 20,
+          }}
+        >
+          <div style={{ fontSize: 14, fontStyle: "italic", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+            "{roast}"
+          </div>
+        </div>
+
+        {/* Stats Grid */}
         <div
           style={{
             display: "grid",
@@ -3748,6 +3809,45 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             ✓ Score saved to leaderboard!
           </div>
         )}
+
+        {/* Share Buttons */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          <button
+            onClick={handleTwitterShare}
+            style={{
+              flex: 1,
+              padding: "14px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#fff",
+              background: "#1DA1F2",
+              border: "none",
+              borderRadius: 10,
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            🐦 Share on X
+          </button>
+          
+          <button
+            onClick={handleBaseShare}
+            style={{
+              flex: 1,
+              padding: "14px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#fff",
+              background: copied ? C.nGreen : "#0052FF",
+              border: "none",
+              borderRadius: 10,
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+          >
+            {copied ? "✅ Copied!" : "🔵 Share Base"}
+          </button>
+        </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", gap: 10 }}>
@@ -3833,7 +3933,7 @@ const Leaderboard = ({ onBack }) => {
       // Convert to array and sort by total score
       const leaderboard = Object.values(aggregated)
         .sort((a, b) => b.totalScore - a.totalScore)
-        .slice(0, 10); // Top Degens 10
+        .slice(0, 10); // Top 10
       
       setEntries(leaderboard);
     } catch (err) {
@@ -3949,7 +4049,7 @@ const Leaderboard = ({ onBack }) => {
       <GlassButton 
         onClick={onBack} 
         color={C.nPurple} 
-        style={{ marginTopDegens: 8 }}
+        style={{ marginTop: 8 }}
       >
         Back
       </GlassButton>
