@@ -1353,7 +1353,7 @@ function generateAnnotation(structure) {
         
         points.forEach(p => {
           highlights.push(
-            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#a855f7', pulse: true }
+            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#fbbf24', pulse: true }
           );
         });
         
@@ -1368,13 +1368,13 @@ function generateAnnotation(structure) {
       explanation = isBullish ? 'Bat harmonic: precise Fib retracement → high-probability reversal' : 'Pattern detected';
       {
         highlights.push(
-          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
@@ -1391,13 +1391,13 @@ function generateAnnotation(structure) {
       explanation = isBullish ? 'Crab harmonic: extreme extension → powerful reversal zone' : 'Pattern detected';
       {
         highlights.push(
-          { type: 'circle', idx: safeIdx(-20), price: getHigh(-20), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-20), price: getHigh(-20), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-14), price: getLow(-14), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-14), price: getLow(-14), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-7), price: getHigh(-7), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-7), price: getHigh(-7), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
@@ -1414,13 +1414,13 @@ function generateAnnotation(structure) {
       explanation = isBullish ? 'Butterfly harmonic: 127.2% extension → reversal imminent' : 'Pattern detected';
       {
         highlights.push(
-          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
@@ -1447,7 +1447,7 @@ function generateAnnotation(structure) {
         
         points.forEach(p => {
           highlights.push(
-            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#a855f7', pulse: true }
+            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#9b7618', pulse: true }
           );
         });
         
@@ -1462,13 +1462,13 @@ function generateAnnotation(structure) {
       explanation = isBullish ? 'Pattern detected' : 'Bat harmonic: precise Fib retracement → high-probability reversal';
       {
         highlights.push(
-          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
@@ -1485,13 +1485,13 @@ function generateAnnotation(structure) {
       explanation = isBullish ? 'Pattern detected' : 'Crab harmonic: extreme extension → powerful reversal zone';
       {
         highlights.push(
-          { type: 'circle', idx: safeIdx(-20), price: getLow(-20), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-20), price: getLow(-20), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-14), price: getHigh(-14), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-14), price: getHigh(-14), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-7), price: getLow(-7), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-7), price: getLow(-7), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
@@ -1508,13 +1508,13 @@ function generateAnnotation(structure) {
       explanation = isBullish ? 'Pattern detected' : 'Butterfly harmonic: 127.2% extension → reversal imminent';
       {
         highlights.push(
-          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
-          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#a855f7', pulse: true }
+          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#9b7618', pulse: true }
         );
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
