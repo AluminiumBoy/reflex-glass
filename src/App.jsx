@@ -229,7 +229,96 @@ class SoundEngine {
 const sound = new SoundEngine();
 
 /* ═══════════════════════════════════════════════════════════════
-    4  MARKET STRUCTURE GENERATOR
+    4  PATTERN ANNOTATION GENERATOR
+    
+    Generates visual annotations for pattern breakdown
+   ═══════════════════════════════════════════════════════════════ */
+
+function generateAnnotation(structure) {
+  const { pattern, direction } = structure.continuation;
+  const highlights = [];
+  let explanation = '';
+
+  switch (pattern) {
+    case 'double_bottom':
+      explanation = direction === 'bullish' 
+        ? 'Valid Double Bottom: Two distinct lows at similar price levels, followed by a breakout above the neckline resistance.'
+        : 'Failed Double Bottom: Price rejected at resistance, creating a bearish setup.';
+      
+      highlights.push(
+        { type: 'circle', candleIdx: 2, point: 'low', color: direction === 'bullish' ? '#10b981' : '#ef4444', label: 'Left Bottom' },
+        { type: 'circle', candleIdx: 6, point: 'low', color: direction === 'bullish' ? '#10b981' : '#ef4444', label: 'Right Bottom' },
+        { type: 'line', fromIdx: 2, toIdx: 6, point: 'high', style: 'dashed', color: '#f59e0b', label: 'Neckline' },
+        { type: 'arrow', fromIdx: 6, toIdx: 8, direction: direction === 'bullish' ? 'up' : 'down', color: direction === 'bullish' ? '#10b981' : '#ef4444' }
+      );
+      break;
+
+    case 'bull_flag':
+      explanation = direction === 'bullish'
+        ? 'Valid Bull Flag: Strong uptrend (pole), consolidation (flag), then continuation breakout upward.'
+        : 'Failed Bull Flag: Consolidation broke downward instead of continuing the trend.';
+      
+      highlights.push(
+        { type: 'line', fromIdx: 0, toIdx: 2, point: 'close', style: 'solid', color: '#10b981', label: 'Pole', width: 3 },
+        { type: 'rect', fromIdx: 2, toIdx: 6, topPoint: 'high', bottomPoint: 'low', color: '#f59e0b', alpha: 0.2, label: 'Flag Consolidation' },
+        { type: 'arrow', fromIdx: 6, toIdx: 8, direction: direction === 'bullish' ? 'up' : 'down', color: direction === 'bullish' ? '#10b981' : '#ef4444' }
+      );
+      break;
+
+    case 'head_shoulders':
+      explanation = direction === 'bearish'
+        ? 'Valid Head & Shoulders: Left shoulder, higher head, right shoulder, then neckline breakdown.'
+        : 'Failed Head & Shoulders: Neckline held as support, reversing to bullish.';
+      
+      highlights.push(
+        { type: 'circle', candleIdx: 1, point: 'high', color: '#f59e0b', label: 'Left Shoulder' },
+        { type: 'circle', candleIdx: 4, point: 'high', color: '#ef4444', label: 'Head' },
+        { type: 'circle', candleIdx: 7, point: 'high', color: '#f59e0b', label: 'Right Shoulder' },
+        { type: 'line', fromIdx: 2, toIdx: 6, point: 'low', style: 'dashed', color: '#f59e0b', label: 'Neckline' },
+        { type: 'arrow', fromIdx: 7, toIdx: 9, direction: direction === 'bearish' ? 'down' : 'up', color: direction === 'bearish' ? '#ef4444' : '#10b981' }
+      );
+      break;
+
+    case 'inverse_head_shoulders':
+      explanation = direction === 'bullish'
+        ? 'Valid Inverse H&S: Left shoulder, lower head, right shoulder, then neckline breakout upward.'
+        : 'Failed Inverse H&S: Resistance held, price rejected downward.';
+      
+      highlights.push(
+        { type: 'circle', candleIdx: 1, point: 'low', color: '#f59e0b', label: 'Left Shoulder' },
+        { type: 'circle', candleIdx: 4, point: 'low', color: '#10b981', label: 'Head' },
+        { type: 'circle', candleIdx: 7, point: 'low', color: '#f59e0b', label: 'Right Shoulder' },
+        { type: 'line', fromIdx: 2, toIdx: 6, point: 'high', style: 'dashed', color: '#f59e0b', label: 'Neckline' },
+        { type: 'arrow', fromIdx: 7, toIdx: 9, direction: direction === 'bullish' ? 'up' : 'down', color: direction === 'bullish' ? '#10b981' : '#ef4444' }
+      );
+      break;
+
+    case 'ascending_triangle':
+      explanation = direction === 'bullish'
+        ? 'Valid Ascending Triangle: Flat resistance top, rising support, breakout confirms bullish continuation.'
+        : 'Failed Ascending Triangle: Breakdown below rising support invalidates pattern.';
+      
+      highlights.push(
+        { type: 'line', fromIdx: 1, toIdx: 7, point: 'high', style: 'dashed', color: '#f59e0b', label: 'Resistance' },
+        { type: 'line', fromIdx: 1, toIdx: 7, point: 'low', style: 'dashed', color: '#10b981', label: 'Rising Support', slope: 'up' },
+        { type: 'arrow', fromIdx: 7, toIdx: 9, direction: direction === 'bullish' ? 'up' : 'down', color: direction === 'bullish' ? '#10b981' : '#ef4444' }
+      );
+      break;
+
+    default:
+      explanation = 'Pattern breakdown not available.';
+  }
+
+  return {
+    pattern,
+    direction,
+    explanation,
+    highlights
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+    5  MARKET STRUCTURE GENERATOR
     
     This is the CORE of the redesign. Instead of generating isolated
     patterns, we create realistic market structures with:
@@ -824,7 +913,7 @@ class ChartRenderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  renderAll(allCandles, scrollOffset = 0, totalCandleCountOverride = null) {
+  renderAll(allCandles, scrollOffset = 0, totalCandleCountOverride = null, annotation = null) {
     const ctx = this.ctx;
     const dpr = window.devicePixelRatio || 1;
     const width = this.canvas.width / dpr;
@@ -994,6 +1083,11 @@ class ChartRenderer {
       });
     }
 
+    // Draw annotations if provided and we're on outcome screen
+    if (annotation && annotation.highlights) {
+      this.drawAnnotations(annotation, visible, startIdx, toY, leftPadding, slotWidth, bodyWidth);
+    }
+
     // Price label-ek teljesen kikapcsolva
   }
 
@@ -1004,6 +1098,142 @@ class ChartRenderer {
   renderContinuation(allCandles, windowStart, windowSize, continuation, progress) {
     const count = Math.floor(progress * continuation.length);
     this.renderAll([...allCandles, ...continuation.slice(0, count)]);
+  }
+
+  drawAnnotations(annotations, visibleCandles, startIdx, toY, leftPadding, slotWidth, bodyWidth) {
+    if (!annotations || !annotations.highlights) return;
+
+    const { highlights } = annotations;
+    const ctx = this.ctx;
+
+    highlights.forEach(h => {
+      const getCandleX = (idx) => leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
+      const getCandleY = (idx, point) => {
+        const candle = visibleCandles[idx - startIdx];
+        if (!candle) return 0;
+        return toY(candle[point]);
+      };
+
+      ctx.save();
+
+      switch (h.type) {
+        case 'circle': {
+          const x = getCandleX(h.candleIdx);
+          const y = getCandleY(h.candleIdx, h.point);
+          
+          ctx.strokeStyle = h.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, 8, 0, Math.PI * 2);
+          ctx.stroke();
+
+          if (h.label) {
+            ctx.fillStyle = h.color;
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(h.label, x, y - 15);
+          }
+          break;
+        }
+
+        case 'line': {
+          const x1 = getCandleX(h.fromIdx);
+          const x2 = getCandleX(h.toIdx);
+          let y1 = getCandleY(h.fromIdx, h.point);
+          let y2 = getCandleY(h.toIdx, h.point);
+
+          if (h.slope === 'up') {
+            const rise = (y1 - y2) * 0.3;
+            y2 -= rise;
+          } else if (h.slope === 'down') {
+            const fall = (y2 - y1) * 0.3;
+            y2 += fall;
+          }
+
+          ctx.strokeStyle = h.color;
+          ctx.lineWidth = h.width || 2;
+          
+          if (h.style === 'dashed') {
+            ctx.setLineDash([5, 5]);
+          }
+          
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          if (h.label) {
+            ctx.fillStyle = h.color;
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(h.label, (x1 + x2) / 2, y1 - 10);
+          }
+          break;
+        }
+
+        case 'rect': {
+          const x1 = getCandleX(h.fromIdx);
+          const x2 = getCandleX(h.toIdx);
+          const y1 = getCandleY(h.fromIdx, h.topPoint);
+          const y2 = getCandleY(h.toIdx, h.bottomPoint);
+
+          ctx.fillStyle = h.color + Math.round((h.alpha || 0.2) * 255).toString(16).padStart(2, '0');
+          ctx.fillRect(x1 - slotWidth / 2, y1, x2 - x1 + slotWidth / 2, y2 - y1);
+
+          ctx.strokeStyle = h.color;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.strokeRect(x1 - slotWidth / 2, y1, x2 - x1 + slotWidth / 2, y2 - y1);
+          ctx.setLineDash([]);
+
+          if (h.label) {
+            ctx.fillStyle = h.color;
+            ctx.font = 'bold 11px system-ui';
+            ctx.textAlign = 'center';
+            ctx.fillText(h.label, (x1 + x2) / 2, y1 - 5);
+          }
+          break;
+        }
+
+        case 'arrow': {
+          const x1 = getCandleX(h.fromIdx);
+          const x2 = getCandleX(h.toIdx);
+          const y1 = getCandleY(h.fromIdx, 'close');
+          const y2 = h.direction === 'up' 
+            ? getCandleY(h.toIdx, 'high') - 20
+            : getCandleY(h.toIdx, 'low') + 20;
+
+          ctx.strokeStyle = h.color;
+          ctx.fillStyle = h.color;
+          ctx.lineWidth = 3;
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          const headSize = 10;
+          
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(
+            x2 - headSize * Math.cos(angle - Math.PI / 6),
+            y2 - headSize * Math.sin(angle - Math.PI / 6)
+          );
+          ctx.lineTo(
+            x2 - headSize * Math.cos(angle + Math.PI / 6),
+            y2 - headSize * Math.sin(angle + Math.PI / 6)
+          );
+          ctx.closePath();
+          ctx.fill();
+          break;
+        }
+      }
+
+      ctx.restore();
+    });
   }
 }
 
@@ -1125,7 +1355,7 @@ const DecisionButtons = React.memo(({ onChoose, disabled }) => {
   );
 });
 
-const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onNext, context }) => (
+const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onNext, context, showAnnotation, onToggleAnnotation, currentAnnotation }) => (
   <GlassPanel style={{ padding: "16px 20px" }}>
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
       <div
@@ -1169,8 +1399,26 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
       </div>
     </div>
 
+    {/* Annotation explanation */}
+    {showAnnotation && currentAnnotation && (
+      <div
+        style={{
+          fontSize: 12,
+          color: "rgba(255,255,255,0.85)",
+          marginBottom: 12,
+          padding: "12px",
+          background: "rgba(0,0,0,0.3)",
+          borderRadius: 10,
+          border: "1px solid rgba(245,158,11,0.5)",
+          lineHeight: 1.5,
+        }}
+      >
+        {currentAnnotation.explanation}
+      </div>
+    )}
+
     {/* Context explanation */}
-    {context && (
+    {context && !showAnnotation && (
       <div
         style={{
           fontSize: 12,
@@ -1201,9 +1449,23 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
       </div>
     )}
 
-    <GlassButton onClick={onNext} color={C.nBlue} style={{ width: "100%", padding: "14px 0" }}>
-      Next Round →
-    </GlassButton>
+    <div style={{ display: "flex", gap: 10 }}>
+      <GlassButton 
+        onClick={onToggleAnnotation} 
+        color={showAnnotation ? C.nAmber : "#374151"} 
+        style={{ flex: 1, padding: "12px 0", fontSize: 13 }}
+      >
+        {showAnnotation ? "📊 Hide Breakdown" : "🔍 Show Breakdown"}
+      </GlassButton>
+      
+      <GlassButton 
+        onClick={onNext} 
+        color={C.nBlue} 
+        style={{ flex: 1, padding: "12px 0" }}
+      >
+        Next Round →
+      </GlassButton>
+    </div>
   </GlassPanel>
 );
 
@@ -1517,6 +1779,10 @@ export default function App() {
   const [isEditingName, setIsEditingName] = useState(true);
   const [tempName, setTempName] = useState("");
 
+  // ── Annotation states ──
+  const [showAnnotation, setShowAnnotation] = useState(false);
+  const [currentAnnotation, setCurrentAnnotation] = useState(null);
+
   // ── Refs ──
   const chartRef = useRef(null);
   const rendererRef = useRef(null);
@@ -1710,6 +1976,11 @@ export default function App() {
           setScores([...scores, points]);
           setRoundStats([...roundStats, { correct, choice: userChoice }]);
 
+          // Generate and auto-show annotation
+          const annotation = generateAnnotation(structure);
+          setCurrentAnnotation(annotation);
+          setShowAnnotation(true);
+
           if (correct) sound.correct();
           else sound.wrong();
 
@@ -1725,6 +1996,8 @@ export default function App() {
   const advanceRound = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setSwipeOffset(0); // Reset scroll position
+    setShowAnnotation(false); // Reset annotation
+    setCurrentAnnotation(null);
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
     } else {
@@ -1815,7 +2088,10 @@ export default function App() {
             ? (structure.decisionIndex + 1) + continuationLength
             : currentCandles.length;
           
-          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles);
+          // Pass annotation only on outcome screen when enabled
+          const annotationData = (screen === "outcome" && showAnnotation) ? currentAnnotation : null;
+          
+          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles, annotationData);
         }
 
         renderRafId.current = requestAnimationFrame(render);
@@ -1826,7 +2102,7 @@ export default function App() {
       return () => {
         if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
       };
-    }, [structure, screen, revealProgress, swipeOffset, windowStart]);
+    }, [structure, screen, revealProgress, swipeOffset, windowStart, showAnnotation, currentAnnotation]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
@@ -2324,6 +2600,9 @@ export default function App() {
             signal={structure?.signal}
             onNext={advanceRound}
             context={structure?.context}
+            showAnnotation={showAnnotation}
+            onToggleAnnotation={() => setShowAnnotation(!showAnnotation)}
+            currentAnnotation={currentAnnotation}
           />
         )}
       </div>
