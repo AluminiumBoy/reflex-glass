@@ -231,15 +231,100 @@ class SoundEngine {
 
 const sound = new SoundEngine();
 
+
+/* ═══════════════════════════════════════════════════════════════
+    ROAST GENERATOR - Crypto Bro Style
+   ═══════════════════════════════════════════════════════════════ */
+
+function generateRoast(stats) {
+  const { accuracy } = stats;
+  
+  const roasts = {
+    legendary: [
+      "Yo you're literally built different 🚀 Chart god status unlocked. When moon? NOW.",
+      "Bro you just went full degen mode and WON. Absolute legend. To Valhalla! 🔥",
+      "This ain't your first rodeo is it? Straight up chart whisperer vibes. LFG! 💎🙌",
+    ],
+    pro: [
+      "Not bad anon. You got that diamond hands energy fr fr 💎",
+      "Okay okay I see you! Pattern recognition go brrr 📈",
+      "Solid ape energy right there. Keep stacking those Ws king 👑",
+    ],
+    decent: [
+      "Mid energy but we respect the grind. WAGMI fam 🤝",
+      "You're like that guy who bought ETH at $2k... not great, not terrible 😅",
+      "Decent! But have you tried actually reading the charts tho? 🤔",
+    ],
+    struggling: [
+      "Bro... you good? This ain't it chief 📉",
+      "POV: You're panic selling at the bottom again 💀",
+      "My guy bought the top and sold the dip. Classic ape move 🦍",
+    ],
+    ngmi: [
+      "NGMI vibes radiating from this score ngl 😬 Touch grass anon",
+      "This is why you lost your life savings on DOGE huh? 🐕💸",
+      "Absolutely rekt. You belong on WallStreetBets not here 📊💀",
+      "You're that guy who asks 'wen lambo' in Discord aren't you? 🤡",
+    ]
+  };
+
+  if (accuracy >= 90) return roasts.legendary[Math.floor(Math.random() * roasts.legendary.length)];
+  if (accuracy >= 75) return roasts.pro[Math.floor(Math.random() * roasts.pro.length)];
+  if (accuracy >= 60) return roasts.decent[Math.floor(Math.random() * roasts.decent.length)];
+  if (accuracy >= 40) return roasts.struggling[Math.floor(Math.random() * roasts.struggling.length)];
+  return roasts.ngmi[Math.floor(Math.random() * roasts.ngmi.length)];
+}
+
+function getMemeForScore(accuracy) {
+  if (accuracy >= 90) return "🚀🌕";
+  if (accuracy >= 75) return "💎🙌";
+  if (accuracy >= 60) return "📈🤝";
+  if (accuracy >= 40) return "📉😅";
+  return "💀🤡";
+}
+
+/* ═══════════════════════════════════════════════════════════════
+    SHARE FUNCTIONS - Base + Twitter
+   ═══════════════════════════════════════════════════════════════ */
+
+function shareToTwitter(stats, roast) {
+  const { accuracy, correct, total, totalScore } = stats;
+  const meme = getMemeForScore(accuracy);
+  
+  const tweetText = encodeURIComponent(
+    `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
+    `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
+    `${roast}\n\n` +
+    `Think you can beat my score? 👇`
+  );
+  
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(window.location.href)}`;
+  window.open(tweetUrl, '_blank');
+}
+
+function shareToBase(stats, roast) {
+  const { accuracy, correct, total, totalScore } = stats;
+  const meme = getMemeForScore(accuracy);
+  
+  const shareText = 
+    `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
+    `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
+    `${roast}`;
+  
+  navigator.clipboard.writeText(shareText + `\n\n${window.location.href}`);
+  return shareText;
+}
+
+
 /* ═══════════════════════════════════════════════════════════════
     4  PATTERN ANNOTATION GENERATOR
-    Pontosabb, érthetőbb annotációk minden pattern-hez
+    Accurate, understandable annotations for every pattern
    ═══════════════════════════════════════════════════════════════ */
 
 function generateAnnotation(structure) {
   const { pattern, signal, candles, decisionIndex } = structure;
 
-  // Normalizáljuk a pattern nevet
+  // Normalize pattern name
   const p = pattern.toLowerCase().trim().replace(/&/g, 'and').replace(/\s+/g, '_');
 
   const highlights = [];
@@ -247,7 +332,7 @@ function generateAnnotation(structure) {
 
   const isBullish = signal === 'BUY';
   
-  // Biztonságos index hozzáférés
+  // Safe index access
   const safeIdx = (offset) => Math.max(0, Math.min(candles.length - 1, decisionIndex + offset));
   const getHigh  = (o) => candles[safeIdx(o)]?.high  ?? candles[decisionIndex].high;
   const getLow   = (o) => candles[safeIdx(o)]?.low   ?? candles[decisionIndex].low;
@@ -359,7 +444,7 @@ function generateAnnotation(structure) {
     case 'double_bottom':
       explanation = isBullish ? 'Equal lows + neckline break → bullish reversal' : 'Pattern detected';
       {
-        // Két pulzáló pont a mélypontokon - NINCS label
+        // Két pulzáló pts a mélyptsokon - NINCS label
         const leftIdx = safeIdx(-18);
         const leftPrice = getLow(-18);
         highlights.push(
@@ -393,7 +478,7 @@ function generateAnnotation(structure) {
     case 'double_top':
       explanation = isBullish ? 'Pattern detected' : 'Equal highs + neckline break → bearish reversal';
       {
-        // Két pulzáló pont a csúcsokon - NINCS label
+        // Két pulzáló pts a csúcsokon - NINCS label
         const leftIdx = safeIdx(-18);
         const leftPrice = getHigh(-18);
         highlights.push(
@@ -428,7 +513,7 @@ function generateAnnotation(structure) {
     case 'head_shoulders':
       explanation = isBullish ? 'Pattern detected' : 'Left shoulder < Head > Right shoulder → neckline break → bearish reversal';
       {
-        // Három pulzáló pont - NINCS label, csak kis és nagy különbség jelzi a fejet
+        // Három pulzáló pts - NINCS label, csak kis és nagy különbség jelzi a fejet
         const leftShoulderIdx = safeIdx(-20);
         const leftShoulderPrice = getHigh(-20);
         highlights.push(
@@ -696,9 +781,9 @@ function generateAnnotation(structure) {
     case 'inverse_cup_&_handle':
       explanation = isBullish ? 'Pattern detected' : 'Rounded top + handle consolidation → breakdown → bearish reversal';
       {
-        const cupTopIdx = safeIdx(-15);
+        const cupTopDegensIdx = safeIdx(-15);
         highlights.push(
-          { type: 'circle', idx: cupTopIdx, price: getHigh(-15), 
+          { type: 'circle', idx: cupTopDegensIdx, price: getHigh(-15), 
             radius: 6, color: '#ef4444', pulse: true }
         );
         
@@ -892,9 +977,9 @@ function generateAnnotation(structure) {
     case 'v_top':
       explanation = isBullish ? 'Pattern detected' : 'Sharp reversal from high → strong bearish momentum';
       {
-        const vTopIdx = safeIdx(-5);
+        const vTopDegensIdx = safeIdx(-5);
         highlights.push(
-          { type: 'circle', idx: vTopIdx, price: getHigh(-5), 
+          { type: 'circle', idx: vTopDegensIdx, price: getHigh(-5), 
             radius: 6, color: '#ef4444', pulse: true }
         );
 
@@ -2135,7 +2220,7 @@ class MarketStructureGenerator {
       };
     } else if (r < 0.8125) {
       // Bearish reversal - Classic patterns
-      const patterns = ["Double Top", "Head & Shoulders", "Rising Wedge (Reversal)", "Inverse Cup & Handle"];
+      const patterns = ["Double Top Degens", "Head & Shoulders", "Rising Wedge (Reversal)", "Inverse Cup & Handle"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
@@ -2146,7 +2231,7 @@ class MarketStructureGenerator {
       };
     } else if (r < 0.875) {
       // Bearish reversal - Advanced classic patterns
-      const patterns = ["Triple Top", "Rounding Top", "V-Top", "Bearish Engulfing Pattern"];
+      const patterns = ["Triple Top Degens", "Rounding Top Degens", "V-Top Degens", "Bearish Engulfing Pattern"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
@@ -2168,7 +2253,7 @@ class MarketStructureGenerator {
       };
     } else {
       // Bearish reversal - Wyckoff & Elliott Wave
-      const patterns = ["Wyckoff Upthrust", "Elliott Wave C Complete", "Ascending Broadening Wedge", "Scallop Top"];
+      const patterns = ["Wyckoff Upthrust", "Elliott Wave C Complete", "Ascending Broadening Wedge", "Scallop Top Degens"];
       return {
         type: "bearish_reversal",
         signal: "SELL",
@@ -2888,7 +2973,7 @@ class ChartRenderer {
       return { x: labelX, y: adjustedY };
     };
 
-    // Rajzoljuk meg az összetevőket (körök, vonalak, stb.)
+    // Rajzoljuk meg az összetevőket (roundök, vonalak, stb.)
     highlights.forEach(h => {
       if (!h || !h.type) return;
       ctx.save();
@@ -2899,7 +2984,7 @@ class ChartRenderer {
           if (x === null) break;
           const y = toY(h.price);
 
-          // Pulzáló kör - NINCS LABEL
+          // Pulzáló round - NINCS LABEL
           const isPulsing = h.pulse === true;
           const pulseScale = isPulsing ? 1 + Math.sin(Date.now() / 300) * 0.15 : 1;
           const radius = (h.radius || 6) * pulseScale;
@@ -2943,16 +3028,16 @@ class ChartRenderer {
           
           const x1 = leftPadding + Math.max(0, (h.startIdx - startIdx)) * slotWidth;
           const x2 = leftPadding + Math.min(visibleCandles.length, (h.endIdx - startIdx + 1)) * slotWidth;
-          const yTop = toY(h.priceTop);
+          const yTopDegens = toY(h.priceTopDegens);
           const yBot = toY(h.priceBot);
 
           ctx.fillStyle = (h.color || C.nAmber) + '10';
-          ctx.fillRect(x1, yTop, x2 - x1, yBot - yTop);
+          ctx.fillRect(x1, yTopDegens, x2 - x1, yBot - yTopDegens);
 
           ctx.strokeStyle = h.color || C.nAmber;
           ctx.lineWidth = 1.5;
           ctx.setLineDash([6, 4]);
-          ctx.strokeRect(x1, yTop, x2 - x1, yBot - yTop);
+          ctx.strokeRect(x1, yTopDegens, x2 - x1, yBot - yTopDegens);
           ctx.setLineDash([]);
           break;
         }
@@ -3302,12 +3387,12 @@ function DeveloperSupport({ onClose, onSupport }) {
             transition: 'all 0.2s',
           }}
         >
-          {isProcessing ? 'Feldolgozás...' : 'Támogatás küldése'}
+          {isProcessing ? 'Feldolgozás...' : '💰 Support Dev (Base) küldése'}
         </button>
 
         <div
           style={{
-            marginTop: 16,
+            marginTopDegens: 16,
             padding: 12,
             background: C.bg1,
             borderRadius: 8,
@@ -3748,7 +3833,7 @@ const Leaderboard = ({ onBack }) => {
       // Convert to array and sort by total score
       const leaderboard = Object.values(aggregated)
         .sort((a, b) => b.totalScore - a.totalScore)
-        .slice(0, 10); // Top 10
+        .slice(0, 10); // Top Degens 10
       
       setEntries(leaderboard);
     } catch (err) {
@@ -3864,7 +3949,7 @@ const Leaderboard = ({ onBack }) => {
       <GlassButton 
         onClick={onBack} 
         color={C.nPurple} 
-        style={{ marginTop: 8 }}
+        style={{ marginTopDegens: 8 }}
       >
         Back
       </GlassButton>
