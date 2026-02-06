@@ -36,19 +36,22 @@ const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
 
 const C = {
-  nGreen: "#00ffaa",
-  nPink: "#ff4d94",
-  nPurple: "#a855f7",
-  nBlue: "#38bdf8",
-  nAmber: "#fbbf24",
-  bull: "#00e676",
-  bear: "#ff1744",
-  neut: "#fbbf24",
-  bg1: "#06060c",
-  bg2: "#0f0f1a",
-  glass: "rgba(14,14,26,0.52)",
-  glassBr: "rgba(255,255,255,0.07)",
-  glassHi: "rgba(255,255,255,0.13)",
+  nGreen: "#00ff88",
+  nPink: "#ff3366",
+  nPurple: "#8b5cf6",
+  nBlue: "#0ea5e9",
+  nAmber: "#f59e0b",
+  bull: "#10b981",
+  bear: "#ef4444",
+  neut: "#f59e0b",
+  bg1: "#000000",
+  bg2: "#0a0a0a",
+  bg3: "#111111",
+  glass: "rgba(20,20,20,0.8)",
+  glassBr: "rgba(255,255,255,0.1)",
+  glassHi: "rgba(255,255,255,0.15)",
+  text: "#ffffff",
+  textSecondary: "#a1a1a1",
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1248,13 +1251,13 @@ class ChartRenderer {
 
     const mobile = this.isMobile(width);
 
-    const gap = mobile ? 4 : 2;
+    const gap = mobile ? 3 : 2;
     const leftPadding = mobile ? 10 : 30;
     const rightPadding = mobile ? 15 : 30;
     const availableWidth = width - leftPadding - rightPadding;
 
-    const MIN_BODY_WIDTH = mobile ? 3 : 4;
-    const MAX_BODY_WIDTH = mobile ? 14 : 18;
+    const MIN_BODY_WIDTH = mobile ? 6 : 8;
+    const MAX_BODY_WIDTH = mobile ? 20 : 28;
 
     // CRITICAL: Use override if provided (for reveal animation stability)
     const totalCandleCount = totalCandleCountOverride !== null ? totalCandleCountOverride : allCandles.length;
@@ -1272,7 +1275,7 @@ class ChartRenderer {
 
     const MAX_VISIBLE = Math.min(totalCandleCount, Math.floor(availableWidth / slotWidth));
 
-    const wickWidth = mobile ? Math.min(2, bodyWidth * 0.4) : 1.5;
+    const wickWidth = mobile ? Math.min(2, bodyWidth * 0.35) : 1.5;
 
     const offsetCandles = Math.floor(scrollOffset / slotWidth);
     const maxStartIdx = Math.max(0, allCandles.length - MAX_VISIBLE);
@@ -1313,12 +1316,12 @@ class ChartRenderer {
 
     const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
 
-    const minBodyHeight = mobile ? 4 : 2;
+    const minBodyHeight = mobile ? 5 : 3;
     const maxWickHeight = mobile ? 25 : 20;
 
-    // Grid
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
-    ctx.lineWidth = 1;
+    // Grid - ultra finom, alig látható
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 0.5;
     for (let i = 0; i < 5; i++) {
       const y = 50 + (i / 4) * (height - 100);
       ctx.beginPath();
@@ -1373,24 +1376,22 @@ class ChartRenderer {
     if (bullCandles.length > 0) {
       ctx.fillStyle = C.bull;
       ctx.strokeStyle = C.bull;
-      ctx.lineWidth = mobile ? 1.6 : 1;
+      ctx.lineWidth = 0; // Nincs border - tisztább
       bullCandles.forEach(cd => {
         ctx.beginPath();
-        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 2 : 1.5);
+        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 4 : 3);
         ctx.fill();
-        ctx.stroke();
       });
     }
 
     if (bearCandles.length > 0) {
       ctx.fillStyle = C.bear;
       ctx.strokeStyle = C.bear;
-      ctx.lineWidth = mobile ? 1.6 : 1;
+      ctx.lineWidth = 0; // Nincs border - tisztább
       bearCandles.forEach(cd => {
         ctx.beginPath();
-        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 2 : 1.5);
+        ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 4 : 3);
         ctx.fill();
-        ctx.stroke();
       });
     }
 
@@ -1417,54 +1418,55 @@ class ChartRenderer {
     const { highlights } = annotations;
     const ctx = this.ctx;
     const endIdx = startIdx + visibleCandles.length - 1;
+    const width = this.canvas.width / (window.devicePixelRatio || 1);
+    const height = this.canvas.height / (window.devicePixelRatio || 1);
 
     // Csoportosítjuk a label-eket Y pozíció szerint, hogy elkerüljük az ütközést
     const labelPositions = [];
 
-    highlights.forEach(h => {
-      // Csak akkor rajzoljuk, ha érvényes típus
-      if (!h || !h.type) return;
-      
-      // X koordináta segédfüggvény - csak a látható tartományban
-      const getX = idx => {
-        // Ha az index a látható tartományon kívül van, ne rajzoljuk
-        if (idx < startIdx || idx > endIdx) return null;
-        return leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
-      };
+    // X koordináta segédfüggvény - csak a látható tartományban
+    const getX = idx => {
+      if (idx < startIdx || idx > endIdx) return null;
+      return leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
+    };
 
-      // Függvény hogy ellenőrizze és módosítsa a label pozíciót ütközés elkerülésére
-      const adjustLabelPosition = (x, y, label, minSpacing = 25) => {
-        let adjustedY = y;
-        let attempts = 0;
-        const maxAttempts = 10;
+    // Label pozíció igazítás - most jobbra helyezve
+    const adjustLabelPosition = (targetX, targetY, label, minSpacing = 60) => {
+      // Labelek a jobb oldalra kerülnek, több távolságra
+      const labelX = width - 200; // Még távolabb a széltől
+      let adjustedY = targetY;
+      let attempts = 0;
+      const maxAttempts = 25;
+      
+      while (attempts < maxAttempts) {
+        let hasCollision = false;
         
-        while (attempts < maxAttempts) {
-          let hasCollision = false;
+        for (const pos of labelPositions) {
+          const dy = Math.abs(pos.y - adjustedY);
           
-          for (const pos of labelPositions) {
-            const dx = Math.abs(pos.x - x);
-            const dy = Math.abs(pos.y - adjustedY);
-            
-            // Ha túl közel vannak egymáshoz
-            if (dx < 80 && dy < minSpacing) {
-              hasCollision = true;
-              adjustedY += minSpacing; // Lefelé toljuk
-              break;
-            }
+          // Ha túl közel vannak egymáshoz Y koordinátában
+          if (dy < minSpacing) {
+            hasCollision = true;
+            adjustedY += minSpacing * 1.5; // Még nagyobb lépésekkel toljuk lefelé
+            break;
           }
-          
-          if (!hasCollision) {
-            labelPositions.push({ x, y: adjustedY, label });
-            return adjustedY;
-          }
-          
-          attempts++;
         }
         
-        labelPositions.push({ x, y: adjustedY, label });
-        return adjustedY;
-      };
+        if (!hasCollision) {
+          labelPositions.push({ x: labelX, y: adjustedY, label, targetX, targetY });
+          return { x: labelX, y: adjustedY };
+        }
+        
+        attempts++;
+      }
+      
+      labelPositions.push({ x: labelX, y: adjustedY, label, targetX, targetY });
+      return { x: labelX, y: adjustedY };
+    };
 
+    // Rajzoljuk meg az összetevőket (körök, vonalak, stb.)
+    highlights.forEach(h => {
+      if (!h || !h.type) return;
       ctx.save();
 
       switch (h.type) {
@@ -1473,6 +1475,7 @@ class ChartRenderer {
           if (x === null) break;
           const y = toY(h.price);
 
+          // Egyszerű kör - nincs fill
           ctx.strokeStyle = h.color || C.nGreen;
           ctx.lineWidth = 2.5;
           ctx.beginPath();
@@ -1480,27 +1483,44 @@ class ChartRenderer {
           ctx.stroke();
 
           if (h.label) {
-            const labelY = adjustLabelPosition(x, y - (h.radius || 12) - 8, h.label, 22);
+            const labelPos = adjustLabelPosition(x, y, h.label, 50);
             
-            // Label háttér
-            ctx.font = 'bold 10px system-ui, sans-serif';
+            // Tiszta, minimal label
+            ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             const metrics = ctx.measureText(h.label);
-            const padding = 5;
+            const padding = 12;
             const bgWidth = metrics.width + padding * 2;
-            const bgHeight = 16;
+            const bgHeight = 24;
             
-            ctx.fillStyle = 'rgba(6,6,12,0.85)';
-            ctx.fillRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            // Sötét háttér éles szélekkel
+            ctx.fillStyle = C.bg3;
+            ctx.fillRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
+            // Vékony szegély
             ctx.strokeStyle = h.color || C.nGreen;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
-            // Label szöveg
-            ctx.fillStyle = "#ffffff";
+            // Fehér szöveg
+            ctx.fillStyle = C.text;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(h.label, x, labelY);
+            ctx.fillText(h.label, labelPos.x, labelPos.y);
+            
+            // Egyszerű összekötő vonal
+            ctx.strokeStyle = h.color || C.nGreen;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.5;
+            
+            const startX = labelPos.x - bgWidth/2 - 5;
+            const endX = x + (h.radius || 12) + 3;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, labelPos.y);
+            ctx.lineTo(endX, y);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
           }
           break;
         }
@@ -1514,7 +1534,7 @@ class ChartRenderer {
           const y2 = toY(h.endPrice);
 
           ctx.strokeStyle = h.color || C.neut;
-          ctx.lineWidth = h.width || 2;
+          ctx.lineWidth = h.width || 2.5;
 
           if (h.dashed || h.style === 'dashed') {
             ctx.setLineDash([5, 5]);
@@ -1528,28 +1548,41 @@ class ChartRenderer {
 
           if (h.label) {
             const midX = (x1 + x2) / 2;
-            const rawMidY = Math.min(y1, y2) - 12;
-            const labelY = adjustLabelPosition(midX, rawMidY, h.label, 24);
+            const midY = (y1 + y2) / 2;
+            const labelPos = adjustLabelPosition(midX, midY, h.label, 50);
             
-            // Label háttér
-            ctx.font = 'bold 10px system-ui, sans-serif';
+            // Minimal label
+            ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             const metrics = ctx.measureText(h.label);
-            const padding = 5;
+            const padding = 12;
             const bgWidth = metrics.width + padding * 2;
-            const bgHeight = 16;
+            const bgHeight = 24;
             
-            ctx.fillStyle = 'rgba(6,6,12,0.85)';
-            ctx.fillRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.fillStyle = C.bg3;
+            ctx.fillRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
             ctx.strokeStyle = h.color || C.neut;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
-            // Label szöveg
-            ctx.fillStyle = h.color || C.neut;
+            ctx.fillStyle = C.text;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(h.label, midX, labelY);
+            ctx.fillText(h.label, labelPos.x, labelPos.y);
+            
+            // Egyszerű összekötő vonal
+            ctx.strokeStyle = h.color || C.neut;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.5;
+            
+            const startX = labelPos.x - bgWidth/2 - 5;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, labelPos.y);
+            ctx.lineTo(midX, midY);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
           }
           break;
         }
@@ -1563,39 +1596,53 @@ class ChartRenderer {
           const yTop = toY(h.priceTop);
           const yBot = toY(h.priceBot);
 
-          ctx.fillStyle = (h.color || C.nAmber) + '22';
+          ctx.fillStyle = (h.color || C.nAmber) + '15';
           ctx.fillRect(x1, yTop, x2 - x1, yBot - yTop);
 
           ctx.strokeStyle = h.color || C.nAmber;
           ctx.lineWidth = 2;
-          ctx.setLineDash([4, 3]);
+          ctx.setLineDash([6, 4]);
           ctx.strokeRect(x1, yTop, x2 - x1, yBot - yTop);
           ctx.setLineDash([]);
 
           if (h.label) {
             const midX = (x1 + x2) / 2;
-            const rawLabelY = yTop - 10;
-            const labelY = adjustLabelPosition(midX, rawLabelY, h.label, 24);
+            const midY = (yTop + yBot) / 2;
+            const labelPos = adjustLabelPosition(midX, midY, h.label, 50);
             
-            // Label háttér
-            ctx.font = 'bold 10px system-ui, sans-serif';
+            // Minimal label
+            ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             const metrics = ctx.measureText(h.label);
-            const padding = 5;
+            const padding = 12;
             const bgWidth = metrics.width + padding * 2;
-            const bgHeight = 16;
+            const bgHeight = 24;
             
-            ctx.fillStyle = 'rgba(6,6,12,0.85)';
-            ctx.fillRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.fillStyle = C.bg3;
+            ctx.fillRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
             ctx.strokeStyle = h.color || C.nAmber;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
-            // Label szöveg
-            ctx.fillStyle = h.color || C.nAmber;
+            ctx.fillStyle = C.text;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(h.label, midX, labelY);
+            ctx.fillText(h.label, labelPos.x, labelPos.y);
+            
+            // Egyszerű összekötő vonal
+            ctx.strokeStyle = h.color || C.nAmber;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.5;
+            
+            const startX = labelPos.x - bgWidth/2 - 5;
+            const targetX = x2;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, labelPos.y);
+            ctx.lineTo(targetX, midY);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
           }
           break;
         }
@@ -1607,7 +1654,7 @@ class ChartRenderer {
           const yBase = toY(h.price);
           const dirUp = h.direction === 'up';
           const color = h.color || (dirUp ? C.bull : C.bear);
-          const size = h.size || 18;
+          const size = h.size || 20;
 
           ctx.strokeStyle = color;
           ctx.fillStyle = color;
@@ -1634,28 +1681,41 @@ class ChartRenderer {
           ctx.fill();
 
           if (h.label) {
-            const rawLabelY = dirUp ? yBase - size * 1.4 - 8 : yBase + size * 1.4 + 12;
-            const labelY = adjustLabelPosition(x, rawLabelY, h.label, 28);
+            const arrowTipY = dirUp ? yBase - size * 1.2 : yBase + size * 1.2;
+            const labelPos = adjustLabelPosition(x, arrowTipY, h.label, 35);
             
-            // Label háttér
-            ctx.font = 'bold 11px system-ui, sans-serif';
+            // Minimal label
+            ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             const metrics = ctx.measureText(h.label);
-            const padding = 6;
+            const padding = 12;
             const bgWidth = metrics.width + padding * 2;
-            const bgHeight = 18;
+            const bgHeight = 24;
             
-            ctx.fillStyle = 'rgba(6,6,12,0.9)';
-            ctx.fillRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.fillStyle = C.bg3;
+            ctx.fillRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
             ctx.strokeStyle = color;
             ctx.lineWidth = 1.5;
-            ctx.strokeRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            ctx.strokeRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
             
-            // Label szöveg
-            ctx.fillStyle = color;
+            ctx.fillStyle = C.text;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(h.label, x, labelY);
+            ctx.fillText(h.label, labelPos.x, labelPos.y);
+            
+            // Egyszerű összekötő vonal
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.5;
+            
+            const startX = labelPos.x - bgWidth/2 - 5;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, labelPos.y);
+            ctx.lineTo(x, arrowTipY);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
           }
           break;
         }
@@ -1664,28 +1724,41 @@ class ChartRenderer {
           const x = getX(h.idx);
           if (x === null) break;
           
-          const rawY = toY(h.price) - 12;
-          const labelY = adjustLabelPosition(x, rawY, h.label, 22);
+          const y = toY(h.price);
+          const labelPos = adjustLabelPosition(x, y, h.label, 35);
 
-          // Label háttér
-          ctx.font = 'bold 11px system-ui, sans-serif';
+          // Minimal label
+          ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
           const metrics = ctx.measureText(h.label);
-          const padding = 5;
+          const padding = 12;
           const bgWidth = metrics.width + padding * 2;
-          const bgHeight = 18;
+          const bgHeight = 24;
           
-          ctx.fillStyle = 'rgba(6,6,12,0.85)';
-          ctx.fillRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+          ctx.fillStyle = C.bg3;
+          ctx.fillRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
           
-          ctx.strokeStyle = h.color || '#ffffff';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+          ctx.strokeStyle = h.color || C.text;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(labelPos.x - bgWidth/2, labelPos.y - bgHeight/2, bgWidth, bgHeight);
           
-          // Label szöveg
-          ctx.fillStyle = h.color || '#ffffff';
+          ctx.fillStyle = C.text;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(h.label, x, labelY);
+          ctx.fillText(h.label, labelPos.x, labelPos.y);
+          
+          // Egyszerű összekötő vonal
+          ctx.strokeStyle = h.color || C.text;
+          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.5;
+          
+          const startX = labelPos.x - bgWidth/2 - 5;
+          
+          ctx.beginPath();
+          ctx.moveTo(startX, labelPos.y);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          
+          ctx.globalAlpha = 1;
           break;
         }
 
@@ -2895,9 +2968,9 @@ export default function App() {
               // Calculate dynamic limits based on total candles
               const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
               const mobile = canvasWidth < 520;
-              const gap = mobile ? 4 : 2;
-              const MIN_BODY_WIDTH = mobile ? 3 : 4;
-              const MAX_BODY_WIDTH = mobile ? 14 : 18;
+              const gap = mobile ? 3 : 2;
+              const MIN_BODY_WIDTH = mobile ? 6 : 8;
+              const MAX_BODY_WIDTH = mobile ? 20 : 28;
               const leftPadding = mobile ? 10 : 30;
               const rightPadding = mobile ? 15 : 30;
               const availableWidth = canvasWidth - leftPadding - rightPadding;
@@ -2945,9 +3018,9 @@ export default function App() {
               // Calculate dynamic limits based on total candles
               const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
               const mobile = canvasWidth < 520;
-              const gap = mobile ? 4 : 2;
-              const MIN_BODY_WIDTH = mobile ? 3 : 4;
-              const MAX_BODY_WIDTH = mobile ? 14 : 18;
+              const gap = mobile ? 3 : 2;
+              const MIN_BODY_WIDTH = mobile ? 6 : 8;
+              const MAX_BODY_WIDTH = mobile ? 20 : 28;
               const leftPadding = mobile ? 10 : 30;
               const rightPadding = mobile ? 15 : 30;
               const availableWidth = canvasWidth - leftPadding - rightPadding;
@@ -3109,38 +3182,10 @@ export default function App() {
         height: "100dvh",
         overflowY: "auto",
         overflowX: "hidden",
-        background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
+        background: C.bg1,
         position: "relative",
       }}
     >
-      {/* Ambient orbs */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
-        <div
-          style={{
-            position: "absolute",
-            top: "10%",
-            left: "15%",
-            width: 220,
-            height: 220,
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`,
-            filter: "blur(40px)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: "60%",
-            right: "10%",
-            width: 180,
-            height: 180,
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`,
-            filter: "blur(36px)",
-          }}
-        />
-      </div>
-
       {/* Main content */}
       <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh" }}>
         {screen === "home" && renderHome()}
