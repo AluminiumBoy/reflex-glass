@@ -32,6 +32,9 @@ const DECISION_MS = 5000; // Increased to 5s for context analysis
 const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
+// Developer support wallet address (Base network)
+const DEVELOPER_WALLET = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"; // Replace with actual wallet
+
 // Single difficulty mode
 const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
 
@@ -1664,6 +1667,331 @@ class ChartRenderer {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+    5.5  DEVELOPER SUPPORT COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
+
+function DeveloperSupport({ onClose, onSupport }) {
+  const [selectedAmount, setSelectedAmount] = useState(null);
+  const [customAmount, setCustomAmount] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const predefinedAmounts = [
+    { value: 0.0005, label: '0.0005 ETH', usd: '~$1.50' },
+    { value: 0.001, label: '0.001 ETH', usd: '~$3.00' },
+    { value: 0.003, label: '0.003 ETH', usd: '~$9.00' },
+  ];
+
+  const handleSupport = async () => {
+    const amount = selectedAmount === 'custom' ? parseFloat(customAmount) : selectedAmount;
+    
+    if (!amount || amount <= 0) {
+      alert('Kérlek válassz egy érvényes összeget!');
+      return;
+    }
+
+    setIsProcessing(true);
+    haptic([30, 50, 30]);
+
+    try {
+      // Check if ethereum object is available (MetaMask or similar)
+      if (typeof window.ethereum === 'undefined') {
+        alert('Nincs crypto wallet telepítve! Kérlek telepíts MetaMask-et vagy hasonló wallet-et.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      // Check if we're on Base network (chainId: 8453)
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      
+      if (chainId !== '0x2105') { // 8453 in hex
+        // Try to switch to Base network
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x2105' }],
+          });
+        } catch (switchError) {
+          // If Base network is not added, add it
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x2105',
+                chainName: 'Base',
+                nativeCurrency: {
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18
+                },
+                rpcUrls: ['https://mainnet.base.org'],
+                blockExplorerUrls: ['https://basescan.org']
+              }]
+            });
+          } else {
+            throw switchError;
+          }
+        }
+      }
+
+      // Send transaction
+      const transactionParameters = {
+        from: accounts[0],
+        to: DEVELOPER_WALLET,
+        value: '0x' + (amount * 1e18).toString(16), // Convert ETH to Wei
+      };
+
+      const txHash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [transactionParameters],
+      });
+
+      setShowSuccess(true);
+      haptic([50, 100, 50, 100]);
+      sound.correct();
+      
+      setTimeout(() => {
+        onSupport(amount);
+        onClose();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Transaction error:', error);
+      alert('Hiba történt a tranzakció során: ' + error.message);
+      setIsProcessing(false);
+    }
+  };
+
+  if (showSuccess) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(6,6,12,0.95)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20,
+        }}
+      >
+        <div
+          style={{
+            background: C.glass,
+            border: `1px solid ${C.glassBr}`,
+            borderRadius: 20,
+            padding: 32,
+            maxWidth: 400,
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: C.nGreen, marginBottom: 8 }}>
+            Köszönöm!
+          </div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
+            A támogatásod sokat jelent!
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(6,6,12,0.95)',
+        backdropFilter: 'blur(12px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: C.glass,
+          border: `1px solid ${C.glassBr}`,
+          borderRadius: 20,
+          padding: 24,
+          maxWidth: 440,
+          width: '100%',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>
+            Támogasd a fejlesztést
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255,255,255,0.5)',
+              fontSize: 24,
+              cursor: 'pointer',
+              padding: 0,
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
+          Ha tetszett a Reflex Glass, támogasd a további fejlesztést! 
+          Minden támogatás segít új funkciók hozzáadásában és a játék fejlesztésében.
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          {predefinedAmounts.map((amt) => (
+            <button
+              key={amt.value}
+              onClick={() => {
+                setSelectedAmount(amt.value);
+                setCustomAmount('');
+                haptic([20]);
+                sound.click();
+              }}
+              style={{
+                background: selectedAmount === amt.value ? C.nGreen + '20' : C.bg2,
+                border: `2px solid ${selectedAmount === amt.value ? C.nGreen : C.glassBr}`,
+                borderRadius: 12,
+                padding: '16px 20px',
+                color: '#fff',
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span>{amt.label}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{amt.usd}</span>
+            </button>
+          ))}
+
+          <div
+            style={{
+              background: selectedAmount === 'custom' ? C.nBlue + '20' : C.bg2,
+              border: `2px solid ${selectedAmount === 'custom' ? C.nBlue : C.glassBr}`,
+              borderRadius: 12,
+              padding: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 8,
+              }}
+            >
+              <label style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>
+                Egyedi összeg
+              </label>
+              <input
+                type="checkbox"
+                checked={selectedAmount === 'custom'}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedAmount('custom');
+                    haptic([20]);
+                    sound.click();
+                  }
+                }}
+                style={{ width: 20, height: 20, cursor: 'pointer' }}
+              />
+            </div>
+            <input
+              type="number"
+              step="0.0001"
+              min="0.0001"
+              placeholder="0.0000 ETH"
+              value={customAmount}
+              onChange={(e) => {
+                setCustomAmount(e.target.value);
+                setSelectedAmount('custom');
+              }}
+              onFocus={() => setSelectedAmount('custom')}
+              disabled={selectedAmount !== 'custom'}
+              style={{
+                background: C.bg1,
+                border: `1px solid ${C.glassBr}`,
+                borderRadius: 8,
+                padding: '12px 16px',
+                color: '#fff',
+                fontSize: 16,
+                width: '100%',
+                opacity: selectedAmount === 'custom' ? 1 : 0.5,
+              }}
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSupport}
+          disabled={isProcessing || (!selectedAmount && !customAmount)}
+          style={{
+            width: '100%',
+            background: isProcessing 
+              ? 'rgba(255,255,255,0.1)' 
+              : `linear-gradient(135deg, ${C.nGreen}, ${C.nBlue})`,
+            border: 'none',
+            borderRadius: 12,
+            padding: '16px 24px',
+            color: '#fff',
+            fontSize: 18,
+            fontWeight: 700,
+            cursor: isProcessing ? 'not-allowed' : 'pointer',
+            opacity: (!selectedAmount && !customAmount) ? 0.5 : 1,
+            transition: 'all 0.2s',
+          }}
+        >
+          {isProcessing ? 'Feldolgozás...' : 'Támogatás küldése'}
+        </button>
+
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            background: C.bg1,
+            borderRadius: 8,
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.5)',
+            textAlign: 'center',
+            lineHeight: 1.4,
+          }}
+        >
+          🔒 Biztonságos fizetés Base network-ön keresztül
+          <br />
+          Nincs szükség regisztrációra vagy jelszóra
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
     6  UI COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
 
@@ -1896,6 +2224,7 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
 
 const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
 
   useEffect(() => {
     const saveScore = async () => {
@@ -1931,83 +2260,109 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   }, [playerName, stats, saved]);
 
   return (
-    <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
-      <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
-      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>
-        {playerName}
-      </div>
-      <div
-        style={{
-          fontSize: 48,
-          fontWeight: 900,
-          fontFamily: "monospace",
-          background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          marginBottom: 20,
-        }}
-      >
-        {stats.totalScore.toLocaleString()}
-      </div>
+    <>
+      <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
+        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>Game Complete!</div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>
+          {playerName}
+        </div>
+        <div
+          style={{
+            fontSize: 48,
+            fontWeight: 900,
+            fontFamily: "monospace",
+            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            marginBottom: 20,
+          }}
+        >
+          {stats.totalScore.toLocaleString()}
+        </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-            ACCURACY
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+              ACCURACY
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen }}>
+              {stats.accuracy}%
+            </div>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen }}>
-            {stats.accuracy}%
+          <div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+              CORRECT
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue }}>
+              {stats.correct}/{stats.total}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+              BEST STREAK
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple }}>
+              {stats.bestStreak}
+            </div>
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-            CORRECT
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue }}>
-            {stats.correct}/{stats.total}
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
-            BEST STREAK
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple }}>
-            {stats.bestStreak}
-          </div>
-        </div>
-      </div>
 
-      {saved && (
-        <div style={{ 
-          padding: "10px", 
-          marginBottom: 16,
-          background: `${C.nGreen}20`,
-          border: `1px solid ${C.nGreen}60`,
-          borderRadius: 12,
-          color: C.nGreen,
-          fontSize: 13,
-          fontWeight: 600
-        }}>
-          ✓ Score saved to leaderboard!
+        {saved && (
+          <div style={{ 
+            padding: "10px", 
+            marginBottom: 16,
+            background: `${C.nGreen}20`,
+            border: `1px solid ${C.nGreen}60`,
+            borderRadius: 12,
+            color: C.nGreen,
+            fontSize: 13,
+            fontWeight: 600
+          }}>
+            ✓ Score saved to leaderboard!
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "14px 0" }}>
+              Play Again
+            </GlassButton>
+            <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "14px 0" }}>
+              Leaderboard
+            </GlassButton>
+          </div>
+          
+          <GlassButton 
+            onClick={() => {
+              haptic([30]);
+              sound.click();
+              setShowSupport(true);
+            }} 
+            color={C.nPurple} 
+            style={{ padding: "14px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          >
+            <span>💝</span>
+            <span>Support Development</span>
+          </GlassButton>
         </div>
+      </GlassPanel>
+
+      {showSupport && (
+        <DeveloperSupport
+          onClose={() => setShowSupport(false)}
+          onSupport={(amount) => {
+            console.log(`Supported with ${amount} ETH`);
+          }}
+        />
       )}
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "14px 0" }}>
-          Play Again
-        </GlassButton>
-        <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "14px 0" }}>
-          Leaderboard
-        </GlassButton>
-      </div>
-    </GlassPanel>
+    </>
   );
 };
 
