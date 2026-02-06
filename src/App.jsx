@@ -230,106 +230,411 @@ const sound = new SoundEngine();
 
 /* ═══════════════════════════════════════════════════════════════
     4  PATTERN ANNOTATION GENERATOR
-    Kompatibilis a jelenlegi drawAnnotations-szal
+    Pontosabb, érthetőbb annotációk minden pattern-hez
    ═══════════════════════════════════════════════════════════════ */
 
 function generateAnnotation(structure) {
   const { pattern, signal, candles, decisionIndex } = structure;
 
-  // Normalizáljuk a pattern nevet (hogy ne legyen gond a & jellel, nagybetűvel, space-szel)
+  // Normalizáljuk a pattern nevet
   const p = pattern.toLowerCase().trim().replace(/&/g, 'and').replace(/\s+/g, '_');
 
   const highlights = [];
   let explanation = '';
 
   const isBullish = signal === 'BUY';
-  const getHigh  = (o) => candles[decisionIndex + o]?.high  ?? candles[decisionIndex].high;
-  const getLow   = (o) => candles[decisionIndex + o]?.low   ?? candles[decisionIndex].low;
-  const getClose = (o) => candles[decisionIndex + o]?.close ?? candles[decisionIndex].close;
+  
+  // Biztonságos index hozzáférés
+  const safeIdx = (offset) => Math.max(0, Math.min(candles.length - 1, decisionIndex + offset));
+  const getHigh  = (o) => candles[safeIdx(o)]?.high  ?? candles[decisionIndex].high;
+  const getLow   = (o) => candles[safeIdx(o)]?.low   ?? candles[decisionIndex].low;
+  const getOpen  = (o) => candles[safeIdx(o)]?.open  ?? candles[decisionIndex].open;
+  const getClose = (o) => candles[safeIdx(o)]?.close ?? candles[decisionIndex].close;
+
+  // Találjuk meg a pattern kezdetét dinamikusan
+  const findPatternStart = () => {
+    // Keressünk visszafelé egy jelentős fordulópontot
+    let highestHigh = -Infinity;
+    let lowestLow = Infinity;
+    let startIdx = Math.max(0, decisionIndex - 25);
+    
+    for (let i = decisionIndex; i >= startIdx; i--) {
+      if (candles[i].high > highestHigh) highestHigh = candles[i].high;
+      if (candles[i].low < lowestLow) lowestLow = candles[i].low;
+    }
+    
+    return startIdx;
+  };
 
   switch (p) {
     case 'bull_flag':
-      explanation = 'Bull Flag – erős emelkedés utáni szűkülő konszolidáció → felfelé kitörés';
-      highlights.push(
-        { type: 'rect', startIdx: decisionIndex - 10, endIdx: decisionIndex, priceTop: getHigh(-2), priceBot: getLow(-7), label: 'Flag', color: C.nGreen },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 14, direction: 'up', label: 'Breakout ↑', color: C.bull }
-      );
+      explanation = 'Bull Flag: Erős impulzív emelkedés (flagpole) → Szűkülő konszolidáció (flag) → Felfelé kitörés';
+      {
+        const poleStart = safeIdx(-20);
+        const poleEnd = safeIdx(-10);
+        const flagStart = safeIdx(-10);
+        const flagEnd = safeIdx(-1);
+        
+        // Flagpole jelzése
+        highlights.push(
+          { type: 'line', startIdx: poleStart, startPrice: getLow(-20), endIdx: poleEnd, endPrice: getHigh(-10), 
+            label: 'Impulse Move (Pole)', color: C.bull, width: 3 }
+        );
+        
+        // Flag pattern téglalap
+        highlights.push(
+          { type: 'rect', startIdx: flagStart, endIdx: flagEnd, 
+            priceTop: getHigh(-8), priceBot: getLow(-8), 
+            label: 'Flag Consolidation', color: C.nGreen }
+        );
+        
+        // Breakout pont
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 8, direction: 'up', 
+            label: 'Breakout ↑', color: C.bull, size: 20 }
+        );
+        
+        // Support vonal a flag alatt
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-9), endIdx: flagEnd, endPrice: getLow(-2), 
+            label: 'Flag Support', color: C.nGreen, dashed: true }
+        );
+      }
       break;
 
     case 'bear_flag':
-      explanation = 'Bear Flag – erős esés utáni szűkülő konszolidáció → lefelé kitörés';
-      highlights.push(
-        { type: 'rect', startIdx: decisionIndex - 10, endIdx: decisionIndex, priceTop: getHigh(-7), priceBot: getLow(-2), label: 'Flag', color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 14, direction: 'down', label: 'Breakdown ↓', color: C.bear }
-      );
+      explanation = 'Bear Flag: Erős impulzív esés (flagpole) → Szűkülő konszolidáció (flag) → Lefelé kitörés';
+      {
+        const poleStart = safeIdx(-20);
+        const poleEnd = safeIdx(-10);
+        const flagStart = safeIdx(-10);
+        const flagEnd = safeIdx(-1);
+        
+        // Flagpole jelzése
+        highlights.push(
+          { type: 'line', startIdx: poleStart, startPrice: getHigh(-20), endIdx: poleEnd, endPrice: getLow(-10), 
+            label: 'Impulse Drop (Pole)', color: C.bear, width: 3 }
+        );
+        
+        // Flag pattern téglalap
+        highlights.push(
+          { type: 'rect', startIdx: flagStart, endIdx: flagEnd, 
+            priceTop: getHigh(-8), priceBot: getLow(-8), 
+            label: 'Flag Consolidation', color: C.nPink }
+        );
+        
+        // Breakdown pont
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 8, direction: 'down', 
+            label: 'Breakdown ↓', color: C.bear, size: 20 }
+        );
+        
+        // Resistance vonal a flag felett
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-9), endIdx: flagEnd, endPrice: getHigh(-2), 
+            label: 'Flag Resistance', color: C.nPink, dashed: true }
+        );
+      }
       break;
 
     case 'ascending_triangle':
-      explanation = 'Ascending Triangle – emelkedő aljak + lapos ellenállás → bullish kitörés';
-      highlights.push(
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getLow(-12), endIdx: decisionIndex, endPrice: getLow(-1), label: 'Rising Support' },
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getHigh(-10), endIdx: decisionIndex, endPrice: getHigh(-2), label: 'Resistance', dashed: true },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 15, direction: 'up', label: 'Breakout ↑' }
-      );
+      explanation = 'Ascending Triangle: Emelkedő aljak (vevői nyomás) + Lapos ellenállás → Bullish kitörés';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(0);
+        
+        // Alsó trendvonal (emelkedő aljak)
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), endIdx: safeIdx(-2), endPrice: getLow(-2), 
+            label: 'Rising Lows (Demand)', color: C.bull, width: 2.5 }
+        );
+        
+        // Felső ellenállás (lapos)
+        const resistancePrice = Math.max(getHigh(-15), getHigh(-10), getHigh(-5));
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: resistancePrice, endIdx: end, endPrice: resistancePrice, 
+            label: 'Flat Resistance', color: C.neut, dashed: true, width: 2.5 }
+        );
+        
+        // Érintési pontok jelölése
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), label: '1', radius: 10, color: C.bull }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-10), price: getLow(-10), label: '2', radius: 10, color: C.bull }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-3), price: getLow(-3), label: '3', radius: 10, color: C.bull }
+        );
+        
+        // Breakout
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            label: 'Breakout ↑', color: C.bull, size: 22 }
+        );
+      }
       break;
 
     case 'descending_triangle':
-      explanation = 'Descending Triangle – csökkenő tetők + lapos támasz → bearish kitörés';
-      highlights.push(
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getHigh(-12), endIdx: decisionIndex, endPrice: getHigh(-1), label: 'Falling Resistance' },
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getLow(-10), endIdx: decisionIndex, endPrice: getLow(-2), label: 'Support', dashed: true },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 15, direction: 'down', label: 'Breakdown ↓' }
-      );
+      explanation = 'Descending Triangle: Csökkenő tetők (eladói nyomás) + Lapos támasz → Bearish kitörés';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(0);
+        
+        // Felső trendvonal (csökkenő tetők)
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), endIdx: safeIdx(-2), endPrice: getHigh(-2), 
+            label: 'Falling Highs (Supply)', color: C.bear, width: 2.5 }
+        );
+        
+        // Alsó támasz (lapos)
+        const supportPrice = Math.min(getLow(-15), getLow(-10), getLow(-5));
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: supportPrice, endIdx: end, endPrice: supportPrice, 
+            label: 'Flat Support', color: C.neut, dashed: true, width: 2.5 }
+        );
+        
+        // Érintési pontok
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), label: '1', radius: 10, color: C.bear }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-10), price: getHigh(-10), label: '2', radius: 10, color: C.bear }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-3), price: getHigh(-3), label: '3', radius: 10, color: C.bear }
+        );
+        
+        // Breakdown
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            label: 'Breakdown ↓', color: C.bear, size: 22 }
+        );
+      }
       break;
 
     case 'double_bottom':
-      explanation = 'Double Bottom – két azonos mélypont + nyakvonal feletti kitörés';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 15, price: getLow(-15), label: 'Left Bottom', radius: 14 },
-        { type: 'circle', idx: decisionIndex - 5,  price: getLow(-5),  label: 'Right Bottom', radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 18, startPrice: getHigh(-10), endIdx: decisionIndex + 2, endPrice: getHigh(-4), label: 'Neckline', dashed: true },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 16, direction: 'up', label: 'Breakout ↑' }
-      );
+      explanation = 'Double Bottom (W-Pattern): Két mélypont azonos szinten → Neckline feletti kitörés → Bullish reversal';
+      {
+        // Bal mélypont
+        const leftIdx = safeIdx(-18);
+        const leftPrice = getLow(-18);
+        highlights.push(
+          { type: 'circle', idx: leftIdx, price: leftPrice, 
+            label: 'Left Bottom', radius: 15, color: C.bull }
+        );
+        
+        // Jobb mélypont
+        const rightIdx = safeIdx(-6);
+        const rightPrice = getLow(-6);
+        highlights.push(
+          { type: 'circle', idx: rightIdx, price: rightPrice, 
+            label: 'Right Bottom', radius: 15, color: C.bull }
+        );
+        
+        // Középső csúcs (neckline)
+        const middleIdx = safeIdx(-12);
+        const necklinePrice = getHigh(-12);
+        highlights.push(
+          { type: 'circle', idx: middleIdx, price: necklinePrice, 
+            label: 'Peak', radius: 12, color: C.nAmber }
+        );
+        
+        // Neckline
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-20), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            label: 'Neckline (Resistance)', color: C.nAmber, dashed: true, width: 2.5 }
+        );
+        
+        // Support level a bottomoknál
+        highlights.push(
+          { type: 'line', startIdx: leftIdx, startPrice: leftPrice, 
+            endIdx: rightIdx, endPrice: rightPrice, 
+            label: 'Support Level', color: C.bull, dashed: true }
+        );
+        
+        // Breakout
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            label: 'Neckline Breakout ↑', color: C.bull, size: 24 }
+        );
+      }
       break;
 
     case 'double_top':
-      explanation = 'Double Top – két azonos csúcs + nyakvonal alatti kitörés';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 15, price: getHigh(-15), label: 'Left Top', radius: 14 },
-        { type: 'circle', idx: decisionIndex - 5,  price: getHigh(-5),  label: 'Right Top', radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 18, startPrice: getLow(-10), endIdx: decisionIndex + 2, endPrice: getLow(-4), label: 'Neckline', dashed: true },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 16, direction: 'down', label: 'Breakdown ↓' }
-      );
+      explanation = 'Double Top (M-Pattern): Két csúcs azonos szinten → Neckline alatti kitörés → Bearish reversal';
+      {
+        // Bal csúcs
+        const leftIdx = safeIdx(-18);
+        const leftPrice = getHigh(-18);
+        highlights.push(
+          { type: 'circle', idx: leftIdx, price: leftPrice, 
+            label: 'Left Top', radius: 15, color: C.bear }
+        );
+        
+        // Jobb csúcs
+        const rightIdx = safeIdx(-6);
+        const rightPrice = getHigh(-6);
+        highlights.push(
+          { type: 'circle', idx: rightIdx, price: rightPrice, 
+            label: 'Right Top', radius: 15, color: C.bear }
+        );
+        
+        // Középső mélypont (neckline)
+        const middleIdx = safeIdx(-12);
+        const necklinePrice = getLow(-12);
+        highlights.push(
+          { type: 'circle', idx: middleIdx, price: necklinePrice, 
+            label: 'Valley', radius: 12, color: C.nAmber }
+        );
+        
+        // Neckline
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-20), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            label: 'Neckline (Support)', color: C.nAmber, dashed: true, width: 2.5 }
+        );
+        
+        // Resistance level a topoknál
+        highlights.push(
+          { type: 'line', startIdx: leftIdx, startPrice: leftPrice, 
+            endIdx: rightIdx, endPrice: rightPrice, 
+            label: 'Resistance Level', color: C.bear, dashed: true }
+        );
+        
+        // Breakdown
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            label: 'Neckline Breakdown ↓', color: C.bear, size: 24 }
+        );
+      }
       break;
 
     case 'head_and_shoulders':
     case 'head_shoulders':
-      explanation = 'Head & Shoulders – bal váll, magasabb fej, jobb váll → neckline breakdown';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 16, price: getHigh(-16), label: 'Left Shoulder', radius: 14 },
-        { type: 'circle', idx: decisionIndex - 9,  price: getHigh(-9),  label: 'Head',          radius: 18 },
-        { type: 'circle', idx: decisionIndex - 4,  price: getHigh(-4),  label: 'Right Shoulder', radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 20, startPrice: getLow(-12), endIdx: decisionIndex + 2, endPrice: getLow(-5), label: 'Neckline', dashed: true },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 18, direction: 'down', label: 'Breakdown SELL' }
-      );
+      explanation = 'Head & Shoulders: Bal váll < Fej > Jobb váll → Neckline breakdown → Bearish reversal';
+      {
+        // Bal váll
+        const leftShoulderIdx = safeIdx(-20);
+        const leftShoulderPrice = getHigh(-20);
+        highlights.push(
+          { type: 'circle', idx: leftShoulderIdx, price: leftShoulderPrice, 
+            label: 'Left Shoulder', radius: 14, color: C.nPurple }
+        );
+        
+        // Fej (legmagasabb pont)
+        const headIdx = safeIdx(-12);
+        const headPrice = getHigh(-12);
+        highlights.push(
+          { type: 'circle', idx: headIdx, price: headPrice, 
+            label: 'Head', radius: 20, color: C.bear }
+        );
+        
+        // Jobb váll
+        const rightShoulderIdx = safeIdx(-4);
+        const rightShoulderPrice = getHigh(-4);
+        highlights.push(
+          { type: 'circle', idx: rightShoulderIdx, price: rightShoulderPrice, 
+            label: 'Right Shoulder', radius: 14, color: C.nPurple }
+        );
+        
+        // Neckline (a két völgy összekötése)
+        const leftValleyPrice = getLow(-16);
+        const rightValleyPrice = getLow(-8);
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-24), startPrice: leftValleyPrice, 
+            endIdx: safeIdx(2), endPrice: rightValleyPrice, 
+            label: 'Neckline (Support)', color: C.nAmber, dashed: true, width: 3 }
+        );
+        
+        // Völgyek jelölése
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-16), price: leftValleyPrice, 
+            label: 'V1', radius: 10, color: C.nAmber }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-8), price: rightValleyPrice, 
+            label: 'V2', radius: 10, color: C.nAmber }
+        );
+        
+        // Breakdown
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            label: 'Neckline Break → SELL', color: C.bear, size: 26 }
+        );
+      }
       break;
 
     case 'inverse_head_and_shoulders':
     case 'inverse_h_and_s':
-      explanation = 'Inverse Head & Shoulders – bal váll, mélyebb fej, jobb váll → breakout felfelé';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 16, price: getLow(-16), label: 'Left Shoulder', radius: 14 },
-        { type: 'circle', idx: decisionIndex - 9,  price: getLow(-9),  label: 'Head',          radius: 18 },
-        { type: 'circle', idx: decisionIndex - 4,  price: getLow(-4),  label: 'Right Shoulder', radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 20, startPrice: getHigh(-12), endIdx: decisionIndex + 2, endPrice: getHigh(-5), label: 'Neckline', dashed: true },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 18, direction: 'up', label: 'Breakout BUY' }
-      );
+    case 'inverse_hands':
+    case 'inverse_h&s':
+      explanation = 'Inverse Head & Shoulders: Bal váll > Fej < Jobb váll → Neckline breakout → Bullish reversal';
+      {
+        // Bal váll
+        const leftShoulderIdx = safeIdx(-20);
+        const leftShoulderPrice = getLow(-20);
+        highlights.push(
+          { type: 'circle', idx: leftShoulderIdx, price: leftShoulderPrice, 
+            label: 'Left Shoulder', radius: 14, color: C.nPurple }
+        );
+        
+        // Fej (legmélyebb pont)
+        const headIdx = safeIdx(-12);
+        const headPrice = getLow(-12);
+        highlights.push(
+          { type: 'circle', idx: headIdx, price: headPrice, 
+            label: 'Head', radius: 20, color: C.bull }
+        );
+        
+        // Jobb váll
+        const rightShoulderIdx = safeIdx(-4);
+        const rightShoulderPrice = getLow(-4);
+        highlights.push(
+          { type: 'circle', idx: rightShoulderIdx, price: rightShoulderPrice, 
+            label: 'Right Shoulder', radius: 14, color: C.nPurple }
+        );
+        
+        // Neckline (a két csúcs összekötése)
+        const leftPeakPrice = getHigh(-16);
+        const rightPeakPrice = getHigh(-8);
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-24), startPrice: leftPeakPrice, 
+            endIdx: safeIdx(2), endPrice: rightPeakPrice, 
+            label: 'Neckline (Resistance)', color: C.nAmber, dashed: true, width: 3 }
+        );
+        
+        // Csúcsok jelölése
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-16), price: leftPeakPrice, 
+            label: 'P1', radius: 10, color: C.nAmber }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-8), price: rightPeakPrice, 
+            label: 'P2', radius: 10, color: C.nAmber }
+        );
+        
+        // Breakout
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            label: 'Neckline Break → BUY', color: C.bull, size: 26 }
+        );
+      }
       break;
 
     default:
-      explanation = 'Pattern breakdown nem elérhető ehhez a formációhoz.';
+      explanation = `${pattern}: Pattern felismerhető, de részletes breakdown még nem elérhető.`;
+      // Általános jelzés
       highlights.push(
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 12 : -12), direction: isBullish ? 'up' : 'down', label: signal }
+        { type: 'rect', startIdx: safeIdx(-15), endIdx: safeIdx(0), 
+          priceTop: getHigh(-5), priceBot: getLow(-5), 
+          label: pattern, color: isBullish ? C.nGreen : C.nPink }
+      );
+      highlights.push(
+        { type: 'arrow', idx: safeIdx(0), price: getClose(0) + (isBullish ? 12 : -12), 
+          direction: isBullish ? 'up' : 'down', label: signal, 
+          color: isBullish ? C.bull : C.bear, size: 20 }
       );
   }
 
@@ -1111,16 +1416,61 @@ class ChartRenderer {
 
     const { highlights } = annotations;
     const ctx = this.ctx;
+    const endIdx = startIdx + visibleCandles.length - 1;
+
+    // Csoportosítjuk a label-eket Y pozíció szerint, hogy elkerüljük az ütközést
+    const labelPositions = [];
 
     highlights.forEach(h => {
-      // X koordináta segédfüggvény
-      const getX = idx => leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
+      // Csak akkor rajzoljuk, ha érvényes típus
+      if (!h || !h.type) return;
+      
+      // X koordináta segédfüggvény - csak a látható tartományban
+      const getX = idx => {
+        // Ha az index a látható tartományon kívül van, ne rajzoljuk
+        if (idx < startIdx || idx > endIdx) return null;
+        return leftPadding + (idx - startIdx) * slotWidth + slotWidth / 2;
+      };
+
+      // Függvény hogy ellenőrizze és módosítsa a label pozíciót ütközés elkerülésére
+      const adjustLabelPosition = (x, y, label, minSpacing = 25) => {
+        let adjustedY = y;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (attempts < maxAttempts) {
+          let hasCollision = false;
+          
+          for (const pos of labelPositions) {
+            const dx = Math.abs(pos.x - x);
+            const dy = Math.abs(pos.y - adjustedY);
+            
+            // Ha túl közel vannak egymáshoz
+            if (dx < 80 && dy < minSpacing) {
+              hasCollision = true;
+              adjustedY += minSpacing; // Lefelé toljuk
+              break;
+            }
+          }
+          
+          if (!hasCollision) {
+            labelPositions.push({ x, y: adjustedY, label });
+            return adjustedY;
+          }
+          
+          attempts++;
+        }
+        
+        labelPositions.push({ x, y: adjustedY, label });
+        return adjustedY;
+      };
 
       ctx.save();
 
       switch (h.type) {
         case 'circle': {
           const x = getX(h.idx);
+          if (x === null) break;
           const y = toY(h.price);
 
           ctx.strokeStyle = h.color || C.nGreen;
@@ -1130,18 +1480,37 @@ class ChartRenderer {
           ctx.stroke();
 
           if (h.label) {
+            const labelY = adjustLabelPosition(x, y - (h.radius || 12) - 8, h.label, 22);
+            
+            // Label háttér
+            ctx.font = 'bold 10px system-ui, sans-serif';
+            const metrics = ctx.measureText(h.label);
+            const padding = 5;
+            const bgWidth = metrics.width + padding * 2;
+            const bgHeight = 16;
+            
+            ctx.fillStyle = 'rgba(6,6,12,0.85)';
+            ctx.fillRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            ctx.strokeStyle = h.color || C.nGreen;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            // Label szöveg
             ctx.fillStyle = "#ffffff";
-            ctx.font = 'bold 11px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(h.label, x, y - (h.radius || 12) - 6);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(h.label, x, labelY);
           }
           break;
         }
 
         case 'line': {
           const x1 = getX(h.startIdx);
-          const y1 = toY(h.startPrice);
           const x2 = getX(h.endIdx);
+          if (x1 === null || x2 === null) break;
+          
+          const y1 = toY(h.startPrice);
           const y2 = toY(h.endPrice);
 
           ctx.strokeStyle = h.color || C.neut;
@@ -1158,23 +1527,43 @@ class ChartRenderer {
           ctx.setLineDash([]);
 
           if (h.label) {
-            ctx.fillStyle = h.color || C.neut;
-            ctx.font = 'bold 11px system-ui, sans-serif';
-            ctx.textAlign = 'center';
             const midX = (x1 + x2) / 2;
-            const midY = Math.min(y1, y2) - 10;
-            ctx.fillText(h.label, midX, midY);
+            const rawMidY = Math.min(y1, y2) - 12;
+            const labelY = adjustLabelPosition(midX, rawMidY, h.label, 24);
+            
+            // Label háttér
+            ctx.font = 'bold 10px system-ui, sans-serif';
+            const metrics = ctx.measureText(h.label);
+            const padding = 5;
+            const bgWidth = metrics.width + padding * 2;
+            const bgHeight = 16;
+            
+            ctx.fillStyle = 'rgba(6,6,12,0.85)';
+            ctx.fillRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            ctx.strokeStyle = h.color || C.neut;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            // Label szöveg
+            ctx.fillStyle = h.color || C.neut;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(h.label, midX, labelY);
           }
           break;
         }
 
         case 'rect': {
-          const x1 = leftPadding + (h.startIdx - startIdx) * slotWidth;
-          const x2 = leftPadding + (h.endIdx - startIdx) * slotWidth + slotWidth;
+          // Ellenőrizzük, hogy a rect látható-e
+          if (h.endIdx < startIdx || h.startIdx > endIdx) break;
+          
+          const x1 = leftPadding + Math.max(0, (h.startIdx - startIdx)) * slotWidth;
+          const x2 = leftPadding + Math.min(visibleCandles.length, (h.endIdx - startIdx + 1)) * slotWidth;
           const yTop = toY(h.priceTop);
           const yBot = toY(h.priceBot);
 
-          ctx.fillStyle = (h.color || C.nAmber) + '33'; // könnyű kitöltés
+          ctx.fillStyle = (h.color || C.nAmber) + '22';
           ctx.fillRect(x1, yTop, x2 - x1, yBot - yTop);
 
           ctx.strokeStyle = h.color || C.nAmber;
@@ -1184,16 +1573,37 @@ class ChartRenderer {
           ctx.setLineDash([]);
 
           if (h.label) {
+            const midX = (x1 + x2) / 2;
+            const rawLabelY = yTop - 10;
+            const labelY = adjustLabelPosition(midX, rawLabelY, h.label, 24);
+            
+            // Label háttér
+            ctx.font = 'bold 10px system-ui, sans-serif';
+            const metrics = ctx.measureText(h.label);
+            const padding = 5;
+            const bgWidth = metrics.width + padding * 2;
+            const bgHeight = 16;
+            
+            ctx.fillStyle = 'rgba(6,6,12,0.85)';
+            ctx.fillRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            ctx.strokeStyle = h.color || C.nAmber;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(midX - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            // Label szöveg
             ctx.fillStyle = h.color || C.nAmber;
-            ctx.font = 'bold 11px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(h.label, (x1 + x2) / 2, yTop - 8);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(h.label, midX, labelY);
           }
           break;
         }
 
         case 'arrow': {
           const x = getX(h.idx);
+          if (x === null) break;
+          
           const yBase = toY(h.price);
           const dirUp = h.direction === 'up';
           const color = h.color || (dirUp ? C.bull : C.bear);
@@ -1224,22 +1634,58 @@ class ChartRenderer {
           ctx.fill();
 
           if (h.label) {
+            const rawLabelY = dirUp ? yBase - size * 1.4 - 8 : yBase + size * 1.4 + 12;
+            const labelY = adjustLabelPosition(x, rawLabelY, h.label, 28);
+            
+            // Label háttér
+            ctx.font = 'bold 11px system-ui, sans-serif';
+            const metrics = ctx.measureText(h.label);
+            const padding = 6;
+            const bgWidth = metrics.width + padding * 2;
+            const bgHeight = 18;
+            
+            ctx.fillStyle = 'rgba(6,6,12,0.9)';
+            ctx.fillRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+            
+            // Label szöveg
             ctx.fillStyle = color;
-            ctx.font = 'bold 12px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(h.label, x, dirUp ? yBase - size * 1.4 - 5 : yBase + size * 1.4 + 10);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(h.label, x, labelY);
           }
           break;
         }
 
         case 'text': {
           const x = getX(h.idx);
-          const y = toY(h.price);
+          if (x === null) break;
+          
+          const rawY = toY(h.price) - 12;
+          const labelY = adjustLabelPosition(x, rawY, h.label, 22);
 
+          // Label háttér
+          ctx.font = 'bold 11px system-ui, sans-serif';
+          const metrics = ctx.measureText(h.label);
+          const padding = 5;
+          const bgWidth = metrics.width + padding * 2;
+          const bgHeight = 18;
+          
+          ctx.fillStyle = 'rgba(6,6,12,0.85)';
+          ctx.fillRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+          
+          ctx.strokeStyle = h.color || '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x - bgWidth/2, labelY - bgHeight/2, bgWidth, bgHeight);
+          
+          // Label szöveg
           ctx.fillStyle = h.color || '#ffffff';
-          ctx.font = 'bold 12px system-ui, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(h.label, x, y - 10);
+          ctx.textBaseline = 'middle';
+          ctx.fillText(h.label, x, labelY);
           break;
         }
 
