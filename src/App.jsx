@@ -230,140 +230,110 @@ const sound = new SoundEngine();
 
 /* ═══════════════════════════════════════════════════════════════
     4  PATTERN ANNOTATION GENERATOR
-    
-    Generates visual annotations for pattern breakdown
-    Kompatibilis a jelenlegi drawAnnotations (ár-alapú) verzióval
+    Kompatibilis a jelenlegi drawAnnotations-szal
    ═══════════════════════════════════════════════════════════════ */
 
 function generateAnnotation(structure) {
   const { pattern, signal, candles, decisionIndex } = structure;
-  // signal általában "BUY" vagy "SELL"
+
+  // Normalizáljuk a pattern nevet (hogy ne legyen gond a & jellel, nagybetűvel, space-szel)
+  const p = pattern.toLowerCase().trim().replace(/&/g, 'and').replace(/\s+/g, '_');
 
   const highlights = [];
   let explanation = '';
 
-  // Segédfüggvények a gyertyák árának lekéréséhez
-  const getHigh = (offset) => candles[decisionIndex + offset]?.high ?? candles[decisionIndex].high;
-  const getLow = (offset) => candles[decisionIndex + offset]?.low ?? candles[decisionIndex].low;
-  const getClose = (offset) => candles[decisionIndex + offset]?.close ?? candles[decisionIndex].close;
+  const isBullish = signal === 'BUY';
+  const getHigh  = (o) => candles[decisionIndex + o]?.high  ?? candles[decisionIndex].high;
+  const getLow   = (o) => candles[decisionIndex + o]?.low   ?? candles[decisionIndex].low;
+  const getClose = (o) => candles[decisionIndex + o]?.close ?? candles[decisionIndex].close;
 
-  const isBullish = signal === 'BUY' || signal === 'bullish';
-
-  switch (pattern.trim()) {
-    case 'Double Bottom':
-    case 'double_bottom':
-      explanation = isBullish
-        ? 'Valid Double Bottom: Két azonos szintű mélypont, majd nyakvonal feletti kitörés → emelkedő fordulat.'
-        : 'Failed Double Bottom: A nyakvonal ellenállásként működött → bearish folytatás.';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 15, price: getLow(-15), label: 'Bal mélypont', color: isBullish ? C.bull : C.bear, radius: 14 },
-        { type: 'circle', idx: decisionIndex - 5,  price: getLow(-5),  label: 'Jobb mélypont', color: isBullish ? C.bull : C.bear, radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 18, startPrice: getHigh(-10), endIdx: decisionIndex + 2, endPrice: getHigh(-4), label: 'Neckline', dashed: true, color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 14 : -14), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Kitörés ↑' : 'Rejection ↓' }
-      );
-      break;
-
-    case 'Double Top':
-    case 'double_top':
-      explanation = !isBullish
-        ? 'Valid Double Top: Két azonos szintű csúcs, majd nyakvonal alatti kitörés → csökkenő fordulat.'
-        : 'Failed Double Top: A nyakvonal támaszként működött → bullish folytatás.';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 15, price: getHigh(-15), label: 'Bal csúcs', color: !isBullish ? C.bear : C.bull, radius: 14 },
-        { type: 'circle', idx: decisionIndex - 5,  price: getHigh(-5),  label: 'Jobb csúcs', color: !isBullish ? C.bear : C.bull, radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 18, startPrice: getLow(-10), endIdx: decisionIndex + 2, endPrice: getLow(-4), label: 'Neckline', dashed: true, color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 14 : -14), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Rejection ↑' : 'Kitörés ↓' }
-      );
-      break;
-
-    case 'Head & Shoulders':
-    case 'head_shoulders':
-      explanation = !isBullish
-        ? 'Valid Head & Shoulders: Bal váll, magasabb fej, jobb váll → nyakvonal alatti breakdown.'
-        : 'Failed Head & Shoulders: Nyakvonal tartotta a támaszt → bullish fordulat.';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 16, price: getHigh(-16), label: 'Bal váll', color: !isBullish ? C.bear : C.bull, radius: 14 },
-        { type: 'circle', idx: decisionIndex - 9,  price: getHigh(-9),  label: 'Fej', color: !isBullish ? C.bear : C.bull, radius: 18 },
-        { type: 'circle', idx: decisionIndex - 4,  price: getHigh(-4),  label: 'Jobb váll', color: !isBullish ? C.bear : C.bull, radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 20, startPrice: getLow(-12), endIdx: decisionIndex + 2, endPrice: getLow(-5), label: 'Neckline', dashed: true, color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (!isBullish ? -16 : 16), direction: !isBullish ? 'down' : 'up', label: !isBullish ? 'Breakdown ↓' : 'Rejection ↑' }
-      );
-      break;
-
-    case 'Inverse H&S':
-    case 'inverse_head_shoulders':
-      explanation = isBullish
-        ? 'Valid Inverse Head & Shoulders: Bal váll, mélyebb fej, jobb váll → nyakvonal feletti breakout.'
-        : 'Failed Inverse H&S: Nyakvonal ellenállásként tartott → bearish folytatás.';
-      highlights.push(
-        { type: 'circle', idx: decisionIndex - 16, price: getLow(-16), label: 'Bal váll', color: isBullish ? C.bull : C.bear, radius: 14 },
-        { type: 'circle', idx: decisionIndex - 9,  price: getLow(-9),  label: 'Fej', color: isBullish ? C.bull : C.bear, radius: 18 },
-        { type: 'circle', idx: decisionIndex - 4,  price: getLow(-4),  label: 'Jobb váll', color: isBullish ? C.bull : C.bear, radius: 14 },
-        { type: 'line', startIdx: decisionIndex - 20, startPrice: getHigh(-12), endIdx: decisionIndex + 2, endPrice: getHigh(-5), label: 'Neckline', dashed: true, color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 16 : -16), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Breakout ↑' : 'Rejection ↓' }
-      );
-      break;
-
-    case 'Bull Flag':
+  switch (p) {
     case 'bull_flag':
-      explanation = isBullish
-        ? 'Valid Bull Flag: Erős emelkedő rúd után szűkülő zászló → felfelé folytatás.'
-        : 'Failed Bull Flag: A zászló lefelé tört ki → bearish fordulat.';
+      explanation = 'Bull Flag – erős emelkedés utáni szűkülő konszolidáció → felfelé kitörés';
       highlights.push(
-        { type: 'rect', startIdx: decisionIndex - 10, endIdx: decisionIndex, priceTop: getHigh(-2), priceBot: getLow(-7), label: 'Zászló konszolidáció', color: isBullish ? C.nGreen : C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 14 : -14), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Kitörés ↑' : 'Breakdown ↓' },
-        { type: 'text', idx: decisionIndex - 5, price: getHigh(-3) + 10, label: 'Flag' }
+        { type: 'rect', startIdx: decisionIndex - 10, endIdx: decisionIndex, priceTop: getHigh(-2), priceBot: getLow(-7), label: 'Flag', color: C.nGreen },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 14, direction: 'up', label: 'Breakout ↑', color: C.bull }
       );
       break;
 
-    case 'Bear Flag':
     case 'bear_flag':
-      explanation = !isBullish
-        ? 'Valid Bear Flag: Erős eső rúd után szűkülő zászló → lefelé folytatás.'
-        : 'Failed Bear Flag: A zászló felfelé tört ki → bullish fordulat.';
+      explanation = 'Bear Flag – erős esés utáni szűkülő konszolidáció → lefelé kitörés';
       highlights.push(
-        { type: 'rect', startIdx: decisionIndex - 10, endIdx: decisionIndex, priceTop: getHigh(-7), priceBot: getLow(-2), label: 'Zászló konszolidáció', color: !isBullish ? C.nAmber : C.nGreen },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 14 : -14), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Rejection ↑' : 'Kitörés ↓' },
-        { type: 'text', idx: decisionIndex - 5, price: getLow(-3) - 10, label: 'Flag' }
+        { type: 'rect', startIdx: decisionIndex - 10, endIdx: decisionIndex, priceTop: getHigh(-7), priceBot: getLow(-2), label: 'Flag', color: C.nAmber },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 14, direction: 'down', label: 'Breakdown ↓', color: C.bear }
       );
       break;
 
-    case 'Ascending Triangle':
     case 'ascending_triangle':
-      explanation = isBullish
-        ? 'Valid Ascending Triangle: Emelkedő aljak + lapos ellenállás → bullish kitörés.'
-        : 'Failed Ascending Triangle: Lefelé törés a emelkedő támasz alatt → bearish.';
+      explanation = 'Ascending Triangle – emelkedő aljak + lapos ellenállás → bullish kitörés';
       highlights.push(
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getLow(-12), endIdx: decisionIndex, endPrice: getLow(-1), label: 'Emelkedő támasz', color: C.nGreen },
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getHigh(-10), endIdx: decisionIndex, endPrice: getHigh(-2), label: 'Lapos ellenállás', dashed: true, color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 15 : -15), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Kitörés ↑' : 'Breakdown ↓' }
+        { type: 'line', startIdx: decisionIndex - 14, startPrice: getLow(-12), endIdx: decisionIndex, endPrice: getLow(-1), label: 'Rising Support' },
+        { type: 'line', startIdx: decisionIndex - 14, startPrice: getHigh(-10), endIdx: decisionIndex, endPrice: getHigh(-2), label: 'Resistance', dashed: true },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 15, direction: 'up', label: 'Breakout ↑' }
       );
       break;
 
-    case 'Descending Triangle':
     case 'descending_triangle':
-      explanation = !isBullish
-        ? 'Valid Descending Triangle: Csökkenő tetők + lapos támasz → bearish kitörés.'
-        : 'Failed Descending Triangle: Felfelé törés a csökkenő ellenállás felett → bullish.';
+      explanation = 'Descending Triangle – csökkenő tetők + lapos támasz → bearish kitörés';
       highlights.push(
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getHigh(-12), endIdx: decisionIndex, endPrice: getHigh(-1), label: 'Csökkenő ellenállás', color: C.bear },
-        { type: 'line', startIdx: decisionIndex - 14, startPrice: getLow(-10), endIdx: decisionIndex, endPrice: getLow(-2), label: 'Lapos támasz', dashed: true, color: C.nAmber },
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 15 : -15), direction: isBullish ? 'up' : 'down', label: isBullish ? 'Rejection ↑' : 'Kitörés ↓' }
+        { type: 'line', startIdx: decisionIndex - 14, startPrice: getHigh(-12), endIdx: decisionIndex, endPrice: getHigh(-1), label: 'Falling Resistance' },
+        { type: 'line', startIdx: decisionIndex - 14, startPrice: getLow(-10), endIdx: decisionIndex, endPrice: getLow(-2), label: 'Support', dashed: true },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 15, direction: 'down', label: 'Breakdown ↓' }
+      );
+      break;
+
+    case 'double_bottom':
+      explanation = 'Double Bottom – két azonos mélypont + nyakvonal feletti kitörés';
+      highlights.push(
+        { type: 'circle', idx: decisionIndex - 15, price: getLow(-15), label: 'Left Bottom', radius: 14 },
+        { type: 'circle', idx: decisionIndex - 5,  price: getLow(-5),  label: 'Right Bottom', radius: 14 },
+        { type: 'line', startIdx: decisionIndex - 18, startPrice: getHigh(-10), endIdx: decisionIndex + 2, endPrice: getHigh(-4), label: 'Neckline', dashed: true },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 16, direction: 'up', label: 'Breakout ↑' }
+      );
+      break;
+
+    case 'double_top':
+      explanation = 'Double Top – két azonos csúcs + nyakvonal alatti kitörés';
+      highlights.push(
+        { type: 'circle', idx: decisionIndex - 15, price: getHigh(-15), label: 'Left Top', radius: 14 },
+        { type: 'circle', idx: decisionIndex - 5,  price: getHigh(-5),  label: 'Right Top', radius: 14 },
+        { type: 'line', startIdx: decisionIndex - 18, startPrice: getLow(-10), endIdx: decisionIndex + 2, endPrice: getLow(-4), label: 'Neckline', dashed: true },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 16, direction: 'down', label: 'Breakdown ↓' }
+      );
+      break;
+
+    case 'head_and_shoulders':
+    case 'head_shoulders':
+      explanation = 'Head & Shoulders – bal váll, magasabb fej, jobb váll → neckline breakdown';
+      highlights.push(
+        { type: 'circle', idx: decisionIndex - 16, price: getHigh(-16), label: 'Left Shoulder', radius: 14 },
+        { type: 'circle', idx: decisionIndex - 9,  price: getHigh(-9),  label: 'Head',          radius: 18 },
+        { type: 'circle', idx: decisionIndex - 4,  price: getHigh(-4),  label: 'Right Shoulder', radius: 14 },
+        { type: 'line', startIdx: decisionIndex - 20, startPrice: getLow(-12), endIdx: decisionIndex + 2, endPrice: getLow(-5), label: 'Neckline', dashed: true },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) - 18, direction: 'down', label: 'Breakdown SELL' }
+      );
+      break;
+
+    case 'inverse_head_and_shoulders':
+    case 'inverse_h_and_s':
+      explanation = 'Inverse Head & Shoulders – bal váll, mélyebb fej, jobb váll → breakout felfelé';
+      highlights.push(
+        { type: 'circle', idx: decisionIndex - 16, price: getLow(-16), label: 'Left Shoulder', radius: 14 },
+        { type: 'circle', idx: decisionIndex - 9,  price: getLow(-9),  label: 'Head',          radius: 18 },
+        { type: 'circle', idx: decisionIndex - 4,  price: getLow(-4),  label: 'Right Shoulder', radius: 14 },
+        { type: 'line', startIdx: decisionIndex - 20, startPrice: getHigh(-12), endIdx: decisionIndex + 2, endPrice: getHigh(-5), label: 'Neckline', dashed: true },
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) + 18, direction: 'up', label: 'Breakout BUY' }
       );
       break;
 
     default:
-      explanation = 'Pattern breakdown not available yet.';
+      explanation = 'Pattern breakdown nem elérhető ehhez a formációhoz.';
       highlights.push(
-        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 10 : -10), direction: isBullish ? 'up' : 'down', label: signal || '—', color: isBullish ? C.bull : C.bear }
+        { type: 'arrow', idx: decisionIndex, price: getClose(0) + (isBullish ? 12 : -12), direction: isBullish ? 'up' : 'down', label: signal }
       );
   }
 
-  return {
-    pattern,
-    explanation,
-    highlights
-  };
+  return { pattern, explanation, highlights };
 }
 /* ═══════════════════════════════════════════════════════════════
     5  MARKET STRUCTURE GENERATOR
