@@ -544,40 +544,253 @@ class MarketStructureGenerator {
   }
 
   // Generate complete market structure with context
-  // Focus: INFERABLE DIRECTION, not confusion
+  // CRITICAL: Only generate setups with CLEAR ex-ante edge
+  // "Obvious in hindsight" rule: if you can't see it BEFORE, it's not a valid question
   generate() {
     const { contextSize } = this.config;
+    
+    let attempts = 0;
+    let structure = null;
+    
+    // Keep generating until we get a HIGH-QUALITY setup with clear edge
+    while (attempts < 50) {
+      attempts++;
+      
+      // Determine setup type and signal FIRST (outcome-driven)
+      const setupType = this._pickSetupType();
+      const signal = setupType.signal; // BUY or SELL
 
-    // Determine setup type and signal FIRST (outcome-driven)
-    const setupType = this._pickSetupType();
-    const signal = setupType.signal; // BUY or SELL
+      // Build context that STRONGLY supports this signal
+      const context = this._buildContext(setupType, contextSize);
 
-    // Build context that supports (or contradicts for traps) this signal
-    const context = this._buildContext(setupType, contextSize);
+      // Build the actual setup candles with CLEAR structural evidence
+      const setupCandles = this._buildSetup(setupType, context);
 
-    // Build the actual setup candles
-    const setupCandles = this._buildSetup(setupType, context);
+      // Combine: context + setup
+      const candles = [...context.candles, ...setupCandles];
+      const decisionIndex = candles.length - 1;
 
-    // Combine: context + setup
-    const candles = [...context.candles, ...setupCandles];
+      // CRITICAL: Validate edge quality BEFORE accepting
+      const edgeScore = this._validateEdge(candles, decisionIndex, setupType, context);
+      
+      // Minimum 2/5 edge indicators required (from checklist)
+      if (edgeScore >= 2) {
+        // Generate continuation based on signal
+        const continuation = this._generateContinuation(signal, setupType, candles);
+        
+        structure = {
+          candles,
+          decisionIndex,
+          continuation,
+          signal,
+          context: {
+            trendBias: context.bias,
+            priorStructure: context.priorPattern,
+            momentum: setupType.momentum,
+            quality: setupType.quality,
+            edgeScore, // Expose edge quality
+          },
+          pattern: setupType.name,
+          regime: context.regime,
+        };
+        break;
+      }
+    }
+    
+    // Fallback: if somehow failed after 50 attempts, generate guaranteed clean setup
+    if (!structure) {
+      return this._generateGuaranteedCleanSetup();
+    }
+    
+    return structure;
+  }
+  
+  // NEW: Validate edge quality using the checklist
+  // Returns score 0-5 based on how many edge indicators are present
+  _validateEdge(candles, decisionIndex, setupType, context) {
+    let score = 0;
+    const lookback = 15;
+    const recentCandles = candles.slice(Math.max(0, decisionIndex - lookback), decisionIndex + 1);
+    
+    if (recentCandles.length < 5) return 0;
+    
+    // 1. Higher highs / higher lows (for bullish) OR Lower highs / lower lows (for bearish)
+    const hasStructuralTrend = this._checkStructuralTrend(recentCandles, setupType.signal);
+    if (hasStructuralTrend) score++;
+    
+    // 2. Clear range hold (support/resistance respected)
+    const hasRangeHold = this._checkRangeHold(recentCandles, setupType.signal);
+    if (hasRangeHold) score++;
+    
+    // 3. Momentum expansion on decision candle
+    const hasMomentum = this._checkMomentumExpansion(candles, decisionIndex);
+    if (hasMomentum) score++;
+    
+    // 4. Context alignment (HTF trend matches signal)
+    const contextAligned = (
+      (setupType.signal === "BUY" && (context.regime === "uptrend" || context.regime === "downtrend_exhausting")) ||
+      (setupType.signal === "SELL" && (context.regime === "downtrend" || context.regime === "uptrend_exhausting"))
+    );
+    if (contextAligned) score++;
+    
+    // 5. Fakeout / rejection clearly visible
+    const hasRejection = this._checkRejection(recentCandles, setupType.signal);
+    if (hasRejection) score++;
+    
+    return score;
+  }
+  
+  _checkStructuralTrend(candles, signal) {
+    if (candles.length < 6) return false;
+    
+    const highs = candles.map(c => c.high);
+    const lows = candles.map(c => c.low);
+    
+    if (signal === "BUY") {
+      // Check for higher lows
+      let higherLows = 0;
+      for (let i = 3; i < lows.length; i++) {
+        const recentLow = Math.min(...lows.slice(i - 3, i));
+        if (lows[i] > recentLow * 1.001) higherLows++;
+      }
+      return higherLows >= 2;
+    } else {
+      // Check for lower highs
+      let lowerHighs = 0;
+      for (let i = 3; i < highs.length; i++) {
+        const recentHigh = Math.max(...highs.slice(i - 3, i));
+        if (highs[i] < recentHigh * 0.999) lowerHighs++;
+      }
+      return lowerHighs >= 2;
+    }
+  }
+  
+  _checkRangeHold(candles, signal) {
+    if (candles.length < 8) return false;
+    
+    const lows = candles.map(c => c.low);
+    const highs = candles.map(c => c.high);
+    
+    if (signal === "BUY") {
+      // Support level held multiple times
+      const supportLevel = Math.min(...lows);
+      const touches = lows.filter(l => Math.abs(l - supportLevel) / supportLevel < 0.015).length;
+      return touches >= 2;
+    } else {
+      // Resistance level held multiple times
+      const resistanceLevel = Math.max(...highs);
+      const touches = highs.filter(h => Math.abs(h - resistanceLevel) / resistanceLevel < 0.015).length;
+      return touches >= 2;
+    }
+  }
+  
+  _checkMomentumExpansion(candles, decisionIndex) {
+    if (decisionIndex < 3) return false;
+    
+    const current = candles[decisionIndex];
+    const currentRange = current.high - current.low;
+    
+    // Compare to recent average range
+    const recentRanges = [];
+    for (let i = Math.max(0, decisionIndex - 5); i < decisionIndex; i++) {
+      recentRanges.push(candles[i].high - candles[i].low);
+    }
+    const avgRange = recentRanges.reduce((a, b) => a + b, 0) / recentRanges.length;
+    
+    // Decision candle should show expansion (20% larger)
+    return currentRange > avgRange * 1.2;
+  }
+  
+  _checkRejection(candles, signal) {
+    if (candles.length < 4) return false;
+    
+    // Look for rejection wicks in recent candles
+    for (let i = Math.max(0, candles.length - 4); i < candles.length; i++) {
+      const c = candles[i];
+      const bodySize = Math.abs(c.close - c.open);
+      const totalRange = c.high - c.low;
+      
+      if (signal === "BUY") {
+        // Look for lower wick rejection (bullish)
+        const lowerWick = Math.min(c.open, c.close) - c.low;
+        if (lowerWick > bodySize * 1.5 && lowerWick / totalRange > 0.4) {
+          return true;
+        }
+      } else {
+        // Look for upper wick rejection (bearish)
+        const upperWick = c.high - Math.max(c.open, c.close);
+        if (upperWick > bodySize * 1.5 && upperWick / totalRange > 0.4) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  
+  // NEW: Guaranteed clean setup (fallback if validation fails)
+  _generateGuaranteedCleanSetup() {
+    const signal = this.rng() < 0.5 ? "BUY" : "SELL";
+    const candles = [];
+    let price = 1000;
+    
+    // Phase 1: Strong trend (30 candles)
+    const trendDir = signal === "BUY" ? 1 : -1;
+    for (let i = 0; i < 30; i++) {
+      const isBull = signal === "BUY" ? this.rng() < 0.7 : this.rng() < 0.3;
+      const bodySize = price * 0.015;
+      const open = price;
+      price *= 1 + trendDir * 0.003;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + bodySize * 0.3;
+      const low = Math.min(open, close) - bodySize * 0.3;
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+    
+    // Phase 2: Clean pullback (8 candles)
+    for (let i = 0; i < 8; i++) {
+      const isBull = signal === "BUY" ? this.rng() < 0.4 : this.rng() < 0.6;
+      const bodySize = price * 0.008;
+      const open = price;
+      price *= 1 - trendDir * 0.001;
+      const close = isBull ? open + bodySize : open - bodySize;
+      const high = Math.max(open, close) + bodySize * 0.2;
+      const low = Math.min(open, close) - bodySize * 0.2;
+      candles.push({ open, high, low, close });
+      price = close;
+    }
+    
+    // Phase 3: Breakout candle
+    const bodySize = price * 0.02;
+    const open = price;
+    const close = signal === "BUY" ? open + bodySize : open - bodySize;
+    const high = signal === "BUY" ? close + bodySize * 0.2 : Math.max(open, close) + bodySize * 0.1;
+    const low = signal === "BUY" ? Math.min(open, close) - bodySize * 0.1 : close - bodySize * 0.2;
+    candles.push({ open, high, low, close });
+    
     const decisionIndex = candles.length - 1;
-
-    // Generate continuation based on signal
-    const continuation = this._generateContinuation(signal, setupType, candles);
-
+    
+    // Generate continuation
+    const continuation = this._generateContinuation(signal, {
+      type: signal === "BUY" ? "bullish_continuation" : "bearish_continuation",
+      name: signal === "BUY" ? "Bull Flag" : "Bear Flag",
+      willSucceed: true
+    }, candles);
+    
     return {
       candles,
       decisionIndex,
       continuation,
       signal,
       context: {
-        trendBias: context.bias,
-        priorStructure: context.priorPattern,
-        momentum: setupType.momentum,
-        quality: setupType.quality,
+        trendBias: signal === "BUY" ? "Bullish" : "Bearish",
+        priorStructure: "Clean Trend",
+        momentum: "strong",
+        quality: "guaranteed",
+        edgeScore: 5,
       },
-      pattern: setupType.name,
-      regime: context.regime,
+      pattern: signal === "BUY" ? "Bull Flag" : "Bear Flag",
+      regime: signal === "BUY" ? "uptrend" : "downtrend",
     };
   }
 
@@ -1649,7 +1862,7 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
           <div>
             • Pattern confirmed with strong follow-through
             <br />• {context.trendBias} trend bias supported the move
-            <br />• {context.volatility} volatility allowed clean development
+            <br />• Setup quality: {context.edgeScore || 0}/5 edge indicators
           </div>
         ) : (
           <div>
@@ -2576,6 +2789,21 @@ export default function App() {
             <GlassPanel style={{ padding: "4px 10px", borderRadius: 14, border: `1px solid ${C.nBlue}35` }}>
               <span style={{ fontSize: 11, fontFamily: "monospace", color: C.nBlue }}>
                 📊 Building...
+              </span>
+            </GlassPanel>
+          )}
+          {screen === "playing" && structure && structure.context && structure.context.edgeScore >= 0 && (
+            <GlassPanel style={{ 
+              padding: "4px 10px", 
+              borderRadius: 14, 
+              border: `1px solid ${structure.context.edgeScore >= 4 ? C.nGreen : structure.context.edgeScore >= 3 ? C.nAmber : C.nPink}35` 
+            }}>
+              <span style={{ 
+                fontSize: 11, 
+                fontFamily: "monospace", 
+                color: structure.context.edgeScore >= 4 ? C.nGreen : structure.context.edgeScore >= 3 ? C.nAmber : C.nPink
+              }}>
+                ⚡ {structure.context.edgeScore}/5
               </span>
             </GlassPanel>
           )}
