@@ -1687,7 +1687,7 @@ export default function App() {
           }
           
           initializeRound(0);
-        }, 400);
+        }, 500);
       }
     }, 1000);
   }, [initializeRound]);
