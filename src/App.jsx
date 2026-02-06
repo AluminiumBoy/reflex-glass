@@ -298,92 +298,42 @@ class MarketStructureGenerator {
     const { cleanRatio } = this.config;
 
     // Distribution: 50% BUY, 50% SELL - no HOLD
-    // Bővített pattern lista több változattal
-    
-    if (r < 0.125) {
-      // Bullish continuation patterns - Group 1
-      const patterns = ["Bull Flag", "Ascending Triangle", "Bull Pennant", "Rising Wedge Breakout"];
+    if (r < 0.25) {
+      // Clean bullish continuation
       return {
         type: "bullish_continuation",
         signal: "BUY",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
-        momentum: "strong",
-        quality: "clean",
-        willSucceed: true,
-      };
-    } else if (r < 0.25) {
-      // Bullish continuation patterns - Group 2
-      const patterns = ["Rectangle Breakout (Bull)", "Symmetrical Triangle (Bull)", "Cup & Handle"];
-      return {
-        type: "bullish_continuation",
-        signal: "BUY",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
-        momentum: "strong",
-        quality: "clean",
-        willSucceed: true,
-      };
-    } else if (r < 0.375) {
-      // Bearish continuation patterns - Group 1
-      const patterns = ["Bear Flag", "Descending Triangle", "Bear Pennant", "Falling Wedge Breakdown"];
-      return {
-        type: "bearish_continuation",
-        signal: "SELL",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
+        name: this.rng() < 0.5 ? "Bull Flag" : "Ascending Triangle",
         momentum: "strong",
         quality: "clean",
         willSucceed: true,
       };
     } else if (r < 0.5) {
-      // Bearish continuation patterns - Group 2
-      const patterns = ["Rectangle Breakdown (Bear)", "Symmetrical Triangle (Bear)", "Inverse Cup & Handle"];
+      // Clean bearish continuation
       return {
         type: "bearish_continuation",
         signal: "SELL",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
+        name: this.rng() < 0.5 ? "Bear Flag" : "Descending Triangle",
         momentum: "strong",
         quality: "clean",
         willSucceed: true,
       };
-    } else if (r < 0.625) {
-      // Bullish reversal patterns - Group 1
-      const patterns = ["Double Bottom", "Inverse H&S", "Triple Bottom"];
-      return {
-        type: "bullish_reversal",
-        signal: "BUY",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
-        momentum: "building",
-        quality: "good",
-        willSucceed: true,
-      };
     } else if (r < 0.75) {
-      // Bullish reversal patterns - Group 2
-      const patterns = ["Rounding Bottom", "Falling Wedge Reversal", "Bullish Divergence"];
+      // Bullish reversal
       return {
         type: "bullish_reversal",
         signal: "BUY",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
-        momentum: "building",
-        quality: "good",
-        willSucceed: true,
-      };
-    } else if (r < 0.875) {
-      // Bearish reversal patterns - Group 1
-      const patterns = ["Double Top", "Head & Shoulders", "Triple Top"];
-      return {
-        type: "bearish_reversal",
-        signal: "SELL",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
+        name: this.rng() < 0.5 ? "Double Bottom" : "Inverse H&S",
         momentum: "building",
         quality: "good",
         willSucceed: true,
       };
     } else {
-      // Bearish reversal patterns - Group 2
-      const patterns = ["Rounding Top", "Rising Wedge Reversal", "Bearish Divergence"];
+      // Bearish reversal
       return {
         type: "bearish_reversal",
         signal: "SELL",
-        name: patterns[Math.floor(this.rng() * patterns.length)],
+        name: this.rng() < 0.5 ? "Double Top" : "Head & Shoulders",
         momentum: "building",
         quality: "good",
         willSucceed: true,
@@ -880,7 +830,7 @@ class ChartRenderer {
     const width = this.canvas.width / dpr;
     const height = this.canvas.height / dpr;
 
-    // NO clearRect here - main loop handles clearing
+    ctx.clearRect(0, 0, width, height);
     if (!allCandles || allCandles.length === 0) return;
 
     const mobile = this.isMobile(width);
@@ -1550,12 +1500,6 @@ const Leaderboard = ({ onBack }) => {
    ═══════════════════════════════════════════════════════════════ */
 
 export default function App() {
-  // ══════════════════════════════════════════════════════════════
-  // RENDER STATE - Single source of truth for what to draw
-  // Mutually exclusive states: 'idle' | 'countdown' | 'transition' | 'playing' | 'feedback'
-  // ══════════════════════════════════════════════════════════════
-  const [renderState, setRenderState] = useState("idle");
-  
   // ── State ──
   const [screen, setScreen] = useState("home");
   const [round, setRound] = useState(0);
@@ -1567,6 +1511,7 @@ export default function App() {
   const [choice, setChoice] = useState(null);
   const [structure, setStructure] = useState(null);
   const [windowStart, setWindowStart] = useState(0);
+  const [showCountdown, setShowCountdown] = useState(false);
   const [countdownNum, setCountdownNum] = useState(3);
   const [revealProgress, setRevealProgress] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -1578,21 +1523,18 @@ export default function App() {
   const chartRef = useRef(null);
   const rendererRef = useRef(null);
   const timerRef = useRef(null);
+  const animFrameRef = useRef(null);
   const touchStartX = useRef(null);
   const touchStartOffset = useRef(0);
+  const swipeRafId = useRef(null);
   const lastTouchX = useRef(null);
   const lastTouchTime = useRef(null);
   const velocity = useRef(0);
-  
-  // ══════════════════════════════════════════════════════════════
-  // SINGLE RAF LOOP - Only one requestAnimationFrame reference
-  // ══════════════════════════════════════════════════════════════
-  const rafId = useRef(null);
-  const lastFrameTime = useRef(0);
+  const renderRafId = useRef(null);
+  const lastRenderTime = useRef(0);
   const buildAnimationProgress = useRef(0);
   const cachedCandles = useRef([]);
   const lastCandleCount = useRef(0);
-  const transitionFrameCount = useRef(0);
 
   // ── Initialize renderer ──
   useEffect(() => {
@@ -1628,152 +1570,6 @@ export default function App() {
     loadPlayerName();
   }, []);
 
-  // ══════════════════════════════════════════════════════════════
-  // SINGLE RAF LOOP - The ONLY requestAnimationFrame in the app
-  // Architecture:
-  // 1. update() - Changes state, NO rendering
-  // 2. render() - Draws to canvas, NO state changes
-  // ══════════════════════════════════════════════════════════════
-  useEffect(() => {
-    const FIXED_FPS = 30;
-    const FRAME_TIME = 1000 / FIXED_FPS;
-
-    const gameLoop = (timestamp) => {
-      // Frame rate limiting
-      if (timestamp - lastFrameTime.current < FRAME_TIME) {
-        rafId.current = requestAnimationFrame(gameLoop);
-        return;
-      }
-      lastFrameTime.current = timestamp;
-
-      // ══════════════════════════════════════════════════════════════
-      // UPDATE PHASE - State changes ONLY
-      // ══════════════════════════════════════════════════════════════
-      update();
-
-      // ══════════════════════════════════════════════════════════════
-      // RENDER PHASE - Drawing ONLY
-      // ══════════════════════════════════════════════════════════════
-      render();
-
-      rafId.current = requestAnimationFrame(gameLoop);
-    };
-
-    const update = () => {
-      // Transition state auto-advance (render NOTHING for 2 frames)
-      if (renderState === "transition") {
-        transitionFrameCount.current++;
-        if (transitionFrameCount.current >= 2) {
-          transitionFrameCount.current = 0;
-          setRenderState("playing");
-        }
-        return; // No other updates during transition
-      }
-
-      // Building animation progress
-      if (screen === "building" && structure && renderState === "playing") {
-        if (buildAnimationProgress.current < 1) {
-          buildAnimationProgress.current += 0.015; // Increment per frame
-          if (buildAnimationProgress.current >= 1) {
-            buildAnimationProgress.current = 1;
-            setWindowStart(structure.decisionIndex);
-            setScreen("playing");
-          }
-        }
-      }
-
-      // Reveal animation progress
-      if (screen === "revealing" && revealProgress < 1) {
-        // This is handled by handleChoice animation - leave as is for now
-      }
-    };
-
-    const render = () => {
-      if (!chartRef.current) return;
-
-      const ctx = chartRef.current.getContext("2d");
-      if (!ctx) return;
-
-      // ══════════════════════════════════════════════════════════════
-      // CLEAR CANVAS - First line of render(), exactly once per frame
-      // ══════════════════════════════════════════════════════════════
-      ctx.clearRect(0, 0, chartRef.current.width, chartRef.current.height);
-
-      // ══════════════════════════════════════════════════════════════
-      // STATE-GATED RENDERING - Mutually exclusive
-      // ══════════════════════════════════════════════════════════════
-      
-      // COUNTDOWN: Render nothing (CSS overlay handles it)
-      if (renderState === "countdown") {
-        return;
-      }
-
-      // TRANSITION: Render NOTHING (guaranteed clear frames)
-      if (renderState === "transition") {
-        return;
-      }
-
-      // IDLE: Render nothing
-      if (renderState === "idle") {
-        return;
-      }
-
-      // PLAYING or FEEDBACK: Render chart
-      if ((renderState === "playing" || renderState === "feedback") && structure && rendererRef.current) {
-        let currentCandles = [];
-        let currentOffset = 0;
-
-        if (screen === "building") {
-          const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
-          const displayedIndex = Math.floor(targetIndex);
-          const partialProgress = targetIndex - displayedIndex;
-
-          if (displayedIndex > lastCandleCount.current) {
-            sound.buildTick(displayedIndex / structure.decisionIndex);
-            lastCandleCount.current = displayedIndex;
-          }
-
-          currentCandles = structure.candles.slice(0, displayedIndex);
-
-          if (displayedIndex < structure.candles.length) {
-            const nextCandle = structure.candles[displayedIndex];
-            const partialCandle = {
-              ...nextCandle,
-              open: nextCandle.open,
-              high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
-              low: nextCandle.open + (nextCandle.low - nextCandle.open) * partialProgress,
-              close: nextCandle.open + (nextCandle.close - nextCandle.open) * partialProgress,
-            };
-            currentCandles = [...currentCandles, partialCandle];
-          }
-        } else if (screen === "playing") {
-          currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-        } else if (screen === "revealing" || screen === "outcome") {
-          const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
-          const continuationCandles = structure.continuation?.candles || [];
-          const contCount = Math.floor(revealProgress * continuationCandles.length);
-          currentCandles = [...baseCandles, ...continuationCandles.slice(0, contCount)];
-          currentOffset = screen === "outcome" ? swipeOffset : 0;
-        }
-
-        if (currentCandles.length > 0) {
-          const continuationLength = structure.continuation?.candles?.length || 0;
-          const totalExpectedCandles = screen === "revealing" || screen === "outcome"
-            ? (structure.decisionIndex + 1) + continuationLength
-            : currentCandles.length;
-
-          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles);
-        }
-      }
-    };
-
-    rafId.current = requestAnimationFrame(gameLoop);
-
-    return () => {
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-    };
-  }, [renderState, screen, structure, revealProgress, swipeOffset, windowStart]);
-
   // ── Initialize round ──
   const initializeRound = useCallback(
     (roundNum) => {
@@ -1787,16 +1583,34 @@ export default function App() {
       setTimeLeft(DECISION_MS);
       setScreen("building");
       setRevealProgress(0);
-      setWindowStart(0);
+      setWindowStart(0); // Start from 0
       buildAnimationProgress.current = 0;
-      lastCandleCount.current = 0;
+      lastCandleCount.current = 0; // Reset candle count for tick sounds
 
-      // Start decision timer
-      const duration = 6500;
-      let timerStartTime = Date.now();
-      
-      const checkBuildComplete = () => {
-        if (buildAnimationProgress.current >= 1) {
+      // Smooth scrolling reveal animation
+      const duration = 6500; // Gyorsabb, pörgősebb ritmus
+      const startTime = Date.now();
+
+      const animateScroll = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        
+        // Smoother easing - linear with slight ease at start
+        // Avoids the "sticking" feeling at the end
+        const eased = progress < 0.1 
+          ? progress * 5 // Ease in first 10%
+          : 0.1 * 5 + (progress - 0.1) * (0.9 / 0.9); // Linear for rest
+        
+        buildAnimationProgress.current = Math.min(1, eased);
+
+        if (progress < 1) {
+          animFrameRef.current = requestAnimationFrame(animateScroll);
+        } else {
+          // Scrolling complete - set final state immediately
+          buildAnimationProgress.current = 1;
+          setWindowStart(newStructure.decisionIndex);
+          setScreen("playing");
+          
           // Start decision timer
           const timerStart = Date.now();
           if (timerRef.current) clearInterval(timerRef.current);
@@ -1807,30 +1621,26 @@ export default function App() {
 
             if (remaining === 0) {
               clearInterval(timerRef.current);
+              // Timeout - counts as incorrect (random choice for display)
               handleChoice(Math.random() < 0.5 ? "BUY" : "SELL");
             }
           }, 50);
-        } else {
-          setTimeout(checkBuildComplete, 100);
         }
       };
-      
-      setTimeout(checkBuildComplete, duration);
-    },
-    []
-  );
 
-  // ── Build candles (removed - now handled in main loop) ──
-  const buildCandles = useCallback((structure) => {
-    // This function is now obsolete - building happens in main RAF loop
-  }, []);
+      animateScroll();
+    },
+    [] // Don't include handleChoice - causes circular dependency
+  );
 
   // ── Start new game ──
   const startGame = useCallback(() => {
     sound.unlock();
     
-    // Cleanup any running timers
+    // Cleanup any running timers/animations
     if (timerRef.current) clearInterval(timerRef.current);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
     
     // Force cleanup of renderer
     if (rendererRef.current) {
@@ -1852,12 +1662,9 @@ export default function App() {
     lastCandleCount.current = 0;
     cachedCandles.current = [];
     
-    // ══════════════════════════════════════════════════════════════
-    // STATE TRANSITION: idle → countdown
-    // ══════════════════════════════════════════════════════════════
-    setRenderState("countdown");
+    // Start countdown
+    setShowCountdown(true);
     setCountdownNum(3);
-    setScreen("building"); // Hide home screen
     
     let countdownValue = 3;
     sound.tick(3);
@@ -1869,31 +1676,18 @@ export default function App() {
         sound.tick(countdownValue);
       } else {
         clearInterval(countdownInterval);
-        setCountdownNum(0);
+        setShowCountdown(false);
         
-        // ══════════════════════════════════════════════════════════════
-        // STATE TRANSITION: countdown → transition
-        // Render NOTHING for 2 frames (guaranteed clean transition)
-        // ══════════════════════════════════════════════════════════════
-        setRenderState("transition");
-        transitionFrameCount.current = 0;
-        
-        // Initialize renderer during transition
-        if (chartRef.current && !rendererRef.current) {
-          rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-          const rect = chartRef.current.getBoundingClientRect();
-          rendererRef.current.setDimensions(rect.width, rect.height);
-        }
-        
-        // Reset animation state
-        buildAnimationProgress.current = 0;
-        lastCandleCount.current = 0;
-        
-        // After transition, game loop will auto-advance to "playing"
-        // and initializeRound will be called
+        // Wait for fade out transition to complete before initializing
         setTimeout(() => {
+          if (chartRef.current && !rendererRef.current) {
+            rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+            const rect = chartRef.current.getBoundingClientRect();
+            rendererRef.current.setDimensions(rect.width, rect.height);
+          }
+          
           initializeRound(0);
-        }, 100); // After transition frames complete
+        }, 400);
       }
     }, 1000);
   }, [initializeRound]);
@@ -1901,7 +1695,8 @@ export default function App() {
   // ── Handle user choice ──
   const handleChoice = useCallback(
     (userChoice) => {
-      // Stop timer
+      // Stop any running animations (building or other)
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
       
       // If still in building phase, complete it immediately
@@ -1915,21 +1710,16 @@ export default function App() {
 
       setChoice(userChoice);
       setScreen("revealing");
-      
-      // ══════════════════════════════════════════════════════════════
-      // STATE TRANSITION: playing → feedback
-      // ══════════════════════════════════════════════════════════════
-      setRenderState("feedback");
 
-      // Animate continuation reveal using setInterval (no separate RAF)
+      // Animate continuation reveal (faster animation)
       let progress = 0;
-      const revealInterval = setInterval(() => {
-        progress += 0.03;
+      const animate = () => {
+        progress += 0.03; // Faster increment
         setRevealProgress(progress);
 
-        if (progress >= 1) {
-          clearInterval(revealInterval);
-          
+        if (progress < 1) {
+          animFrameRef.current = requestAnimationFrame(animate);
+        } else {
           // Reveal complete - show outcome
           const correct = userChoice === structure.signal;
           const newStreak = correct ? streak + 1 : 0;
@@ -1946,7 +1736,8 @@ export default function App() {
 
           setScreen("outcome");
         }
-      }, 16); // ~60fps for reveal animation
+      };
+      animate();
     },
     [structure, streak, bestStreak, scores, roundStats, screen]
   );
@@ -1961,6 +1752,102 @@ export default function App() {
       initializeRound(round + 1);
     }
   }, [round, initializeRound]);
+
+    // ── Render chart with RAF ──
+    useEffect(() => {
+      if (!chartRef.current || !structure) return;
+
+      if (!rendererRef.current) {
+        rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+        const rect = chartRef.current.getBoundingClientRect();
+        rendererRef.current.setDimensions(rect.width, rect.height);
+      }
+
+      const isMobile = window.innerWidth < 520;
+
+      let targetFps = 60;
+      if (screen === "building") {
+        targetFps = isMobile ? 24 : 40;        // még film-szerűbbé tettem
+      } else if (screen === "playing") {
+        targetFps = 24;
+      } else {
+        targetFps = isMobile ? 40 : 60;
+      }
+
+      const minFrameTime = 1000 / targetFps;
+
+      const render = (timestamp) => {
+        if (timestamp - lastRenderTime.current < minFrameTime) {
+          renderRafId.current = requestAnimationFrame(render);
+          return;
+        }
+        lastRenderTime.current = timestamp;
+
+        let currentCandles = [];
+        let currentOffset = 0;
+
+        if (screen === "building") {
+          // ── ÚJ: Progress-alapú lassú építés + partial candle ──
+          const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
+          const displayedIndex = Math.floor(targetIndex);
+          const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
+
+          // Play tick sound when a new candle is completed
+          if (displayedIndex > lastCandleCount.current) {
+            sound.buildTick(displayedIndex / structure.decisionIndex);
+            lastCandleCount.current = displayedIndex;
+          }
+
+          // Teljes gyertyák az utolsó előttiig
+          currentCandles = structure.candles.slice(0, displayedIndex);
+
+          // Az utolsó gyertya részlegesen "épül"
+          if (displayedIndex < structure.candles.length) {
+            const nextCandle = structure.candles[displayedIndex];
+
+            const partialCandle = {
+              ...nextCandle,                    // time, volume, stb. marad
+              open: nextCandle.open,
+              high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
+              low:  nextCandle.open + (nextCandle.low  - nextCandle.open) * partialProgress,
+              close: nextCandle.open + (nextCandle.close - nextCandle.open) * partialProgress,
+            };
+
+            currentCandles = [...currentCandles, partialCandle];
+          }
+        } 
+        else if (screen === "playing") {
+          currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
+        } 
+        else if (screen === "revealing" || screen === "outcome") {
+          const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
+          const continuationCandles = structure.continuation?.candles || [];
+          const contCount = Math.floor(revealProgress * continuationCandles.length);
+          currentCandles = [...baseCandles, ...continuationCandles.slice(0, contCount)];
+          currentOffset = screen === "outcome" ? swipeOffset : 0;
+        }
+
+        if (rendererRef.current && currentCandles.length > 0) {
+          // Calculate total expected candles for stable rendering
+          // CRITICAL: This must be STABLE throughout the reveal animation to prevent jumping
+          // Use the FINAL expected count, not the current visible count
+          const continuationLength = structure.continuation?.candles?.length || 0;
+          const totalExpectedCandles = screen === "revealing" || screen === "outcome"
+            ? (structure.decisionIndex + 1) + continuationLength
+            : currentCandles.length;
+          
+          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles);
+        }
+
+        renderRafId.current = requestAnimationFrame(render);
+      };
+
+      renderRafId.current = requestAnimationFrame(render);
+
+      return () => {
+        if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
+      };
+    }, [structure, screen, revealProgress, swipeOffset, windowStart]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
@@ -2487,23 +2374,21 @@ export default function App() {
   );
 
   // ── Countdown overlay ──
-  const renderCountdown = () => {
-    // Only render during countdown state
-    if (renderState !== "countdown" || countdownNum === 0) return null;
-    
-    return (
+  const renderCountdown = () => (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 300,
+        zIndex: 9999,
         background: `radial-gradient(ellipse at 50% 50%, ${C.bg2}dd 0%, ${C.bg1}f5 100%)`,
         backdropFilter: "blur(20px)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        pointerEvents: "none",
+        opacity: showCountdown ? 1 : 0,
+        transition: "opacity 0.3s ease-out",
+        pointerEvents: showCountdown ? "auto" : "none"
       }}
     >
       <div
@@ -2546,8 +2431,7 @@ export default function App() {
         {countdownNum}
       </div>
     </div>
-    );
-  };
+  );
 
   // ── Cleanup RAF on unmount ──
   useEffect(() => {
