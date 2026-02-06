@@ -1550,6 +1550,12 @@ const Leaderboard = ({ onBack }) => {
    ═══════════════════════════════════════════════════════════════ */
 
 export default function App() {
+  // ══════════════════════════════════════════════════════════════
+  // SINGLE SOURCE OF TRUTH: gameState
+  // Strict state machine: idle → countdown → reset → playing → feedback
+  // ══════════════════════════════════════════════════════════════
+  const [gameState, setGameState] = useState("idle"); 
+  
   // ── State ──
   const [screen, setScreen] = useState("home");
   const [round, setRound] = useState(0);
@@ -1561,7 +1567,6 @@ export default function App() {
   const [choice, setChoice] = useState(null);
   const [structure, setStructure] = useState(null);
   const [windowStart, setWindowStart] = useState(0);
-  const [showCountdown, setShowCountdown] = useState(false);
   const [countdownNum, setCountdownNum] = useState(3);
   const [revealProgress, setRevealProgress] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -1695,11 +1700,6 @@ export default function App() {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
     
-    // Force cleanup of renderer
-    if (rendererRef.current) {
-      rendererRef.current = null;
-    }
-    
     // Reset all game state
     setRound(0);
     setScores([]);
@@ -1715,10 +1715,12 @@ export default function App() {
     lastCandleCount.current = 0;
     cachedCandles.current = [];
     
-    // Start countdown
-    setShowCountdown(true);
+    // ══════════════════════════════════════════════════════════════
+    // STATE TRANSITION: idle → countdown
+    // ══════════════════════════════════════════════════════════════
+    setGameState("countdown");
     setCountdownNum(3);
-    setScreen("building"); // Set to building immediately to hide home screen
+    setScreen("building"); // Hide home screen
     
     let countdownValue = 3;
     sound.tick(3);
@@ -1731,27 +1733,48 @@ export default function App() {
       } else {
         clearInterval(countdownInterval);
         
-        // Initialize renderer immediately
-        if (chartRef.current && !rendererRef.current) {
-          rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
-          const rect = chartRef.current.getBoundingClientRect();
-          rendererRef.current.setDimensions(rect.width, rect.height);
-        }
-        
-        // Reset animation state
-        buildAnimationProgress.current = 0;
-        lastCandleCount.current = 0;
-        
-        // Start the round immediately
-        initializeRound(0);
-        
-        // Set countdown to 0 for fade-out
-        setCountdownNum(0);
-        
-        // Quick fade-out - hide countdown overlay fast
-        setTimeout(() => {
-          setShowCountdown(false);
-        }, 150); // Shortened from 250ms
+        // ══════════════════════════════════════════════════════════════
+        // STATE TRANSITION: countdown → reset
+        // Hard boundary: countdown MUST be fully cleared before reset
+        // ══════════════════════════════════════════════════════════════
+        requestAnimationFrame(() => {
+          setGameState("reset");
+          setCountdownNum(0); // Clear countdown number
+          
+          // ══════════════════════════════════════════════════════════════
+          // CANVAS CLEAR GUARANTEE
+          // Clear canvas BEFORE any renderer operations
+          // ══════════════════════════════════════════════════════════════
+          if (chartRef.current) {
+            const ctx = chartRef.current.getContext("2d");
+            if (ctx) {
+              ctx.clearRect(0, 0, chartRef.current.width, chartRef.current.height);
+            }
+          }
+          
+          // Reset renderer AFTER clearing
+          if (chartRef.current) {
+            if (rendererRef.current) {
+              rendererRef.current = null;
+            }
+            rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
+            const rect = chartRef.current.getBoundingClientRect();
+            rendererRef.current.setDimensions(rect.width, rect.height);
+          }
+          
+          // Reset animation state
+          buildAnimationProgress.current = 0;
+          lastCandleCount.current = 0;
+          
+          // ══════════════════════════════════════════════════════════════
+          // STATE TRANSITION: reset → playing
+          // Must happen on next frame to ensure reset is complete
+          // ══════════════════════════════════════════════════════════════
+          requestAnimationFrame(() => {
+            setGameState("playing");
+            initializeRound(0);
+          });
+        });
       }
     }, 1000);
   }, [initializeRound]);
@@ -1759,6 +1782,9 @@ export default function App() {
   // ── Handle user choice ──
   const handleChoice = useCallback(
     (userChoice) => {
+      // Only allow choices during playing state
+      if (gameState !== "playing") return;
+      
       // Stop any running animations (building or other)
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -1774,6 +1800,11 @@ export default function App() {
 
       setChoice(userChoice);
       setScreen("revealing");
+      
+      // ══════════════════════════════════════════════════════════════
+      // STATE TRANSITION: playing → feedback
+      // ══════════════════════════════════════════════════════════════
+      setGameState("feedback");
 
       // Animate continuation reveal (faster animation)
       let progress = 0;
@@ -1803,7 +1834,7 @@ export default function App() {
       };
       animate();
     },
-    [structure, streak, bestStreak, scores, roundStats, screen]
+    [structure, streak, bestStreak, scores, roundStats, screen, gameState]
   );
 
   // ── Advance to next round ──
@@ -1812,14 +1843,64 @@ export default function App() {
     setSwipeOffset(0); // Reset scroll position
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
+      setGameState("idle");
     } else {
-      initializeRound(round + 1);
+      // ══════════════════════════════════════════════════════════════
+      // STATE TRANSITION: feedback → countdown (for next round)
+      // ══════════════════════════════════════════════════════════════
+      setGameState("countdown");
+      setCountdownNum(3);
+      
+      let countdownValue = 3;
+      sound.tick(3);
+      
+      const countdownInterval = setInterval(() => {
+        countdownValue--;
+        if (countdownValue > 0) {
+          setCountdownNum(countdownValue);
+          sound.tick(countdownValue);
+        } else {
+          clearInterval(countdownInterval);
+          
+          // ══════════════════════════════════════════════════════════════
+          // STATE TRANSITION: countdown → reset
+          // ══════════════════════════════════════════════════════════════
+          requestAnimationFrame(() => {
+            setGameState("reset");
+            setCountdownNum(0);
+            
+            // ══════════════════════════════════════════════════════════════
+            // CANVAS CLEAR GUARANTEE
+            // Clear canvas BEFORE any renderer operations
+            // ══════════════════════════════════════════════════════════════
+            if (chartRef.current) {
+              const ctx = chartRef.current.getContext("2d");
+              if (ctx) {
+                ctx.clearRect(0, 0, chartRef.current.width, chartRef.current.height);
+              }
+            }
+            
+            // ══════════════════════════════════════════════════════════════
+            // STATE TRANSITION: reset → playing
+            // ══════════════════════════════════════════════════════════════
+            requestAnimationFrame(() => {
+              setGameState("playing");
+              initializeRound(round + 1);
+            });
+          });
+        }
+      }, 1000);
     }
   }, [round, initializeRound]);
 
     // ── Render chart with RAF ──
     useEffect(() => {
+      // ══════════════════════════════════════════════════════════════
+      // CRITICAL: Do NOT render chart during countdown or reset states
+      // Chart rendering ONLY allowed during: playing, feedback states
+      // ══════════════════════════════════════════════════════════════
       if (!chartRef.current || !structure) return;
+      if (gameState === "countdown" || gameState === "reset" || gameState === "idle") return;
 
       if (!rendererRef.current) {
         rendererRef.current = new ChartRenderer(chartRef.current, DIFFICULTY_CONFIG);
@@ -1841,6 +1922,11 @@ export default function App() {
       const minFrameTime = 1000 / targetFps;
 
       const render = (timestamp) => {
+        // Double-check gameState on every frame
+        if (gameState === "countdown" || gameState === "reset" || gameState === "idle") {
+          return; // Do NOT continue rendering
+        }
+        
         if (timestamp - lastRenderTime.current < minFrameTime) {
           renderRafId.current = requestAnimationFrame(render);
           return;
@@ -1911,7 +1997,7 @@ export default function App() {
       return () => {
         if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
       };
-    }, [structure, screen, revealProgress, swipeOffset, windowStart]);
+    }, [structure, screen, revealProgress, swipeOffset, windowStart, gameState]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
@@ -2393,11 +2479,11 @@ export default function App() {
         <div style={{ 
           display: screen === "outcome" ? "none" : "block",
           opacity: screen === "home" ? 0 : 1,
-          pointerEvents: (screen === "playing" || screen === "building") ? "auto" : "none",
+          pointerEvents: gameState === "playing" ? "auto" : "none",
           transition: "none",
           transform: "translateZ(0)",
         }}>
-          <DecisionButtons onChoose={handleChoice} disabled={screen !== "playing" && screen !== "building"} />
+          <DecisionButtons onChoose={handleChoice} disabled={gameState !== "playing"} />
         </div>
         {screen === "outcome" && (
           <OutcomeCard
@@ -2437,8 +2523,16 @@ export default function App() {
     </div>
   );
 
-  // ── Countdown overlay ──
-  const renderCountdown = () => (
+  // ══════════════════════════════════════════════════════════════
+  // COUNTDOWN OVERLAY - STRICT RENDERING RULE
+  // Only renders when gameState === "countdown"
+  // Must NEVER appear in any other state
+  // ══════════════════════════════════════════════════════════════
+  const renderCountdown = () => {
+    // HARD RULE: Only render during countdown state
+    if (gameState !== "countdown") return null;
+    
+    return (
     <div
       style={{
         position: "fixed",
@@ -2450,8 +2544,6 @@ export default function App() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        opacity: countdownNum === 0 ? 0 : 1,
-        transition: "opacity 0.15s ease-out",
         pointerEvents: "none",
       }}
     >
@@ -2490,14 +2582,13 @@ export default function App() {
           position: "relative",
           zIndex: 1,
           lineHeight: 1,
-          opacity: countdownNum === 0 ? 0 : 1,
-          transition: "opacity 0.1s ease-out",
         }}
       >
-        {countdownNum > 0 ? countdownNum : ""}
+        {countdownNum}
       </div>
     </div>
-  );
+    );
+  };
 
   // ── Cleanup RAF on unmount ──
   useEffect(() => {
@@ -2549,6 +2640,23 @@ export default function App() {
 
       {/* Main content */}
       <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh" }}>
+        {/* DEBUG: Visual confirmation of gameState */}
+        <div style={{
+          position: "fixed",
+          top: 10,
+          left: 10,
+          zIndex: 9999,
+          background: "rgba(0,0,0,0.8)",
+          color: "#00ffaa",
+          padding: "4px 8px",
+          fontSize: 11,
+          fontFamily: "monospace",
+          borderRadius: 4,
+          border: "1px solid rgba(0,255,170,0.3)",
+        }}>
+          gameState: {gameState}
+        </div>
+        
         {screen === "home" && renderHome()}
         {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
           renderPlaying()}
@@ -2566,8 +2674,8 @@ export default function App() {
         )}
       </div>
 
-      {/* Countdown overlay */}
-      {showCountdown && renderCountdown()}
+      {/* Countdown overlay - ONLY renders when gameState === "countdown" */}
+      {renderCountdown()}
 
       {/* Animations */}
       <style>{`
