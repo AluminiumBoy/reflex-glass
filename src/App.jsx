@@ -4824,19 +4824,16 @@ export default function App() {
       }}
     >
       <div style={{ textAlign: "center", marginBottom: 10 }}>
-        <div
-          style={{
-            fontSize: 48,
-            fontWeight: 900,
-            background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple}, ${C.nPink})`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            marginBottom: 8,
-            lineHeight: 1,
-          }}
-        >
-          REFLEX GLASS
-        </div>
+        <img 
+          src="title.png" 
+          alt="REFLEX GLASS" 
+          style={{ 
+            maxWidth: 320,
+            width: "100%",
+            height: "auto",
+            marginBottom: 8
+          }} 
+        />
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em" }}>
           Context-Aware Pattern Trainer
         </div>
@@ -5015,8 +5012,8 @@ export default function App() {
           src="logo.png" 
           alt="Logo" 
           style={{ 
-            maxWidth: 400, 
-            maxHeight: 160,
+            maxWidth: 200, 
+            maxHeight: 80,
             objectFit: "contain",
             opacity: 0.7
           }} 
