@@ -292,10 +292,11 @@ function shareToTwitter(stats, roast) {
   const meme = getMemeForScore(accuracy);
   
   const tweetText = encodeURIComponent(
-    `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
-    `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
+    `${meme} ${accuracy.toFixed(0)}% ACCURACY on Reflex Glass\n` +
+    `${correct}/${total} • ${totalScore.toLocaleString()} pts\n\n` +
     `${roast}\n\n` +
-    `Think you can beat my score? 👇`
+    `ngmi if you can't beat this 😤\n` +
+    `Try it → `
   );
   
   const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(window.location.href)}`;
@@ -306,78 +307,114 @@ async function shareToBase(stats, roast) {
   const { accuracy, correct, total, totalScore } = stats;
   const meme = getMemeForScore(accuracy);
   
-  // Generate share card
+  // Generate share card with 2026 cyber-drip style
   const canvas = document.createElement('canvas');
-  canvas.width = 800;
-  canvas.height = 418; // Twitter card ratio
+  canvas.width = 1200;           // Bigger resolution (X / LinkedIn / Telegram optimal)
+  canvas.height = 628;           // 1.91:1 ratio, looks great in feed
   const ctx = canvas.getContext('2d');
   
-  // Background gradient
-  const gradient = ctx.createLinearGradient(0, 0, 800, 418);
-  gradient.addColorStop(0, '#0f1a2e');
-  gradient.addColorStop(0.5, '#06060c');
-  gradient.addColorStop(1, '#0f0f1a');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 800, 418);
-  
-  // Add glow orbs
-  const glowGradient1 = ctx.createRadialGradient(150, 100, 0, 150, 100, 200);
-  glowGradient1.addColorStop(0, 'rgba(0, 255, 170, 0.1)');
-  glowGradient1.addColorStop(1, 'transparent');
-  ctx.fillStyle = glowGradient1;
-  ctx.fillRect(0, 0, 800, 418);
-  
-  const glowGradient2 = ctx.createRadialGradient(650, 318, 0, 650, 318, 180);
-  glowGradient2.addColorStop(0, 'rgba(168, 85, 247, 0.15)');
-  glowGradient2.addColorStop(1, 'transparent');
-  ctx.fillStyle = glowGradient2;
-  ctx.fillRect(0, 0, 800, 418);
-  
-  // Title
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  // Background – much stronger cyberpunk / glassmorphism feeling
+  const bgGradient = ctx.createLinearGradient(0, 0, 1200, 628);
+  bgGradient.addColorStop(0,   '#0a001f');
+  bgGradient.addColorStop(0.4, '#140033');
+  bgGradient.addColorStop(0.7, '#1a004d');
+  bgGradient.addColorStop(1,   '#220066');
+  ctx.fillStyle = bgGradient;
+  ctx.fillRect(0, 0, 1200, 628);
+
+  // Bigger, stronger glow orbs – neon effect
+  // Top left green
+  const glow1 = ctx.createRadialGradient(200, 150, 0, 200, 150, 350);
+  glow1.addColorStop(0, 'rgba(0, 255, 170, 0.25)');
+  glow1.addColorStop(0.5, 'rgba(0, 255, 170, 0.08)');
+  glow1.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow1;
+  ctx.fillRect(0, 0, 1200, 628);
+
+  // Bottom right purple-pink
+  const glow2 = ctx.createRadialGradient(1000, 500, 0, 1000, 500, 400);
+  glow2.addColorStop(0, 'rgba(168, 85, 247, 0.28)');
+  glow2.addColorStop(0.6, 'rgba(255, 77, 148, 0.12)');
+  glow2.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow2;
+  ctx.fillRect(0, 0, 1200, 628);
+
+  // Neon border / scanline effect
+  ctx.strokeStyle = 'rgba(0, 255, 170, 0.15)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(20, 20, 1160, 588);
+
+  // Big title – glitch effect with strong outline
+  ctx.font = 'bold 92px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('REFLEX GLASS', 400, 80);
-  
-  // Meme emoji
-  ctx.font = '72px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(meme, 400, 170);
-  
-  // Score
-  const scoreGradient = ctx.createLinearGradient(250, 200, 550, 200);
-  scoreGradient.addColorStop(0, '#00ffaa');
-  scoreGradient.addColorStop(1, '#a855f7');
-  ctx.fillStyle = scoreGradient;
-  ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
-  ctx.fillText(`${accuracy.toFixed(1)}%`, 400, 250);
-  
-  // Stats
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.font = '20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(`${correct}/${total} correct • ${totalScore.toLocaleString()} pts`, 400, 290);
-  
-  // Roast (wrapped)
-  ctx.font = 'italic 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-  
-  // Word wrap roast
-  const maxWidth = 700;
-  const words = roast.split(' ');
-  let line = '';
-  let y = 340;
-  
-  for (let word of words) {
-    const testLine = line + word + ' ';
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && line !== '') {
-      ctx.fillText(line, 400, y);
-      line = word + ' ';
-      y += 25;
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = '#00ffaa';
+  ctx.shadowBlur = 35;
+  ctx.fillText('REFLEX GLASS', 600, 130);
+
+  // Glitch / secondary text (cyberpunk vibes)
+  ctx.shadowColor = '#ff4d94';
+  ctx.shadowBlur = 25;
+  ctx.globalAlpha = 0.7;
+  ctx.fillText('REFLEX GLASS', 604, 134);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+
+  // Bigger meme / score emoji
+  ctx.font = '140px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  ctx.shadowColor = 'transparent';
+  ctx.fillText(meme, 600, 260);
+
+  // Score – even bigger, with gradient
+  const scoreGrad = ctx.createLinearGradient(300, 300, 900, 300);
+  scoreGrad.addColorStop(0,   '#00ffaa');
+  scoreGrad.addColorStop(0.5, '#a855f7');
+  scoreGrad.addColorStop(1,   '#ff4d94');
+  ctx.fillStyle = scoreGrad;
+  ctx.font = 'bold 148px monospace';
+  ctx.shadowColor = '#a855f7';
+  ctx.shadowBlur = 40;
+  ctx.fillText(`${accuracy.toFixed(1)}%`, 600, 380);
+
+  // Small stats – neon outline
+  ctx.font = '36px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.shadowColor = '#00e676';
+  ctx.shadowBlur = 15;
+  ctx.fillText(`${correct}/${total} • ${totalScore.toLocaleString()} pts`, 600, 450);
+
+  // Roast – bigger, centered, a bit lower
+  ctx.font = 'italic 32px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.shadowColor = '#ff1744';
+  ctx.shadowBlur = 12;
+
+  // Word wrap + centering
+  const maxLineWidth = 900;
+  const roastLines = [];
+  let currentLine = '';
+  roast.split(' ').forEach(word => {
+    const test = currentLine + word + ' ';
+    if (ctx.measureText(test).width > maxLineWidth && currentLine !== '') {
+      roastLines.push(currentLine.trim());
+      currentLine = word + ' ';
     } else {
-      line = testLine;
+      currentLine = test;
     }
-  }
-  ctx.fillText(line, 400, y);
+  });
+  if (currentLine) roastLines.push(currentLine.trim());
+
+  let y = 520;
+  roastLines.forEach(line => {
+    ctx.fillText(line, 600, y);
+    y += 42;
+  });
+
+  // Small watermark / call-to-action at bottom
+  ctx.font = '24px monospace';
+  ctx.fillStyle = 'rgba(0,255,170,0.7)';
+  ctx.shadowBlur = 8;
+  ctx.fillText('Beat my score? → reflexglass.xyz', 600, 600);
   
   // Try to use Base mini app share if available, otherwise copy to clipboard
   try {
@@ -4013,7 +4050,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             style={{ padding: "14px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
             <span>💝</span>
-            <span>Supp the DEV </span>
+            <span>Support Development</span>
           </GlassButton>
         </div>
       </GlassPanel>
