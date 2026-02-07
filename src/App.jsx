@@ -4457,8 +4457,58 @@ export default function App() {
             if (remaining === 0) {
               clearInterval(timerRef.current);
               timerRef.current = null;
-              // Timeout - counts as incorrect (random choice for display)
-              handleChoice(Math.random() < 0.5 ? "BUY" : "SELL");
+              
+              // Timeout - handle directly instead of calling handleChoice
+              // to avoid stale closure issues
+              const userChoice = Math.random() < 0.5 ? "BUY" : "SELL";
+              
+              haptic([30, 20, 30]);
+              sound.click();
+
+              setChoice(userChoice);
+              setScreen("revealing");
+
+              // Animate continuation reveal
+              let progress = 0;
+              const animate = () => {
+                progress += 0.03;
+                setRevealProgress(progress);
+
+                if (progress < 1) {
+                  animFrameRef.current = requestAnimationFrame(animate);
+                } else {
+                  // Reveal complete - show outcome
+                  setScreen((currentScreen) => {
+                    // Use functional update to get fresh state
+                    return "outcome";
+                  });
+                  
+                  // Update stats with functional updates to ensure fresh state
+                  const correct = userChoice === newStructure.signal;
+                  
+                  setStreak((prevStreak) => {
+                    const newStreak = correct ? prevStreak + 1 : 0;
+                    const multiplier = STREAK_MULT[Math.min(newStreak, STREAK_MULT.length - 1)];
+                    const points = correct ? Math.round(BASE_SCORE * multiplier) : 0;
+                    
+                    setBestStreak((prevBest) => Math.max(prevBest, newStreak));
+                    setScores((prevScores) => [...prevScores, points]);
+                    
+                    return newStreak;
+                  });
+                  
+                  setRoundStats((prevStats) => [...prevStats, { correct, choice: userChoice }]);
+                  
+                  // Generate and set annotation
+                  const annotation = generateAnnotation(newStructure);
+                  setCurrentAnnotation(annotation);
+                  setShowAnnotation(true);
+                  
+                  if (correct) sound.correct();
+                  else sound.wrong();
+                }
+              };
+              animate();
             }
           }, 50);
         }
