@@ -4456,6 +4456,7 @@ export default function App() {
 
             if (remaining === 0) {
               clearInterval(timerRef.current);
+              timerRef.current = null;
               // Timeout - counts as incorrect (random choice for display)
               handleChoice(Math.random() < 0.5 ? "BUY" : "SELL");
             }
@@ -4473,7 +4474,10 @@ export default function App() {
     sound.unlock();
     
     // Cleanup any running timers/animations
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
     
@@ -4514,7 +4518,10 @@ export default function App() {
     (userChoice) => {
       // Stop any running animations (building or other)
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       
       // If still in building phase, complete it immediately
       if (screen === "building") {
