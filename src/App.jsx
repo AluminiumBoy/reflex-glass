@@ -282,8 +282,9 @@ function getMemeForScore(accuracy) {
   return "💀🤡";
 }
 
+
 /* ═══════════════════════════════════════════════════════════════
-    SHARE FUNCTIONS - Base + Twitter  
+    SHARE FUNCTIONS - Base + Twitter with Logos & Card Generation
    ═══════════════════════════════════════════════════════════════ */
 
 function shareToTwitter(stats, roast) {
@@ -301,17 +302,114 @@ function shareToTwitter(stats, roast) {
   window.open(tweetUrl, '_blank');
 }
 
-function shareToBase(stats, roast) {
+async function shareToBase(stats, roast) {
   const { accuracy, correct, total, totalScore } = stats;
   const meme = getMemeForScore(accuracy);
   
-  const shareText = 
-    `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
-    `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
-    `${roast}`;
+  // Generate share card
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 418; // Twitter card ratio
+  const ctx = canvas.getContext('2d');
   
-  navigator.clipboard.writeText(shareText + `\n\n${window.location.href}`);
-  return shareText;
+  // Background gradient
+  const gradient = ctx.createLinearGradient(0, 0, 800, 418);
+  gradient.addColorStop(0, '#0f1a2e');
+  gradient.addColorStop(0.5, '#06060c');
+  gradient.addColorStop(1, '#0f0f1a');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 800, 418);
+  
+  // Add glow orbs
+  const glowGradient1 = ctx.createRadialGradient(150, 100, 0, 150, 100, 200);
+  glowGradient1.addColorStop(0, 'rgba(0, 255, 170, 0.1)');
+  glowGradient1.addColorStop(1, 'transparent');
+  ctx.fillStyle = glowGradient1;
+  ctx.fillRect(0, 0, 800, 418);
+  
+  const glowGradient2 = ctx.createRadialGradient(650, 318, 0, 650, 318, 180);
+  glowGradient2.addColorStop(0, 'rgba(168, 85, 247, 0.15)');
+  glowGradient2.addColorStop(1, 'transparent');
+  ctx.fillStyle = glowGradient2;
+  ctx.fillRect(0, 0, 800, 418);
+  
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('REFLEX GLASS', 400, 80);
+  
+  // Meme emoji
+  ctx.font = '72px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText(meme, 400, 170);
+  
+  // Score
+  const scoreGradient = ctx.createLinearGradient(250, 200, 550, 200);
+  scoreGradient.addColorStop(0, '#00ffaa');
+  scoreGradient.addColorStop(1, '#a855f7');
+  ctx.fillStyle = scoreGradient;
+  ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
+  ctx.fillText(`${accuracy.toFixed(1)}%`, 400, 250);
+  
+  // Stats
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = '20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText(`${correct}/${total} correct • ${totalScore.toLocaleString()} pts`, 400, 290);
+  
+  // Roast (wrapped)
+  ctx.font = 'italic 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  
+  // Word wrap roast
+  const maxWidth = 700;
+  const words = roast.split(' ');
+  let line = '';
+  let y = 340;
+  
+  for (let word of words) {
+    const testLine = line + word + ' ';
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && line !== '') {
+      ctx.fillText(line, 400, y);
+      line = word + ' ';
+      y += 25;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, 400, y);
+  
+  // Try to use Base mini app share if available, otherwise copy to clipboard
+  try {
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    
+    // Check if we're in Base mini app
+    if (window.ethereum && window.ethereum.isBase) {
+      // Use Base mini app share
+      const shareData = {
+        text: `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n${roast}`,
+        url: window.location.href,
+        files: [new File([blob], 'reflex-glass-score.png', { type: 'image/png' })]
+      };
+      
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        return true;
+      }
+    }
+    
+    // Fallback: copy link to clipboard
+    const shareText = 
+      `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
+      `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
+      `${roast}`;
+    
+    await navigator.clipboard.writeText(shareText + `\n\n${window.location.href}`);
+    return false; // Indicates clipboard copy, not native share
+  } catch (err) {
+    console.error('Share failed:', err);
+    return false;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3654,12 +3752,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     haptic([20]);
   }, [stats, roast]);
 
-  const handleBaseShare = useCallback(() => {
-    shareToBase(stats, roast);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleBaseShare = useCallback(async () => {
     sound.click();
     haptic([20]);
+    const shared = await shareToBase(stats, roast);
+    if (!shared) {
+      // Clipboard copy happened
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   }, [stats, roast]);
 
   useEffect(() => {
@@ -3816,36 +3917,79 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             onClick={handleTwitterShare}
             style={{
               flex: 1,
-              padding: "14px",
+              padding: "14px 12px",
               fontSize: 14,
               fontWeight: 600,
               color: "#fff",
-              background: "#1DA1F2",
-              border: "none",
-              borderRadius: 10,
+              background: "#000",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 12,
               cursor: "pointer",
               transition: "all 0.2s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = "translateY(-2px)";
+              e.target.style.boxShadow = "0 8px 20px rgba(0,0,0,0.4)";
+              e.target.style.background = "#1a1a1a";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "none";
+              e.target.style.background = "#000";
             }}
           >
-            🐦 Share on X
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            Share on X
           </button>
           
           <button
             onClick={handleBaseShare}
             style={{
               flex: 1,
-              padding: "14px",
+              padding: "14px 12px",
               fontSize: 14,
               fontWeight: 600,
               color: "#fff",
-              background: copied ? C.nGreen : "#0052FF",
+              background: copied ? "#00e676" : "linear-gradient(135deg, #0052FF 0%, #00D4FF 100%)",
               border: "none",
-              borderRadius: 10,
+              borderRadius: 12,
               cursor: "pointer",
               transition: "all 0.2s",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+            onMouseEnter={(e) => {
+              if (!copied) {
+                e.target.style.transform = "translateY(-2px)";
+                e.target.style.boxShadow = "0 8px 20px rgba(0,82,255,0.4)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "none";
             }}
           >
-            {copied ? "✅ Copied!" : "🔵 Share Base"}
+            <svg width="18" height="18" viewBox="0 0 111 111" fill="currentColor" style={{ opacity: copied ? 0 : 1 }}>
+              <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6318 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
+            </svg>
+            {copied ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Copied!
+              </>
+            ) : (
+              "Share Base"
+            )}
           </button>
         </div>
 
@@ -3869,7 +4013,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             style={{ padding: "14px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
             <span>💝</span>
-            <span>Support Development</span>
+            <span>Supp the DEV </span>
           </GlassButton>
         </div>
       </GlassPanel>
