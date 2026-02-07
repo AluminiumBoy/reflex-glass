@@ -3797,14 +3797,9 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
-        // Get existing scores
-        const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
-        
-        // Add new score
-        existingScores.push(scoreData);
-        
-        // Save back
-        localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
+        // Save score to shared storage
+        const scoreId = `score_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+        await window.storage.set(scoreId, JSON.stringify(scoreData), true);
         
         setSaved(true);
         haptic([50, 30, 50]);
@@ -4076,8 +4071,27 @@ const Leaderboard = ({ onBack }) => {
     try {
       setLoading(true);
       
-      // Get all scores from localStorage
-      const scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+      // Get all scores from shared storage
+      const result = await window.storage.list("score_", true);
+      
+      if (!result || !result.keys || result.keys.length === 0) {
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch all score entries
+      const scores = [];
+      for (const key of result.keys) {
+        try {
+          const data = await window.storage.get(key, true);
+          if (data && data.value) {
+            scores.push(JSON.parse(data.value));
+          }
+        } catch (err) {
+          console.error(`Error loading score ${key}:`, err);
+        }
+      }
       
       if (scores.length === 0) {
         setEntries([]);
