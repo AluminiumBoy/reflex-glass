@@ -5229,7 +5229,7 @@ export default function App() {
   return (
     <div
       style={{
-        width: "100vw",
+        width: "120vw",
         height: "100dvh",
         overflowY: "hidden",
         overflowX: "hidden",
