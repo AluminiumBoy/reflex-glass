@@ -4072,7 +4072,16 @@ const Leaderboard = ({ onBack }) => {
       setLoading(true);
       
       // Get all scores from shared storage
-      const result = await window.storage.list("score_", true);
+      let result;
+      try {
+        result = await window.storage.list("score_", true);
+      } catch (err) {
+        // No scores exist yet
+        console.log("No scores in storage yet:", err);
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
       
       if (!result || !result.keys || result.keys.length === 0) {
         setEntries([]);
@@ -4089,7 +4098,7 @@ const Leaderboard = ({ onBack }) => {
             scores.push(JSON.parse(data.value));
           }
         } catch (err) {
-          console.error(`Error loading score ${key}:`, err);
+          console.log(`Error loading score ${key}:`, err);
         }
       }
       
