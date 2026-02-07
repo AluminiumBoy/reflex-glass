@@ -4346,7 +4346,6 @@ export default function App() {
   const [playerName, setPlayerName] = useState("");
   const [isEditingName, setIsEditingName] = useState(true);
   const [tempName, setTempName] = useState("");
-  const [logoUrl, setLogoUrl] = useState(null);
 
   // ── Annotation states ──
   const [showAnnotation, setShowAnnotation] = useState(false);
@@ -5004,64 +5003,24 @@ export default function App() {
         Real trading education takes time — use this to make the mistakes for free.
       </div>
 
-      {/* Logo upload and display */}
+      {/* Logo display */}
       <div style={{ 
         display: "flex", 
         flexDirection: "column", 
         alignItems: "center", 
-        gap: 12,
         marginTop: "auto",
         paddingBottom: 20
       }}>
-        {logoUrl && (
-          <img 
-            src={logoUrl} 
-            alt="Logo" 
-            style={{ 
-              maxWidth: 200, 
-              maxHeight: 80,
-              objectFit: "contain"
-            }} 
-          />
-        )}
-        <label
-          style={{
-            padding: "8px 16px",
-            fontSize: 12,
-            background: C.glass,
-            border: `1px solid ${C.glassBr}`,
-            borderRadius: 8,
-            color: "rgba(255,255,255,0.6)",
-            cursor: "pointer",
-            backdropFilter: "blur(20px)",
-            transition: "all 0.2s"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = C.nGreen;
-            e.currentTarget.style.color = "rgba(255,255,255,0.9)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = C.glassBr;
-            e.currentTarget.style.color = "rgba(255,255,255,0.6)";
-          }}
-        >
-          {logoUrl ? "Change Logo" : "Upload Logo (logo.png)"}
-          <input
-            type="file"
-            accept=".png,image/png"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file && file.type === "image/png") {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                  setLogoUrl(event.target.result);
-                };
-                reader.readAsDataURL(file);
-              }
-            }}
-          />
-        </label>
+        <img 
+          src="logo.png" 
+          alt="Logo" 
+          style={{ 
+            maxWidth: 200, 
+            maxHeight: 80,
+            objectFit: "contain",
+            opacity: 0.7
+          }} 
+        />
       </div>
     </div>
   );
