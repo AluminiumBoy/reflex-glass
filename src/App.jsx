@@ -2868,7 +2868,7 @@ class ChartRenderer {
   }
 
   isMobile(width) {
-    return width < 300;
+    return width < 150;
   }
 
   setDimensions(width) {
