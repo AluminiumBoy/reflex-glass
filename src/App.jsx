@@ -5002,6 +5002,110 @@ export default function App() {
         This? Just a sandbox to mess around in.  
         Real trading education takes time — use this to make the mistakes for free.
       </div>
+
+      {/* Logo at bottom */}
+      <div
+        style={{
+          marginTop: "auto",
+          paddingTop: 20,
+          paddingBottom: 20,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <svg
+            viewBox="0 0 100 100"
+            style={{
+              width: "100%",
+              height: "100%",
+              filter: "drop-shadow(0 0 20px rgba(56, 189, 248, 0.3))",
+            }}
+          >
+            {/* Glass "R" shape with blue glass effect */}
+            <defs>
+              <linearGradient id="glassGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{ stopColor: "#38bdf8", stopOpacity: 0.3 }} />
+                <stop offset="50%" style={{ stopColor: "#0ea5e9", stopOpacity: 0.5 }} />
+                <stop offset="100%" style={{ stopColor: "#0284c7", stopOpacity: 0.3 }} />
+              </linearGradient>
+              <linearGradient id="glassGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style={{ stopColor: "#7dd3fc", stopOpacity: 0.4 }} />
+                <stop offset="100%" style={{ stopColor: "#0369a1", stopOpacity: 0.2 }} />
+              </linearGradient>
+            </defs>
+            
+            {/* Left vertical bar */}
+            <path
+              d="M 20 10 L 35 10 L 35 90 L 20 90 Z"
+              fill="url(#glassGrad1)"
+              stroke="#7dd3fc"
+              strokeWidth="0.5"
+              opacity="0.8"
+            />
+            
+            {/* Top horizontal bar */}
+            <path
+              d="M 35 10 L 70 10 L 70 25 L 35 25 Z"
+              fill="url(#glassGrad2)"
+              stroke="#7dd3fc"
+              strokeWidth="0.5"
+              opacity="0.8"
+            />
+            
+            {/* Top right curve */}
+            <path
+              d="M 70 10 L 75 10 Q 80 15 80 25 L 80 35 Q 80 40 75 40 L 70 40 L 70 25 Z"
+              fill="url(#glassGrad1)"
+              stroke="#7dd3fc"
+              strokeWidth="0.5"
+              opacity="0.8"
+            />
+            
+            {/* Middle diagonal connecting piece */}
+            <path
+              d="M 35 40 L 55 40 L 80 70 L 65 70 Z"
+              fill="url(#glassGrad2)"
+              stroke="#7dd3fc"
+              strokeWidth="0.5"
+              opacity="0.8"
+            />
+            
+            {/* Bottom right diagonal bar */}
+            <path
+              d="M 65 70 L 80 70 L 80 90 L 65 90 Z"
+              fill="url(#glassGrad1)"
+              stroke="#7dd3fc"
+              strokeWidth="0.5"
+              opacity="0.8"
+              transform="skewX(-10)"
+              transformOrigin="72.5 80"
+            />
+            
+            {/* Glass highlights */}
+            <path
+              d="M 22 15 L 33 15 L 33 85 L 22 85 Z"
+              fill="rgba(255,255,255,0.15)"
+              opacity="0.6"
+            />
+            <path
+              d="M 37 12 L 68 12 L 68 23 L 37 23 Z"
+              fill="rgba(255,255,255,0.15)"
+              opacity="0.6"
+            />
+          </svg>
+        </div>
+      </div>
     </div>
   );
 
