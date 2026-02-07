@@ -3503,6 +3503,7 @@ function DeveloperSupport({ onClose, onSupport }) {
                 fontSize: 16,
                 fontFamily: 'monospace',
                 width: '100%',
+                boxSizing: 'border-box',
                 opacity: selectedAmount === 'custom' ? 1 : 0.5,
               }}
             />
