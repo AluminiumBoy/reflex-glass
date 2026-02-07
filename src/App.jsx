@@ -3206,16 +3206,16 @@ function DeveloperSupport({ onClose, onSupport }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const predefinedAmounts = [
-    { value: 0.0005, label: '0.0005 ETH', usd: '~$1.50', emoji: '🍕' },
-    { value: 0.001, label: '0.001 ETH', usd: '~$3.00', emoji: '☕' },
-    { value: 0.003, label: '0.003 ETH', usd: '~$9.00', emoji: '🍔' },
+    { value: 0.0005, label: '0.0005 ETH', emoji: '☕' },
+    { value: 0.001, label: '0.001 ETH', emoji: '🍕' },
+    { value: 0.003, label: '0.003 ETH', emoji: '🍔' },
   ];
 
   const handleSupport = async () => {
     const amount = selectedAmount === 'custom' ? parseFloat(customAmount) : selectedAmount;
     
     if (!amount || amount <= 0) {
-      alert('Bro pick an amount fr fr 💀');
+      alert('Enter a valid amount');
       return;
     }
 
@@ -3225,7 +3225,7 @@ function DeveloperSupport({ onClose, onSupport }) {
     try {
       // Check if ethereum object is available (MetaMask or similar)
       if (typeof window.ethereum === 'undefined') {
-        alert('YO BRO U NEED METAMASK OR SMTH 🦊 Get that bag!');
+        alert('Use base app ');
         setIsProcessing(false);
         return;
       }
@@ -3289,7 +3289,7 @@ function DeveloperSupport({ onClose, onSupport }) {
 
     } catch (error) {
       console.error('Transaction error:', error);
-      alert('RIP transaction failed 💀 ' + error.message);
+      alert('RIP transaction failed  ' + error.message);
       setIsProcessing(false);
     }
   };
@@ -3319,12 +3319,12 @@ function DeveloperSupport({ onClose, onSupport }) {
             textAlign: 'center',
           }}
         >
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🚀💎🙌</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🙌</div>
           <div style={{ fontSize: 24, fontWeight: 700, color: C.nGreen, marginBottom: 8 }}>
             LETS GOOOO!!! 
           </div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-            U a real one fr! Dev gonna eat good tonight 🔥
+            U a real one ! Dev gonna eat big big mac 
           </div>
         </div>
       </div>
@@ -3359,7 +3359,7 @@ function DeveloperSupport({ onClose, onSupport }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            🚀 SUPP THE DEV NO CAP
+             SUPP THE DEV 
           </div>
           <button
             onClick={onClose}
@@ -3459,7 +3459,7 @@ function DeveloperSupport({ onClose, onSupport }) {
               type="number"
               step="0.0001"
               min="0.0001"
-              placeholder="Send it bro 🚀"
+              placeholder="Enter custom ETH amount"
               value={customAmount}
               onChange={(e) => {
                 setCustomAmount(e.target.value);
@@ -3503,7 +3503,7 @@ function DeveloperSupport({ onClose, onSupport }) {
             transition: 'all 0.2s',
           }}
         >
-          {isProcessing ? '⏳ SENDIN...' : ' KISSING YOUR FEET  '}
+          {isProcessing ? '⏳ SENDIN...' : '   SEND IT   '}
         </button>
 
         <div
@@ -4042,8 +4042,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               letterSpacing: "0.5px"
             }}
           >
-            <span>🚀</span>
-            <span>SUPP THE DEV FR FR NO CAP 💎🙌</span>
+            <span></span>
+            <span>Supp the dev 🙌</span>
           </GlassButton>
         </div>
       </GlassPanel>
@@ -4052,7 +4052,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <DeveloperSupport
           onClose={() => setShowSupport(false)}
           onSupport={(amount) => {
-            console.log(`LFG! Received ${amount} ETH 🚀`);
+            console.log(`LFG! Received ${amount} ETH support from giga chad`);
           }}
         />
       )}
@@ -4840,7 +4840,7 @@ export default function App() {
           {screen === "building" && (
             <GlassPanel style={{ padding: "4px 10px", borderRadius: 14, border: `1px solid ${C.nBlue}35` }}>
               <span style={{ fontSize: 11, fontFamily: "monospace", color: C.nBlue }}>
-                📊 Building...
+                 Building...
               </span>
             </GlassPanel>
           )}
