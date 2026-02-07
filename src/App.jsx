@@ -5231,7 +5231,7 @@ export default function App() {
       style={{
         width: "100vw",
         height: "100dvh",
-        overflowY: "auto",
+        overflowY: "fixed",
         overflowX: "hidden",
         background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
         position: "relative",
