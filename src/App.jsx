@@ -22,33 +22,6 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-/* ═══════════════════════════════════════════════════════════════
-    FIREBASE CONFIGURATION
-   ═══════════════════════════════════════════════════════════════ */
-
-// Firebase config - Using environment variables for security
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY_HERE",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID"
-};
-
-// Initialize Firebase
-let app, db;
-try {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-} catch (error) {
-  console.error("Firebase initialization error:", error);
-  // Fallback to localStorage if Firebase fails
-  db = null;
-}
 
 /* ═══════════════════════════════════════════════════════════════
     1  CONSTANTS & COLOR TOKENS
@@ -3671,119 +3644,142 @@ const DecisionButtons = React.memo(({ onChoose, disabled }) => {
   );
 });
 
-const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onNext, context, showAnnotation, onToggleAnnotation, currentAnnotation }) => (
-  <GlassPanel style={{ padding: "16px 20px" }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-      <div
-        style={{
-          fontSize: 32,
-          width: 50,
-          height: 50,
-          borderRadius: "50%",
-          background: correct
-            ? `radial-gradient(circle, ${C.nGreen}33, transparent)`
-            : `radial-gradient(circle, ${C.nPink}33, transparent)`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {correct ? "✓" : "✗"}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: correct ? C.nGreen : C.nPink,
-            marginBottom: 2,
-          }}
-        >
-          {correct ? "BASED! ✅" : "Incorrect"}
+const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onNext, context, showAnnotation, onToggleAnnotation, currentAnnotation }) => {
+  const isMobile = window.innerWidth < 520;
+  
+  return (
+  <div style={{ 
+    display: "flex", 
+    flexDirection: "column",
+    height: "100%",
+    maxHeight: isMobile ? "calc(100dvh - 520px)" : "auto",
+    overflow: "hidden"
+  }}>
+    {/* Scrollable content */}
+    <div style={{ 
+      flex: 1, 
+      overflowY: "auto", 
+      overflowX: "hidden",
+      paddingRight: 4,
+      marginRight: -4
+    }}>
+      <GlassPanel style={{ padding: "16px 20px", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div
+            style={{
+              fontSize: 32,
+              width: 50,
+              height: 50,
+              borderRadius: "50%",
+              background: correct
+                ? `radial-gradient(circle, ${C.nGreen}33, transparent)`
+                : `radial-gradient(circle, ${C.nPink}33, transparent)`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {correct ? "✓" : "✗"}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: correct ? C.nGreen : C.nPink,
+                marginBottom: 2,
+              }}
+            >
+              {correct ? "BASED! ✅" : "Incorrect"}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}>
+              You chose {choice} • Signal was {signal}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", color: C.nGreen }}>
+              +{points}
+            </div>
+            {streak > 0 && (
+              <div style={{ fontSize: 11, color: C.nPurple }}>🔥 {streak} streak</div>
+            )}
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}>
-          You chose {choice} • Signal was {signal}
-        </div>
-      </div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", color: C.nGreen }}>
-          +{points}
-        </div>
-        {streak > 0 && (
-          <div style={{ fontSize: 11, color: C.nPurple }}>🔥 {streak} streak</div>
+
+        {/* Annotation explanation */}
+        {showAnnotation && currentAnnotation && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.85)",
+              marginBottom: 12,
+              padding: "12px",
+              background: "rgba(0,0,0,0.3)",
+              borderRadius: 10,
+              border: "1px solid rgba(245,158,11,0.5)",
+              lineHeight: 1.5,
+            }}
+          >
+            {currentAnnotation.explanation}
+          </div>
         )}
-      </div>
+
+        {/* Context explanation */}
+        {context && !showAnnotation && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: 12,
+              padding: "10px 12px",
+              background: "rgba(255,255,255,0.03)",
+              borderRadius: 10,
+              borderLeft: `3px solid ${correct ? C.nGreen : C.nPink}55`,
+            }}
+          >
+            <div style={{ marginBottom: 6, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>
+              {correct ? "Why it worked:" : "Why it failed:"}
+            </div>
+            {correct ? (
+              <div>
+                • Pattern confirmed with strong follow-through
+                <br />• {context.trendBias} trend bias supported the move
+                <br />• Setup quality: {context.edgeScore || 0}/5 edge indicators
+              </div>
+            ) : (
+              <div>
+                • Pattern failed to follow through as expected
+                <br />• Context ({context.trendBias} bias) conflicted with setup
+                <br />• Better to avoid low-quality setups
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Show/Hide Breakdown button */}
+        <GlassButton 
+          onClick={onToggleAnnotation} 
+          color={showAnnotation ? C.nAmber : "#374151"} 
+          style={{ width: "100%", padding: "12px 0", fontSize: 13, marginBottom: 0 }}
+        >
+          {showAnnotation ? "📊 Hide Breakdown" : "🔍 Show Breakdown"}
+        </GlassButton>
+      </GlassPanel>
     </div>
 
-    {/* Annotation explanation */}
-    {showAnnotation && currentAnnotation && (
-      <div
-        style={{
-          fontSize: 12,
-          color: "rgba(255,255,255,0.85)",
-          marginBottom: 12,
-          padding: "12px",
-          background: "rgba(0,0,0,0.3)",
-          borderRadius: 10,
-          border: "1px solid rgba(245,158,11,0.5)",
-          lineHeight: 1.5,
-        }}
-      >
-        {currentAnnotation.explanation}
-      </div>
-    )}
-
-    {/* Context explanation */}
-    {context && !showAnnotation && (
-      <div
-        style={{
-          fontSize: 12,
-          color: "rgba(255,255,255,0.6)",
-          marginBottom: 12,
-          padding: "10px 12px",
-          background: "rgba(255,255,255,0.03)",
-          borderRadius: 10,
-          borderLeft: `3px solid ${correct ? C.nGreen : C.nPink}55`,
-        }}
-      >
-        <div style={{ marginBottom: 6, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>
-          {correct ? "Why it worked:" : "Why it failed:"}
-        </div>
-        {correct ? (
-          <div>
-            • Pattern confirmed with strong follow-through
-            <br />• {context.trendBias} trend bias supported the move
-            <br />• Setup quality: {context.edgeScore || 0}/5 edge indicators
-          </div>
-        ) : (
-          <div>
-            • Pattern failed to follow through as expected
-            <br />• Context ({context.trendBias} bias) conflicted with setup
-            <br />• Better to avoid low-quality setups
-          </div>
-        )}
-      </div>
-    )}
-
-    <div style={{ display: "flex", gap: 10 }}>
-      <GlassButton 
-        onClick={onToggleAnnotation} 
-        color={showAnnotation ? C.nAmber : "#374151"} 
-        style={{ flex: 1, padding: "12px 0", fontSize: 13 }}
-      >
-        {showAnnotation ? "📊 Hide Breakdown" : "🔍 Show Breakdown"}
-      </GlassButton>
-      
+    {/* Fixed Next button at bottom */}
+    <div style={{ flexShrink: 0 }}>
       <GlassButton 
         onClick={onNext} 
         color={C.nBlue} 
-        style={{ flex: 1, padding: "12px 0" }}
+        style={{ width: "100%", padding: "14px 0", fontSize: 14, fontWeight: 700 }}
       >
         Next Round →
       </GlassButton>
     </div>
-  </GlassPanel>
-);
+  </div>
+  );
+};
 
 const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const [saved, setSaved] = useState(false);
@@ -3824,38 +3820,19 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
-        if (db) {
-          // Save to Firebase Firestore
-          await addDoc(collection(db, "scores"), scoreData);
-          console.log("Score saved to Firebase!");
-        } else {
-          // Fallback to localStorage if Firebase not available
-          const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
-          existingScores.push(scoreData);
-          localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
-          console.log("Score saved to localStorage (Firebase unavailable)");
-        }
+        // Get existing scores
+        const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+        
+        // Add new score
+        existingScores.push(scoreData);
+        
+        // Save back
+        localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
         
         setSaved(true);
         haptic([50, 30, 50]);
       } catch (err) {
         console.error("Failed to save score:", err);
-        // Try localStorage as fallback
-        try {
-          const scoreData = {
-            name: playerName,
-            score: stats.totalScore,
-            streak: stats.bestStreak,
-            accuracy: stats.accuracy,
-            timestamp: Date.now()
-          };
-          const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
-          existingScores.push(scoreData);
-          localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
-          setSaved(true);
-        } catch (fallbackErr) {
-          console.error("Fallback save also failed:", fallbackErr);
-        }
       }
     };
     
@@ -4122,24 +4099,8 @@ const Leaderboard = ({ onBack }) => {
     try {
       setLoading(true);
       
-      let scores = [];
-      
-      if (db) {
-        // Load from Firebase Firestore
-        const scoresQuery = query(
-          collection(db, "scores"),
-          orderBy("timestamp", "desc"),
-          limit(100) // Get last 100 scores
-        );
-        
-        const querySnapshot = await getDocs(scoresQuery);
-        scores = querySnapshot.docs.map(doc => doc.data());
-        console.log(`Loaded ${scores.length} scores from Firebase`);
-      } else {
-        // Fallback to localStorage
-        scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
-        console.log(`Loaded ${scores.length} scores from localStorage (Firebase unavailable)`);
-      }
+      // Get all scores from localStorage
+      const scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
       
       if (scores.length === 0) {
         setEntries([]);
@@ -4174,37 +4135,7 @@ const Leaderboard = ({ onBack }) => {
       setEntries(leaderboard);
     } catch (err) {
       console.error("Error loading leaderboard:", err);
-      // Try localStorage as fallback
-      try {
-        const scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
-        if (scores.length > 0) {
-          const aggregated = {};
-          scores.forEach(score => {
-            if (!aggregated[score.name]) {
-              aggregated[score.name] = {
-                name: score.name,
-                totalScore: 0,
-                games: 0,
-                bestScore: 0,
-                bestStreak: 0
-              };
-            }
-            aggregated[score.name].totalScore += score.score;
-            aggregated[score.name].games += 1;
-            aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
-            aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
-          });
-          const leaderboard = Object.values(aggregated)
-            .sort((a, b) => b.totalScore - a.totalScore)
-            .slice(0, 10);
-          setEntries(leaderboard);
-        } else {
-          setEntries([]);
-        }
-      } catch (fallbackErr) {
-        console.error("Fallback load also failed:", fallbackErr);
-        setEntries([]);
-      }
+      setEntries([]);
     } finally {
       setLoading(false);
     }
@@ -4970,10 +4901,11 @@ export default function App() {
 
       {/* Chart - MUCH BIGGER on mobile */}
       <div style={{ 
-        flex: 1, 
-        minHeight: 0, 
+        flex: screen === "outcome" ? 0 : 1, 
+        minHeight: screen === "outcome" ? (isMobile ? "280px" : "320px") : (isMobile ? "50vh" : 0), 
+        maxHeight: screen === "outcome" ? (isMobile ? "280px" : "320px") : "none",
         position: "relative",
-        minHeight: "50vh" // Force minimum height for mobile
+        flexShrink: 0
       }}>
         <canvas
           ref={chartRef}
@@ -5164,7 +5096,18 @@ export default function App() {
       </div>
 
       {/* Decision / Outcome - compact */}
-      <div style={{ paddingBottom: 6, flexShrink: 0, padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0", minHeight: 64 }}>
+      <div style={{ 
+        flexShrink: 0, 
+        padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0",
+        ...(screen === "outcome" ? {
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column"
+        } : {
+          minHeight: 64
+        })
+      }}>
         <div style={{ 
           display: screen === "outcome" ? "none" : "block",
           opacity: screen === "home" ? 0 : 1,
