@@ -2885,7 +2885,7 @@ class ChartRenderer {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  renderAll(allCandles, scrollOffset = 0, totalCandleCountOverride = null, annotation = null) {
+  renderAll(allCandles, scrollOffset = 0, totalCandleCountOverride = null, annotation = null, verticalOffset = 0) {
     const ctx = this.ctx;
     const dpr = window.devicePixelRatio || 1;
     const width = this.canvas.width / dpr;
@@ -2959,7 +2959,7 @@ class ChartRenderer {
     minPrice -= range * pad;
     maxPrice += range * pad;
 
-    const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90);
+    const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90) + verticalOffset;
 
     const minBodyHeight = mobile ? 5 : 3;
     const maxWickHeight = mobile ? 25 : 20;
@@ -4341,6 +4341,7 @@ export default function App() {
   const [windowStart, setWindowStart] = useState(0);
   const [revealProgress, setRevealProgress] = useState(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [verticalOffset, setVerticalOffset] = useState(0);
   const [playerName, setPlayerName] = useState("");
   const [isEditingName, setIsEditingName] = useState(true);
   const [tempName, setTempName] = useState("");
@@ -4355,11 +4356,15 @@ export default function App() {
   const timerRef = useRef(null);
   const animFrameRef = useRef(null);
   const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
   const touchStartOffset = useRef(0);
+  const touchStartVerticalOffset = useRef(0);
   const swipeRafId = useRef(null);
   const lastTouchX = useRef(null);
+  const lastTouchY = useRef(null);
   const lastTouchTime = useRef(null);
   const velocity = useRef(0);
+  const verticalVelocity = useRef(0);
   const renderRafId = useRef(null);
   const lastRenderTime = useRef(0);
   const buildAnimationProgress = useRef(0);
@@ -4489,6 +4494,7 @@ export default function App() {
     setWindowStart(0);
     setRevealProgress(0);
     setSwipeOffset(0);
+    setVerticalOffset(0);
     buildAnimationProgress.current = 0;
     lastCandleCount.current = 0;
     cachedCandles.current = [];
@@ -4592,7 +4598,7 @@ export default function App() {
         targetFps = isMobile ? 40 : 60;
       }
 
-      const minFrameTime = 800 / targetFps;
+      const minFrameTime = 1000 / targetFps;
 
       const render = (timestamp) => {
         if (timestamp - lastRenderTime.current < minFrameTime) {
@@ -4633,16 +4639,18 @@ export default function App() {
 
             currentCandles = [...currentCandles, partialCandle];
           }
+          currentOffset = swipeOffset;
         } 
         else if (screen === "playing") {
           currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
+          currentOffset = swipeOffset;
         } 
         else if (screen === "revealing" || screen === "outcome") {
           const baseCandles = structure.candles.slice(0, structure.decisionIndex + 1);
           const continuationCandles = structure.continuation?.candles || [];
           const contCount = Math.floor(revealProgress * continuationCandles.length);
           currentCandles = [...baseCandles, ...continuationCandles.slice(0, contCount)];
-          currentOffset = screen === "outcome" ? swipeOffset : 0;
+          currentOffset = swipeOffset;
         }
 
         if (rendererRef.current && currentCandles.length > 0) {
@@ -4657,7 +4665,7 @@ export default function App() {
           // Pass annotation only on outcome screen when enabled
           const annotationData = (screen === "outcome" && showAnnotation) ? currentAnnotation : null;
           
-          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles, annotationData);
+          rendererRef.current.renderAll(currentCandles, currentOffset, totalExpectedCandles, annotationData, verticalOffset);
         }
 
         renderRafId.current = requestAnimationFrame(render);
@@ -4668,7 +4676,7 @@ export default function App() {
       return () => {
         if (renderRafId.current) cancelAnimationFrame(renderRafId.current);
       };
-    }, [structure, screen, revealProgress, swipeOffset, windowStart, showAnnotation, currentAnnotation]);
+    }, [structure, screen, revealProgress, swipeOffset, verticalOffset, windowStart, showAnnotation, currentAnnotation]);
 
   // ── Compute stats ──
   const computeStats = useCallback(() => {
@@ -4985,39 +4993,49 @@ export default function App() {
             height: "100%", 
             borderRadius: 16, 
             display: "block",
-            touchAction: screen === "outcome" ? "none" : "auto"
+            touchAction: "none"
           }}
           onTouchStart={(e) => {
-            if (screen === "outcome" && structure && structure.candles && structure.candles.length > 0) {
+            if (structure && structure.candles && structure.candles.length > 0) {
               touchStartX.current = e.touches[0].clientX;
+              touchStartY.current = e.touches[0].clientY;
               touchStartOffset.current = swipeOffset;
+              touchStartVerticalOffset.current = verticalOffset;
               lastTouchX.current = e.touches[0].clientX;
+              lastTouchY.current = e.touches[0].clientY;
               lastTouchTime.current = Date.now();
               velocity.current = 0;
+              verticalVelocity.current = 0;
               if (swipeRafId.current) cancelAnimationFrame(swipeRafId.current);
             }
           }}
           onTouchMove={(e) => {
-            if (screen === "outcome" && touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
+            if (touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
               e.preventDefault();
               
               const currentX = e.touches[0].clientX;
+              const currentY = e.touches[0].clientY;
               const currentTime = Date.now();
               const deltaX = touchStartX.current - currentX;
+              const deltaY = touchStartY.current - currentY;
               const timeDelta = currentTime - lastTouchTime.current;
               
-              // Calculate velocity for momentum
+              // Calculate velocity for momentum (both horizontal and vertical)
               if (timeDelta > 0) {
                 velocity.current = (lastTouchX.current - currentX) / timeDelta;
+                verticalVelocity.current = (lastTouchY.current - currentY) / timeDelta;
               }
               
               lastTouchX.current = currentX;
+              lastTouchY.current = currentY;
               lastTouchTime.current = currentTime;
               
-              const newOffset = touchStartOffset.current + deltaX;
+              const newHorizontalOffset = touchStartOffset.current + deltaX;
+              const newVerticalOffset = touchStartVerticalOffset.current + deltaY;
               
               // Get current canvas dimensions
               const canvasWidth = chartRef.current ? chartRef.current.getBoundingClientRect().width : 400;
+              const canvasHeight = chartRef.current ? chartRef.current.getBoundingClientRect().height : 300;
               
               // Calculate dynamic limits based on total candles
               const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
@@ -5042,32 +5060,49 @@ export default function App() {
               const MAX_VISIBLE = Math.min(totalCandles, Math.floor(availableWidth / slotWidth));
               const scrollableCandles = Math.max(0, totalCandles - MAX_VISIBLE);
               
-              // Dynamic limits
-              const maxOffset = scrollableCandles * slotWidth;
-              const minOffset = -50; // Small negative allowance for bounce
-              let limitedOffset;
+              // Horizontal limits
+              const maxHorizontalOffset = scrollableCandles * slotWidth;
+              const minHorizontalOffset = -50;
+              let limitedHorizontalOffset;
               
-              if (newOffset > maxOffset) {
-                const excess = newOffset - maxOffset;
-                limitedOffset = maxOffset + excess * 0.3;
-              } else if (newOffset < minOffset) {
-                const excess = minOffset - newOffset;
-                limitedOffset = minOffset - excess * 0.3;
+              if (newHorizontalOffset > maxHorizontalOffset) {
+                const excess = newHorizontalOffset - maxHorizontalOffset;
+                limitedHorizontalOffset = maxHorizontalOffset + excess * 0.3;
+              } else if (newHorizontalOffset < minHorizontalOffset) {
+                const excess = minHorizontalOffset - newHorizontalOffset;
+                limitedHorizontalOffset = minHorizontalOffset - excess * 0.3;
               } else {
-                limitedOffset = newOffset;
+                limitedHorizontalOffset = newHorizontalOffset;
+              }
+              
+              // Vertical limits (allow some panning, with rubber band effect)
+              const maxVerticalOffset = canvasHeight * 0.3;
+              const minVerticalOffset = -canvasHeight * 0.3;
+              let limitedVerticalOffset;
+              
+              if (newVerticalOffset > maxVerticalOffset) {
+                const excess = newVerticalOffset - maxVerticalOffset;
+                limitedVerticalOffset = maxVerticalOffset + excess * 0.3;
+              } else if (newVerticalOffset < minVerticalOffset) {
+                const excess = minVerticalOffset - newVerticalOffset;
+                limitedVerticalOffset = minVerticalOffset - excess * 0.3;
+              } else {
+                limitedVerticalOffset = newVerticalOffset;
               }
               
               // Use RAF to prevent lag
               if (swipeRafId.current) cancelAnimationFrame(swipeRafId.current);
               swipeRafId.current = requestAnimationFrame(() => {
-                setSwipeOffset(limitedOffset);
+                setSwipeOffset(limitedHorizontalOffset);
+                setVerticalOffset(limitedVerticalOffset);
               });
             }
           }}
           onTouchEnd={() => {
-            if (screen === "outcome" && touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
+            if (touchStartX.current !== null && structure && structure.candles && structure.candles.length > 0) {
               // Get current canvas dimensions
               const canvasWidth = chartRef.current ? chartRef.current.getBoundingClientRect().width : 400;
+              const canvasHeight = chartRef.current ? chartRef.current.getBoundingClientRect().height : 300;
               
               // Calculate dynamic limits based on total candles
               const totalCandles = structure.candles.length + (structure.continuation?.candles?.length || 0);
@@ -5092,17 +5127,27 @@ export default function App() {
               const MAX_VISIBLE = Math.min(totalCandles, Math.floor(availableWidth / slotWidth));
               const scrollableCandles = Math.max(0, totalCandles - MAX_VISIBLE);
               
-              // Apply momentum with smooth animation
-              const momentum = velocity.current * 100;
-              let finalOffset = swipeOffset + momentum;
+              // Apply momentum with smooth animation (horizontal)
+              const horizontalMomentum = velocity.current * 100;
+              let finalHorizontalOffset = swipeOffset + horizontalMomentum;
               
-              // Dynamic limits
-              const maxOffset = scrollableCandles * slotWidth;
-              const minOffset = 0;
-              finalOffset = Math.max(minOffset, Math.min(maxOffset, finalOffset));
+              // Horizontal limits
+              const maxHorizontalOffset = scrollableCandles * slotWidth;
+              const minHorizontalOffset = 0;
+              finalHorizontalOffset = Math.max(minHorizontalOffset, Math.min(maxHorizontalOffset, finalHorizontalOffset));
+              
+              // Apply momentum with smooth animation (vertical)
+              const verticalMomentum = verticalVelocity.current * 100;
+              let finalVerticalOffset = verticalOffset + verticalMomentum;
+              
+              // Vertical limits - snap back to 0
+              const maxVerticalOffset = 0;
+              const minVerticalOffset = 0;
+              finalVerticalOffset = 0; // Always snap back to center vertically
               
               // Smooth snap animation
-              const startOffset = swipeOffset;
+              const startHorizontalOffset = swipeOffset;
+              const startVerticalOffset = verticalOffset;
               const startTime = Date.now();
               const duration = 300;
               
@@ -5111,8 +5156,11 @@ export default function App() {
                 const progress = Math.min(elapsed / duration, 1);
                 const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
                 
-                const offset = startOffset + (finalOffset - startOffset) * eased;
-                setSwipeOffset(offset);
+                const horizontalOffset = startHorizontalOffset + (finalHorizontalOffset - startHorizontalOffset) * eased;
+                const verticalOffsetValue = startVerticalOffset + (finalVerticalOffset - startVerticalOffset) * eased;
+                
+                setSwipeOffset(horizontalOffset);
+                setVerticalOffset(verticalOffsetValue);
                 
                 if (progress < 1) {
                   swipeRafId.current = requestAnimationFrame(animate);
@@ -5123,45 +5171,51 @@ export default function App() {
             }
             
             touchStartX.current = null;
+            touchStartY.current = null;
             velocity.current = 0;
+            verticalVelocity.current = 0;
           }}
         />
-        {screen === "outcome" && structure && (
+        {structure && (
           <>
-            <div
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 12,
-                fontSize: 9,
-                fontFamily: "monospace",
-                color: "rgba(255,255,255,0.18)",
-                background: "rgba(6,6,12,0.6)",
-                padding: "3px 7px",
-                borderRadius: 6,
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              {structure.continuation.pattern}
-            </div>
-            <div
-              style={{
-                position: "absolute",
-                bottom: 10,
-                left: "50%",
-                transform: "translateX(-50%)",
-                fontSize: 10,
-                fontFamily: "monospace",
-                color: "rgba(255,255,255,0.25)",
-                background: "rgba(6,6,12,0.7)",
-                padding: "4px 10px",
-                borderRadius: 8,
-                backdropFilter: "blur(8px)",
-                pointerEvents: "none",
-              }}
-            >
-              ← Swipe to explore →
-            </div>
+            {screen === "outcome" && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 12,
+                  fontSize: 9,
+                  fontFamily: "monospace",
+                  color: "rgba(255,255,255,0.18)",
+                  background: "rgba(6,6,12,0.6)",
+                  padding: "3px 7px",
+                  borderRadius: 6,
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                {structure.continuation.pattern}
+              </div>
+            )}
+            {(screen === "playing" || screen === "building" || screen === "outcome") && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 10,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  fontSize: 10,
+                  fontFamily: "monospace",
+                  color: "rgba(255,255,255,0.25)",
+                  background: "rgba(6,6,12,0.7)",
+                  padding: "4px 10px",
+                  borderRadius: 8,
+                  backdropFilter: "blur(8px)",
+                  pointerEvents: "none",
+                }}
+              >
+                ← Swipe to explore →
+              </div>
+            )}
           </>
         )}
       </div>
