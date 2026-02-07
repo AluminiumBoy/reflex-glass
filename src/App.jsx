@@ -3797,9 +3797,13 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
+        console.log("Attempting to save score:", scoreData);
+        
         // Save score to shared storage
         const scoreId = `score_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
-        await window.storage.set(scoreId, JSON.stringify(scoreData), true);
+        const result = await window.storage.set(scoreId, JSON.stringify(scoreData), true);
+        
+        console.log("Storage save result:", result);
         
         setSaved(true);
         haptic([50, 30, 50]);
@@ -4071,10 +4075,13 @@ const Leaderboard = ({ onBack }) => {
     try {
       setLoading(true);
       
+      console.log("Loading leaderboard...");
+      
       // Get all scores from shared storage
       let result;
       try {
         result = await window.storage.list("score_", true);
+        console.log("Storage list result:", result);
       } catch (err) {
         // No scores exist yet
         console.log("No scores in storage yet:", err);
@@ -4084,16 +4091,20 @@ const Leaderboard = ({ onBack }) => {
       }
       
       if (!result || !result.keys || result.keys.length === 0) {
+        console.log("No keys found in result");
         setEntries([]);
         setLoading(false);
         return;
       }
+      
+      console.log("Found keys:", result.keys);
       
       // Fetch all score entries
       const scores = [];
       for (const key of result.keys) {
         try {
           const data = await window.storage.get(key, true);
+          console.log(`Loaded ${key}:`, data);
           if (data && data.value) {
             scores.push(JSON.parse(data.value));
           }
@@ -4101,6 +4112,8 @@ const Leaderboard = ({ onBack }) => {
           console.log(`Error loading score ${key}:`, err);
         }
       }
+      
+      console.log("All scores loaded:", scores);
       
       if (scores.length === 0) {
         setEntries([]);
