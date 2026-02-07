@@ -4830,7 +4830,7 @@ export default function App() {
           style={{ 
             maxWidth: 320,
             width: "100%",
-            height: "auto",
+            height: "200",
             marginBottom: 8
           }} 
         />
