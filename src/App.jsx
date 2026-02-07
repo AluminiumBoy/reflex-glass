@@ -238,34 +238,47 @@ const sound = new SoundEngine();
 function generateRoast(stats) {
   const { accuracy } = stats;
   
-  const roasts = {
-    legendary: [
-      "Yo you're literally built different 🚀 Chart god status unlocked. When moon? NOW.",
-      "Bro you just went full degen mode and WON. Absolute legend. To Valhalla! 🔥",
-      "This ain't your first rodeo is it? Straight up chart whisperer vibes. LFG! 💎🙌",
-    ],
-    pro: [
-      "Not bad anon. You got that diamond hands energy fr fr 💎",
-      "Okay okay I see you! Pattern recognition go brrr 📈",
-      "Solid ape energy right there. Keep stacking those Ws king 👑",
-    ],
-    decent: [
-      "Mid energy but we respect the grind. WAGMI fam 🤝",
-      "You're like that guy who bought ETH at $2k... not great, not terrible 😅",
-      "Decent! But have you tried actually reading the charts tho? 🤔",
-    ],
-    struggling: [
-      "Bro... you good? This ain't it chief 📉",
-      "POV: You're panic selling at the bottom again 💀",
-      "My guy bought the top and sold the dip. Classic ape move 🦍",
-    ],
-    ngmi: [
-      "NGMI vibes radiating from this score ngl 😬 Touch grass anon",
-      "This is why you lost your life savings on DOGE huh? 🐕💸",
-      "Absolutely rekt. You belong on WallStreetBets not here 📊💀",
-      "You're that guy who asks 'wen lambo' in Discord aren't you? 🤡",
-    ]
-  };
+const roasts = {
+  legendary: [
+    "Fucking mooned, you absolute chad",
+    "Bears got fucked, king shit",
+    "100x degen god, holy fuck",
+    "Aura so big it broke my screen",
+    "You printed while I cried",
+  ],
+
+  pro: [
+    "Clean pump, you sexy bastard",
+    "Rizz on point, damn son",
+    "Wagmi you glorious fuck",
+    "Brrr motherfucker, respect",
+    "Cooking harder than my ex's tears",
+  ],
+
+  decent: [
+    "Mid as fuck but breathing",
+    "Not rekt… yet, you lucky prick",
+    "Sideways like my love life",
+    "Ape energy: meh but cute",
+    "Surviving, barely, lol",
+  ],
+
+  struggling: [
+    "John Weak vibes, ouch",
+    "Dip got you good huh",
+    "Rekt a little, we’ve all been there",
+    "Panic hands moment, happens",
+    "Rough ride bro, hang in",
+  ],
+
+  ngmi: [
+    "Rekt city population: you",
+    "Zeroed... tough day king",
+    "NGMI energy, but tomorrow’s another chart",
+    "Rug pulled, that stings",
+    "Bags looking sleepy, rip",
+  ]
+};
 
   if (accuracy >= 90) return roasts.legendary[Math.floor(Math.random() * roasts.legendary.length)];
   if (accuracy >= 75) return roasts.pro[Math.floor(Math.random() * roasts.pro.length)];
@@ -3369,8 +3382,9 @@ function DeveloperSupport({ onClose, onSupport }) {
         </div>
 
         <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
-          Yo if this app slaps and u vibin with it, throw some ETH my way fr fr! 
-          Gonna use it to build more fire features and maybe touch grass occasionally 💀🌱
+            This whole thing is held together by hope and bad decisions
+            If it somehow works for you... congrats, you're as delusional as I am
+            Send ETH to keep the delusion alive 
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
@@ -3489,7 +3503,7 @@ function DeveloperSupport({ onClose, onSupport }) {
             transition: 'all 0.2s',
           }}
         >
-          {isProcessing ? '⏳ SENDIN...' : '🚀 SEND IT FR FR 💎🙌'}
+          {isProcessing ? '⏳ SENDIN...' : ' KISSING YOUR FEET  '}
         </button>
 
         <div
@@ -3504,9 +3518,9 @@ function DeveloperSupport({ onClose, onSupport }) {
             lineHeight: 1.4,
           }}
         >
-          🔒 Secure AF on Base network bro
+          Built with love, caffeine, & unopened therapy bills 
           <br />
-          No sign up, no sus stuff, just vibes ✨
+          No sign up, no sus stuff, just vibes 
         </div>
       </div>
     </div>
@@ -4631,8 +4645,9 @@ export default function App() {
 
       <GlassPanel style={{ padding: "20px 16px", maxWidth: 380, width: "100%" }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: 16 }}>
-          Master pattern recognition in realistic market conditions. Learn when to trade and when
-          to wait. Focus on context, not memorization.
+        Master pattern recognition in realistic market conditions.  
+        Learn when to trade and when to wait.  
+        Focus on context, not memorization.
         </div>
         
         <div style={{ position: "relative" }}>
@@ -4784,7 +4799,9 @@ export default function App() {
           maxWidth: 300,
         }}
       >
-        Learn when NOT to trade • {ROUNDS} rounds • Context matters
+        Most people fuck it up spectacularly even with real money.  
+        This? Just a sandbox to mess around in.  
+        Real trading education takes time — use this to make the mistakes for free.
       </div>
     </div>
   );
