@@ -4710,8 +4710,10 @@ export default function App() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        minHeight: "calc(100dvh - 80px)",
+        justifyContent: "flex-start",
+        height: "100dvh",
+        overflowY: "auto",
+        overflowX: "hidden",
         padding: "20px 16px",
         gap: 20,
       }}
@@ -4906,7 +4908,8 @@ export default function App() {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        height: "100dvh",
+        overflow: "hidden",
         gap: 8,
         padding: isMobile ? "8px 0" : "8px 10px",
       }}
@@ -5200,8 +5203,10 @@ export default function App() {
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        height: "100dvh",
         justifyContent: "center",
+        overflowY: "auto",
+        overflowX: "hidden",
         padding: 16,
         gap: 14,
       }}
@@ -5229,10 +5234,9 @@ export default function App() {
   return (
     <div
       style={{
-        width: "120vw",
+        width: "100vw",
         height: "100dvh",
-        overflowY: "hidden",
-        overflowX: "hidden",
+        overflow: "hidden",
         background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
         position: "relative",
       }}
@@ -5266,7 +5270,7 @@ export default function App() {
       </div>
 
       {/* Main content */}
-      <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh" }}>
+      <div style={{ position: "relative", zIndex: 1, height: "100dvh", overflow: "hidden" }}>
         {screen === "home" && renderHome()}
         {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
           renderPlaying()}
@@ -5276,7 +5280,9 @@ export default function App() {
             display: "flex", 
             justifyContent: "center", 
             alignItems: "center", 
-            minHeight: "100dvh",
+            height: "100dvh",
+            overflowY: "auto",
+            overflowX: "hidden",
             padding: 16 
           }}>
             <Leaderboard onBack={() => setScreen("verdict")} />
