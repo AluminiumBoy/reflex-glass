@@ -4371,6 +4371,45 @@ export default function App() {
   const cachedCandles = useRef([]);
   const lastCandleCount = useRef(0);
 
+  // ── Setup viewport and disable zoom ──
+  useEffect(() => {
+    // Set viewport meta tag
+    let viewportMeta = document.querySelector('meta[name="viewport"]');
+    if (!viewportMeta) {
+      viewportMeta = document.createElement('meta');
+      viewportMeta.name = 'viewport';
+      document.head.appendChild(viewportMeta);
+    }
+    viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    
+    // Prevent pinch zoom on touch devices
+    const preventZoom = (e) => {
+      if (e.touches && e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+    
+    // Prevent double-tap zoom
+    let lastTouchEnd = 0;
+    const preventDoubleTapZoom = (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    };
+    
+    document.addEventListener('touchstart', preventZoom, { passive: false });
+    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    
+    return () => {
+      document.removeEventListener('touchstart', preventZoom);
+      document.removeEventListener('touchend', preventDoubleTapZoom);
+      document.removeEventListener('gesturestart', (e) => e.preventDefault());
+    };
+  }, []);
+
   // ── Initialize renderer ──
   useEffect(() => {
     if (chartRef.current) {
@@ -5403,6 +5442,20 @@ export default function App() {
 
       {/* Animations */}
       <style>{`
+        * {
+          -webkit-user-select: none;
+          -webkit-touch-callout: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+          touch-action: pan-x pan-y;
+          -ms-touch-action: pan-x pan-y;
+          overscroll-behavior: none;
+          -webkit-text-size-adjust: 100%;
+          -ms-text-size-adjust: 100%;
+        }
+        
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
