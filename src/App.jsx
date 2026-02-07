@@ -5230,8 +5230,8 @@ export default function App() {
     <div
       style={{
         width: "100vw",
-        height: "80dvh",
-        overflowY: "auto",
+        height: "100dvh",
+        overflowY: "fixed",
         overflowX: "hidden",
         background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
         position: "relative",
