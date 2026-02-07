@@ -4828,9 +4828,9 @@ export default function App() {
           src="title.png" 
           alt="REFLEX GLASS" 
           style={{ 
-            maxWidth: 320,
+            maxWidth: 120,
             width: "100%",
-            height: "200",
+            height: "auto",
             marginBottom: 8
           }} 
         />
