@@ -5015,8 +5015,8 @@ export default function App() {
           src="logo.png" 
           alt="Logo" 
           style={{ 
-            maxWidth: 580, 
-            maxHeight: 580,
+            maxWidth: 200, 
+            maxHeight: 80,
             objectFit: "contain",
             opacity: 0.7
           }} 
