@@ -4592,7 +4592,7 @@ export default function App() {
         targetFps = isMobile ? 40 : 60;
       }
 
-      const minFrameTime = 1000 / targetFps;
+      const minFrameTime = 800 / targetFps;
 
       const render = (timestamp) => {
         if (timestamp - lastRenderTime.current < minFrameTime) {
