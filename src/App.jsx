@@ -63,7 +63,7 @@ const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 const DEVELOPER_WALLET = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"; // Replace with actual wallet
 
 // Single difficulty mode
-const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
+const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 40, cleanRatio: 0.4 };
 
 const C = {
   nGreen: "#00ffaa",
