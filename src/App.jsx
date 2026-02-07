@@ -22,6 +22,33 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+/* ═══════════════════════════════════════════════════════════════
+    FIREBASE CONFIGURATION
+   ═══════════════════════════════════════════════════════════════ */
+
+// Firebase config - Using environment variables for security
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY_HERE",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+let app, db;
+try {
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+  // Fallback to localStorage if Firebase fails
+  db = null;
+}
 
 /* ═══════════════════════════════════════════════════════════════
     1  CONSTANTS & COLOR TOKENS
@@ -3797,18 +3824,38 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           timestamp
         };
         
-        console.log("Attempting to save score:", scoreData);
-        
-        // Save score to shared storage
-        const scoreId = `score_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
-        const result = await window.storage.set(scoreId, JSON.stringify(scoreData), true);
-        
-        console.log("Storage save result:", result);
+        if (db) {
+          // Save to Firebase Firestore
+          await addDoc(collection(db, "scores"), scoreData);
+          console.log("Score saved to Firebase!");
+        } else {
+          // Fallback to localStorage if Firebase not available
+          const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+          existingScores.push(scoreData);
+          localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
+          console.log("Score saved to localStorage (Firebase unavailable)");
+        }
         
         setSaved(true);
         haptic([50, 30, 50]);
       } catch (err) {
         console.error("Failed to save score:", err);
+        // Try localStorage as fallback
+        try {
+          const scoreData = {
+            name: playerName,
+            score: stats.totalScore,
+            streak: stats.bestStreak,
+            accuracy: stats.accuracy,
+            timestamp: Date.now()
+          };
+          const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+          existingScores.push(scoreData);
+          localStorage.setItem("reflexGlassScores", JSON.stringify(existingScores));
+          setSaved(true);
+        } catch (fallbackErr) {
+          console.error("Fallback save also failed:", fallbackErr);
+        }
       }
     };
     
@@ -4075,45 +4122,24 @@ const Leaderboard = ({ onBack }) => {
     try {
       setLoading(true);
       
-      console.log("Loading leaderboard...");
+      let scores = [];
       
-      // Get all scores from shared storage
-      let result;
-      try {
-        result = await window.storage.list("score_", true);
-        console.log("Storage list result:", result);
-      } catch (err) {
-        // No scores exist yet
-        console.log("No scores in storage yet:", err);
-        setEntries([]);
-        setLoading(false);
-        return;
+      if (db) {
+        // Load from Firebase Firestore
+        const scoresQuery = query(
+          collection(db, "scores"),
+          orderBy("timestamp", "desc"),
+          limit(100) // Get last 100 scores
+        );
+        
+        const querySnapshot = await getDocs(scoresQuery);
+        scores = querySnapshot.docs.map(doc => doc.data());
+        console.log(`Loaded ${scores.length} scores from Firebase`);
+      } else {
+        // Fallback to localStorage
+        scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+        console.log(`Loaded ${scores.length} scores from localStorage (Firebase unavailable)`);
       }
-      
-      if (!result || !result.keys || result.keys.length === 0) {
-        console.log("No keys found in result");
-        setEntries([]);
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Found keys:", result.keys);
-      
-      // Fetch all score entries
-      const scores = [];
-      for (const key of result.keys) {
-        try {
-          const data = await window.storage.get(key, true);
-          console.log(`Loaded ${key}:`, data);
-          if (data && data.value) {
-            scores.push(JSON.parse(data.value));
-          }
-        } catch (err) {
-          console.log(`Error loading score ${key}:`, err);
-        }
-      }
-      
-      console.log("All scores loaded:", scores);
       
       if (scores.length === 0) {
         setEntries([]);
@@ -4148,7 +4174,37 @@ const Leaderboard = ({ onBack }) => {
       setEntries(leaderboard);
     } catch (err) {
       console.error("Error loading leaderboard:", err);
-      setEntries([]);
+      // Try localStorage as fallback
+      try {
+        const scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+        if (scores.length > 0) {
+          const aggregated = {};
+          scores.forEach(score => {
+            if (!aggregated[score.name]) {
+              aggregated[score.name] = {
+                name: score.name,
+                totalScore: 0,
+                games: 0,
+                bestScore: 0,
+                bestStreak: 0
+              };
+            }
+            aggregated[score.name].totalScore += score.score;
+            aggregated[score.name].games += 1;
+            aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
+            aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
+          });
+          const leaderboard = Object.values(aggregated)
+            .sort((a, b) => b.totalScore - a.totalScore)
+            .slice(0, 10);
+          setEntries(leaderboard);
+        } else {
+          setEntries([]);
+        }
+      } catch (fallbackErr) {
+        console.error("Fallback load also failed:", fallbackErr);
+        setEntries([]);
+      }
     } finally {
       setLoading(false);
     }
