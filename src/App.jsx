@@ -3374,7 +3374,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         paddingLeft: 20,
         paddingRight: 20,
         paddingBottom: 20,
-        paddingTop: '20vh',
+        paddingTop: '200vh',
       }}
       onClick={onClose}
     >
