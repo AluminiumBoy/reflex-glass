@@ -3353,7 +3353,7 @@ function DeveloperSupport({ onClose, onSupport }) {
             LETS GOOOO!!! 
           </div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-            U a real one ! Dev gonna eat big big mac 
+            You a real one ! Thanks for the support, it means a lot ❤️ 
           </div>
         </div>
       </div>
@@ -3386,7 +3386,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: -100 }}>
           <div style={{ fontSize: 18, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
