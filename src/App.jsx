@@ -3380,16 +3380,16 @@ function DeveloperSupport({ onClose, onSupport }) {
           background: 'rgba(14,14,26,0.85)',
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
-          padding: 20,
+          padding: 16,
           maxWidth: 380,
           width: '100%',
-          maxHeight: '85vh',
+          maxHeight: '70vh',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
           <button
@@ -3412,13 +3412,11 @@ function DeveloperSupport({ onClose, onSupport }) {
           </button>
         </div>
 
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 16, lineHeight: 1.5 }}>
-            This whole thing is held together by hope and bad decisions
-            If it somehow works for you... congrats, you're as delusional as I am
-            Send ETH to keep the delusion alive 
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.4 }}>
+            Send ETH to keep the delusion alive 🚀
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
           {predefinedAmounts.map((amt) => (
             <button
               key={amt.value}
@@ -3432,7 +3430,7 @@ function DeveloperSupport({ onClose, onSupport }) {
                 background: selectedAmount === amt.value ? C.nGreen + '20' : 'rgba(255,255,255,0.05)',
                 border: `2px solid ${selectedAmount === amt.value ? C.nGreen : C.glassBr}`,
                 borderRadius: 12,
-                padding: '12px 16px',
+                padding: '10px 14px',
                 color: '#fff',
                 fontSize: 14,
                 fontWeight: 600,
@@ -3456,10 +3454,10 @@ function DeveloperSupport({ onClose, onSupport }) {
               background: selectedAmount === 'custom' ? C.nBlue + '20' : 'rgba(255,255,255,0.05)',
               border: `2px solid ${selectedAmount === 'custom' ? C.nBlue : C.glassBr}`,
               borderRadius: 12,
-              padding: 12,
+              padding: 10,
               display: 'flex',
               flexDirection: 'column',
-              gap: 8,
+              gap: 6,
             }}
           >
             <div
@@ -3467,10 +3465,10 @@ function DeveloperSupport({ onClose, onSupport }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 8,
+                marginBottom: 6,
               }}
             >
-              <label style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
                 🎰 YOLO Custom Amount
               </label>
               <input
@@ -3502,9 +3500,9 @@ function DeveloperSupport({ onClose, onSupport }) {
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid ${C.glassBr}`,
                 borderRadius: 8,
-                padding: '12px 16px',
+                padding: '10px 14px',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 13,
                 fontFamily: 'monospace',
                 width: '100%',
                 boxSizing: 'border-box',
@@ -3524,9 +3522,9 @@ function DeveloperSupport({ onClose, onSupport }) {
               : `linear-gradient(135deg, ${C.nGreen}, ${C.nBlue})`,
             border: 'none',
             borderRadius: 12,
-            padding: '12px 20px',
+            padding: '11px 18px',
             color: '#fff',
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
