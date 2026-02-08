@@ -3353,7 +3353,7 @@ function DeveloperSupport({ onClose, onSupport }) {
             LETS GOOOO!!! 
           </div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>
-            You a real one ! Thanks for the support, it means a lot ❤️ 
+            U a real one ! Dev gonna eat big big mac 
           </div>
         </div>
       </div>
@@ -3368,10 +3368,11 @@ function DeveloperSupport({ onClose, onSupport }) {
         background: 'rgba(6,6,12,0.95)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
+        paddingTop: '10vh',
       }}
       onClick={onClose}
     >
@@ -3381,8 +3382,10 @@ function DeveloperSupport({ onClose, onSupport }) {
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
           padding: 20,
-          maxWidth: 280,
+          maxWidth: 380,
           width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
