@@ -3387,7 +3387,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 250 }}>
-          <div style={{ fontSize: 30, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div style={{ fontSize: 30, fontWeight: 100, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
           <button
@@ -3469,7 +3469,7 @@ function DeveloperSupport({ onClose, onSupport }) {
               }}
             >
               <label style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>
-                🎰 Custom Amount
+                🎰 YOLO Custom Amount
               </label>
               <input
                 type="checkbox"
