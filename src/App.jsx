@@ -3589,17 +3589,17 @@ const GlassButton = React.memo(({ children, onClick, color, disabled, style }) =
   }, []);
   
   const buttonStyle = useMemo(() => ({
-    background: disabled ? `rgba(12, 20, 35, 0.15)` : `linear-gradient(135deg, ${color}35, ${color}20)`,
-    border: `1.5px solid ${disabled ? `${color}15` : color}50`,
+    background: disabled ? `rgba(12, 20, 35, 0.15)` : `rgba(0, 0, 0, 0.2)`,
+    border: `1.5px solid rgba(255, 255, 255, 0.1)`,
     borderRadius: 16,
     padding: "12px 24px",
-    color: disabled ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.95)",
+    color: disabled ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.85)",
     fontSize: 14,
     fontWeight: 600,
     cursor: disabled ? "wait" : "pointer",
     backdropFilter: "blur(10px)",
     transform: !disabled && isHovered ? "translateY(-1px)" : "translateY(0)",
-    boxShadow: !disabled && isHovered ? `0 6px 20px ${color}35` : (disabled ? "none" : `0 2px 8px ${color}15`),
+    boxShadow: !disabled && isHovered ? `0 4px 16px rgba(0, 0, 0, 0.3)` : "none",
     transition: "all 0.2s ease",
     willChange: "transform, box-shadow",
     opacity: disabled ? 0.6 : 0.9,
@@ -4123,10 +4123,26 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         {/* Action buttons - compact */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 8 }}>
-            <GlassButton onClick={onRestart} color="rgba(80, 230, 180, 1)" style={{ flex: 1, padding: "10px 0", fontSize: 12, fontWeight: 600 }}>
+            <GlassButton onClick={onRestart} color="rgba(80, 230, 180, 1)" style={{ 
+              flex: 1, 
+              padding: "10px 0", 
+              fontSize: 12, 
+              fontWeight: 600,
+              background: "linear-gradient(135deg, rgba(80, 230, 180, 0.25), rgba(80, 230, 180, 0.15))",
+              border: "1.5px solid rgba(80, 230, 180, 0.4)",
+              color: "rgba(255, 255, 255, 0.95)"
+            }}>
               Play Again
             </GlassButton>
-            <GlassButton onClick={onLeaderboard} color="rgba(100, 180, 255, 1)" style={{ flex: 1, padding: "10px 0", fontSize: 12, fontWeight: 600 }}>
+            <GlassButton onClick={onLeaderboard} color="rgba(100, 180, 255, 1)" style={{ 
+              flex: 1, 
+              padding: "10px 0", 
+              fontSize: 12, 
+              fontWeight: 600,
+              background: "linear-gradient(135deg, rgba(100, 180, 255, 0.25), rgba(100, 180, 255, 0.15))",
+              border: "1.5px solid rgba(100, 180, 255, 0.4)",
+              color: "rgba(255, 255, 255, 0.95)"
+            }}>
               Leaderboard
             </GlassButton>
           </div>
@@ -4148,7 +4164,9 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.8px",
-              opacity: 0.9
+              background: "linear-gradient(135deg, rgba(160, 100, 230, 0.25), rgba(160, 100, 230, 0.15))",
+              border: "1.5px solid rgba(160, 100, 230, 0.4)",
+              color: "rgba(255, 255, 255, 0.95)"
             }}
           >
             <span>SUPP THE DEV 🙌</span>
