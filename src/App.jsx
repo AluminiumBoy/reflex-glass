@@ -3886,39 +3886,45 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 
   return (
     <>
-      <GlassPanel style={{ 
-        padding: "20px 16px", 
+      {/* Score display - positioned in the holographic frame */}
+      <div style={{ 
         textAlign: "center", 
         position: 'relative', 
         zIndex: 2,
-        background: 'transparent',
-        backdropFilter: 'none',
-        border: 'none',
-        boxShadow: 'none',
+        marginBottom: 24,
       }}>
-        {/* Meme emoji */}
-        <div style={{ fontSize: 48, marginBottom: 8, textShadow: "0 0 20px rgba(56, 189, 248, 0.6)" }}>{meme}</div>
-        
         {/* Grade */}
-        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: gradeColor, textShadow: `0 0 20px ${gradeColor}80` }}>
+        <div style={{ 
+          fontSize: 22, 
+          fontWeight: 900, 
+          marginBottom: 6, 
+          color: gradeColor, 
+          textShadow: `0 0 20px ${gradeColor}80`,
+          letterSpacing: '1px'
+        }}>
           {grade}
         </div>
         
         {/* Player name */}
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginBottom: 12, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+        <div style={{ 
+          fontSize: 12, 
+          color: "rgba(255,255,255,0.7)", 
+          marginBottom: 10, 
+          textShadow: "0 2px 8px rgba(0,0,0,0.5)" 
+        }}>
           {playerName}
         </div>
         
         {/* Score */}
         <div
           style={{
-            fontSize: 48,
+            fontSize: 40,
             fontWeight: 900,
             fontFamily: "monospace",
             background: `linear-gradient(135deg, ${C.nGreen}, ${C.nPurple})`,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
-            marginBottom: 20,
+            marginBottom: 16,
             filter: "drop-shadow(0 0 15px rgba(0, 255, 170, 0.5))",
           }}
         >
@@ -3926,16 +3932,17 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         </div>
 
         {/* Roast Section */}
-        <div
-          style={{
-            padding: "16px",
-            background: "transparent",
-            border: "none",
-            borderRadius: 12,
-            marginBottom: 20,
-          }}
-        >
-          <div style={{ fontSize: 14, fontStyle: "italic", color: "rgba(255,255,255,0.9)", lineHeight: 1.5, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+        <div style={{
+          padding: "12px 16px",
+          marginBottom: 16,
+        }}>
+          <div style={{ 
+            fontSize: 12, 
+            fontStyle: "italic", 
+            color: "rgba(255,255,255,0.85)", 
+            lineHeight: 1.4, 
+            textShadow: "0 2px 8px rgba(0,0,0,0.5)" 
+          }}>
             "{roast}"
           </div>
         </div>
@@ -3945,70 +3952,111 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 12,
-            marginBottom: 20,
+            gap: 10,
           }}
         >
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+            <div style={{ 
+              fontSize: 9, 
+              color: "rgba(255,255,255,0.5)", 
+              marginBottom: 3, 
+              textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              letterSpacing: '0.5px'
+            }}>
               ACCURACY
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen, textShadow: `0 0 10px ${C.nGreen}80` }}>
+            <div style={{ 
+              fontSize: 16, 
+              fontWeight: 700, 
+              color: C.nGreen, 
+              textShadow: `0 0 10px ${C.nGreen}80` 
+            }}>
               {stats.accuracy}%
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+            <div style={{ 
+              fontSize: 9, 
+              color: "rgba(255,255,255,0.5)", 
+              marginBottom: 3, 
+              textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              letterSpacing: '0.5px'
+            }}>
               CORRECT
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue, textShadow: `0 0 10px ${C.nBlue}80` }}>
+            <div style={{ 
+              fontSize: 16, 
+              fontWeight: 700, 
+              color: C.nBlue, 
+              textShadow: `0 0 10px ${C.nBlue}80` 
+            }}>
               {stats.correct}/{stats.total}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
-              BEST STREAK
+            <div style={{ 
+              fontSize: 9, 
+              color: "rgba(255,255,255,0.5)", 
+              marginBottom: 3, 
+              textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              letterSpacing: '0.5px'
+            }}>
+              STREAK
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple, textShadow: `0 0 10px ${C.nPurple}80` }}>
+            <div style={{ 
+              fontSize: 16, 
+              fontWeight: 700, 
+              color: C.nPurple, 
+              textShadow: `0 0 10px ${C.nPurple}80` 
+            }}>
               {stats.bestStreak}
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Action buttons - positioned below the holographic frame */}
+      <GlassPanel style={{ 
+        padding: "16px", 
+        background: 'rgba(14,14,26,0.85)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(56, 189, 248, 0.2)'
+      }}>
         {saved && (
           <div style={{ 
-            padding: "10px", 
-            marginBottom: 16,
+            padding: "8px", 
+            marginBottom: 12,
             background: `${C.nGreen}20`,
             border: `1px solid ${C.nGreen}60`,
-            borderRadius: 12,
+            borderRadius: 10,
             color: C.nGreen,
-            fontSize: 13,
-            fontWeight: 600
+            fontSize: 12,
+            fontWeight: 600,
+            textAlign: 'center'
           }}>
             ✓ Score saved to leaderboard!
           </div>
         )}
 
         {/* Share Buttons */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <button
             onClick={handleTwitterShare}
             style={{
               flex: 1,
-              padding: "14px 12px",
-              fontSize: 14,
+              padding: "12px 10px",
+              fontSize: 13,
               fontWeight: 600,
               color: "#fff",
               background: "#000",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 12,
+              borderRadius: 10,
               cursor: "pointer",
               transition: "all 0.2s",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
+              gap: 6,
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = "translateY(-2px)";
@@ -4021,7 +4069,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               e.target.style.background = "#000";
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
             </svg>
             Share on X
@@ -4031,19 +4079,19 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             onClick={handleBaseShare}
             style={{
               flex: 1,
-              padding: "14px 12px",
-              fontSize: 14,
+              padding: "12px 10px",
+              fontSize: 13,
               fontWeight: 600,
               color: "#fff",
               background: copied ? "#00e676" : "linear-gradient(135deg, #0052FF 0%, #00D4FF 100%)",
               border: "none",
-              borderRadius: 12,
+              borderRadius: 10,
               cursor: "pointer",
               transition: "all 0.2s",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
+              gap: 6,
             }}
             onMouseEnter={(e) => {
               if (!copied) {
@@ -4056,12 +4104,12 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               e.target.style.boxShadow = "none";
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 111 111" fill="currentColor" style={{ opacity: copied ? 0 : 1 }}>
+            <svg width="16" height="16" viewBox="0 0 111 111" fill="currentColor" style={{ opacity: copied ? 0 : 1 }}>
               <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6318 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
             </svg>
             {copied ? (
               <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
                 Copied!
@@ -4072,12 +4120,12 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "14px 0" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <GlassButton onClick={onRestart} color={C.nGreen} style={{ flex: 1, padding: "12px 0", fontSize: 14 }}>
               Play Again
             </GlassButton>
-            <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "14px 0" }}>
+            <GlassButton onClick={onLeaderboard} color={C.nBlue} style={{ flex: 1, padding: "12px 0", fontSize: 14 }}>
               Leaderboard
             </GlassButton>
           </div>
@@ -4090,18 +4138,17 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             }} 
             color={C.nPurple} 
             style={{ 
-              padding: "14px 0", 
+              padding: "12px 0", 
               display: "flex", 
               alignItems: "center", 
               justifyContent: "center", 
-              gap: 8,
-              fontSize: 13,
+              gap: 6,
+              fontSize: 12,
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.5px"
             }}
           >
-            <span></span>
             <span>Supp the dev 🙌</span>
           </GlassButton>
         </div>
@@ -5399,32 +5446,35 @@ export default function App() {
   const renderVerdict = () => (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
+        position: "relative",
         height: "100dvh",
-        justifyContent: "center",
-        alignItems: "center",
-        overflowY: "auto",
-        overflowX: "hidden",
-        padding: 16,
+        width: "100vw",
+        overflow: "hidden",
         backgroundImage: "url('./background.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
+      {/* Score container - fixed position in the holographic frame */}
       <div style={{
-        width: "min(90%, 500px)",
-        maxHeight: "70vh",
-        overflowY: "auto",
-        marginTop: "-5vh", // A keret közepére igazítás
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "min(85%, 450px)",
+        pointerEvents: "none",
       }}>
-        <FinalVerdict
-          stats={computeStats()}
-          onRestart={() => setScreen("home")}
-          onLeaderboard={() => setScreen("leaderboard")}
-          playerName={playerName}
-        />
+        <div style={{
+          pointerEvents: "auto",
+        }}>
+          <FinalVerdict
+            stats={computeStats()}
+            onRestart={() => setScreen("home")}
+            onLeaderboard={() => setScreen("leaderboard")}
+            playerName={playerName}
+          />
+        </div>
       </div>
     </div>
   );
