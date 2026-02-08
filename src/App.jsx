@@ -3811,9 +3811,394 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               Leaderboard
             </GlassButton>
           </div>
+          
+          {/* Support the Dev */}
+          <SupportDevButton />
         </div>
       </div>
     </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════════
+    6.4  SUPPORT THE DEV COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
+
+const SupportDevButton = () => {
+  const [showOptions, setShowOptions] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const RECIPIENT_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";
+  const BASE_CHAIN_ID = "0x2105"; // Base Mainnet (8453 in decimal)
+
+  const handleDonate = async (amount) => {
+    try {
+      setIsConnecting(true);
+
+      // Check if MetaMask is installed
+      if (!window.ethereum) {
+        alert("Please install MetaMask or another Web3 wallet to donate! 🦊");
+        setIsConnecting(false);
+        return;
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+
+      // Check if we're on Base network
+      const chainId = await window.ethereum.request({ 
+        method: 'eth_chainId' 
+      });
+
+      // Switch to Base if not already on it
+      if (chainId !== BASE_CHAIN_ID) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: BASE_CHAIN_ID }],
+          });
+        } catch (switchError) {
+          // Chain not added to MetaMask, add it
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: BASE_CHAIN_ID,
+                  chainName: 'Base',
+                  nativeCurrency: {
+                    name: 'Ethereum',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://mainnet.base.org'],
+                  blockExplorerUrls: ['https://basescan.org']
+                }]
+              });
+            } catch (addError) {
+              console.error("Error adding Base network:", addError);
+              alert("Failed to add Base network. Please add it manually.");
+              setIsConnecting(false);
+              return;
+            }
+          } else {
+            console.error("Error switching to Base network:", switchError);
+            alert("Failed to switch to Base network.");
+            setIsConnecting(false);
+            return;
+          }
+        }
+      }
+
+      // Convert amount to Wei (ETH has 18 decimals)
+      const amountInWei = '0x' + Math.floor(amount * 1e18).toString(16);
+
+      // Send transaction
+      const transactionHash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: accounts[0],
+          to: RECIPIENT_ADDRESS,
+          value: amountInWei,
+        }],
+      });
+
+      console.log("Transaction sent:", transactionHash);
+      alert(`🎉 Thank you for your ${amount} ETH donation!\n\nTransaction: ${transactionHash}\n\nView on BaseScan: https://basescan.org/tx/${transactionHash}`);
+      
+      setShowOptions(false);
+      setShowCustomInput(false);
+      setCustomAmount("");
+      
+    } catch (error) {
+      console.error("Donation error:", error);
+      if (error.code === 4001) {
+        // User rejected the transaction
+        alert("Transaction cancelled.");
+      } else {
+        alert(`Error: ${error.message || "Transaction failed"}`);
+      }
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleCustomDonate = () => {
+    const amount = parseFloat(customAmount);
+    if (amount && amount > 0) {
+      handleDonate(amount);
+    } else {
+      alert("Please enter a valid amount.");
+    }
+  };
+
+  if (showOptions) {
+    return (
+      <div style={{
+        background: "linear-gradient(135deg, rgba(0, 82, 255, 0.15), rgba(0, 122, 255, 0.1))",
+        border: "1.5px solid rgba(0, 122, 255, 0.35)",
+        borderRadius: 12,
+        padding: "12px",
+        backdropFilter: "blur(12px)",
+      }}>
+        <div style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: "rgba(100, 200, 255, 0.95)",
+          marginBottom: 10,
+          textAlign: "center",
+          letterSpacing: "0.5px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6
+        }}>
+          <svg width="14" height="14" viewBox="0 0 111 111" fill="currentColor">
+            <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6318 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
+          </svg>
+          Support via Base Network
+        </div>
+        
+        {!showCustomInput ? (
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <button
+              onClick={() => handleDonate(0.0005)}
+              disabled={isConnecting}
+              style={{
+                flex: 1,
+                padding: "8px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.9)",
+                background: isConnecting ? "rgba(100, 100, 100, 0.2)" : "rgba(0, 122, 255, 0.2)",
+                border: "1px solid rgba(0, 122, 255, 0.3)",
+                borderRadius: 8,
+                cursor: isConnecting ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isConnecting ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isConnecting) {
+                  e.target.style.background = "rgba(0, 122, 255, 0.3)";
+                  e.target.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(0, 122, 255, 0.2)";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              0.0005 ETH
+            </button>
+            
+            <button
+              onClick={() => handleDonate(0.001)}
+              disabled={isConnecting}
+              style={{
+                flex: 1,
+                padding: "8px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.9)",
+                background: isConnecting ? "rgba(100, 100, 100, 0.2)" : "rgba(0, 122, 255, 0.2)",
+                border: "1px solid rgba(0, 122, 255, 0.3)",
+                borderRadius: 8,
+                cursor: isConnecting ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isConnecting ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isConnecting) {
+                  e.target.style.background = "rgba(0, 122, 255, 0.3)";
+                  e.target.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(0, 122, 255, 0.2)";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              0.001 ETH
+            </button>
+            
+            <button
+              onClick={() => setShowCustomInput(true)}
+              disabled={isConnecting}
+              style={{
+                flex: 1,
+                padding: "8px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.9)",
+                background: isConnecting ? "rgba(100, 100, 100, 0.25)" : "rgba(0, 82, 255, 0.25)",
+                border: "1px solid rgba(0, 82, 255, 0.4)",
+                borderRadius: 8,
+                cursor: isConnecting ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isConnecting ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isConnecting) {
+                  e.target.style.background = "rgba(0, 82, 255, 0.35)";
+                  e.target.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(0, 82, 255, 0.25)";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              Custom
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            <input
+              type="number"
+              step="0.0001"
+              min="0"
+              placeholder="Amount in ETH"
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              disabled={isConnecting}
+              style={{
+                flex: 1,
+                padding: "8px",
+                fontSize: 11,
+                fontWeight: 500,
+                color: "rgba(255,255,255,0.9)",
+                background: "rgba(0, 0, 0, 0.3)",
+                border: "1px solid rgba(0, 122, 255, 0.3)",
+                borderRadius: 8,
+                outline: "none",
+              }}
+              onFocus={(e) => {
+                e.target.style.border = "1px solid rgba(0, 122, 255, 0.5)";
+              }}
+              onBlur={(e) => {
+                e.target.style.border = "1px solid rgba(0, 122, 255, 0.3)";
+              }}
+            />
+            <button
+              onClick={handleCustomDonate}
+              disabled={isConnecting}
+              style={{
+                padding: "8px 16px",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.9)",
+                background: isConnecting ? "rgba(100, 100, 100, 0.3)" : "rgba(0, 82, 255, 0.3)",
+                border: "1px solid rgba(0, 82, 255, 0.4)",
+                borderRadius: 8,
+                cursor: isConnecting ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isConnecting ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isConnecting) {
+                  e.target.style.background = "rgba(0, 82, 255, 0.4)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(0, 82, 255, 0.3)";
+              }}
+            >
+              {isConnecting ? "..." : "✓"}
+            </button>
+          </div>
+        )}
+        
+        {isConnecting && (
+          <div style={{
+            fontSize: 10,
+            color: "rgba(100, 200, 255, 0.8)",
+            textAlign: "center",
+            marginBottom: 8,
+            fontWeight: 500
+          }}>
+            Connecting to wallet...
+          </div>
+        )}
+        
+        <button
+          onClick={() => {
+            setShowOptions(false);
+            setShowCustomInput(false);
+            setCustomAmount("");
+          }}
+          disabled={isConnecting}
+          style={{
+            width: "100%",
+            padding: "6px",
+            fontSize: 10,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.6)",
+            background: "rgba(0, 0, 0, 0.2)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 8,
+            cursor: isConnecting ? "not-allowed" : "pointer",
+            transition: "all 0.2s",
+            opacity: isConnecting ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!isConnecting) {
+              e.target.style.color = "rgba(255,255,255,0.8)";
+              e.target.style.background = "rgba(0, 0, 0, 0.3)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.color = "rgba(255,255,255,0.6)";
+            e.target.style.background = "rgba(0, 0, 0, 0.2)";
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setShowOptions(true)}
+      style={{
+        width: "100%",
+        padding: "10px 0",
+        fontSize: 12,
+        fontWeight: 600,
+        color: "rgba(100, 200, 255, 0.95)",
+        background: "linear-gradient(135deg, rgba(0, 82, 255, 0.15), rgba(0, 122, 255, 0.1))",
+        border: "1.5px solid rgba(0, 122, 255, 0.35)",
+        borderRadius: 10,
+        cursor: "pointer",
+        transition: "all 0.2s",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        backdropFilter: "blur(8px)",
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.transform = "translateY(-1px)";
+        e.target.style.background = "linear-gradient(135deg, rgba(0, 82, 255, 0.25), rgba(0, 122, 255, 0.15))";
+        e.target.style.borderColor = "rgba(0, 122, 255, 0.5)";
+        e.target.style.boxShadow = "0 4px 16px rgba(0, 122, 255, 0.2)";
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.transform = "translateY(0)";
+        e.target.style.background = "linear-gradient(135deg, rgba(0, 82, 255, 0.15), rgba(0, 122, 255, 0.1))";
+        e.target.style.borderColor = "rgba(0, 122, 255, 0.35)";
+        e.target.style.boxShadow = "none";
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 111 111" fill="currentColor">
+        <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6318 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
+      </svg>
+      Support the Dev
+    </button>
   );
 };
 
