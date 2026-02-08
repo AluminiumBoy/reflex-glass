@@ -3372,7 +3372,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
-        paddingTop: '4vh',
+        paddingTop: '2vh',
       }}
       onClick={onClose}
     >
@@ -3430,7 +3430,7 @@ function DeveloperSupport({ onClose, onSupport }) {
                 sound.click();
               }}
               style={{
-                background: selectedAmount === amt.value ? C.nGreen + '20' : C.bg2,
+                background: selectedAmount === amt.value ? C.nGreen + '20' : 'rgba(255,255,255,0.05)',
                 border: `2px solid ${selectedAmount === amt.value ? C.nGreen : C.glassBr}`,
                 borderRadius: 12,
                 padding: '12px 16px',
@@ -3454,7 +3454,7 @@ function DeveloperSupport({ onClose, onSupport }) {
 
           <div
             style={{
-              background: selectedAmount === 'custom' ? C.nBlue + '20' : C.bg2,
+              background: selectedAmount === 'custom' ? C.nBlue + '20' : 'rgba(255,255,255,0.05)',
               border: `2px solid ${selectedAmount === 'custom' ? C.nBlue : C.glassBr}`,
               borderRadius: 12,
               padding: 12,
@@ -3500,7 +3500,7 @@ function DeveloperSupport({ onClose, onSupport }) {
               onFocus={() => setSelectedAmount('custom')}
               disabled={selectedAmount !== 'custom'}
               style={{
-                background: C.bg1,
+                background: 'rgba(255,255,255,0.05)',
                 border: `1px solid ${C.glassBr}`,
                 borderRadius: 8,
                 padding: '12px 16px',
