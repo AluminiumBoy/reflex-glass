@@ -4023,11 +4023,11 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         transform: "translateX(-50%)",
         width: "min(85%, 450px)",
         padding: "10px", 
-        background: 'rgba(12, 20, 35, 0.15)',
-        backdropFilter: 'blur(8px)',
+        background: 'rgba(12, 20, 35, 0.08)',
+        backdropFilter: 'blur(6px)',
         borderRadius: '14px',
-        border: '1px solid rgba(100, 180, 230, 0.08)',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(100, 180, 230, 0.05)'
+        border: '1px solid rgba(100, 180, 230, 0.05)',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(100, 180, 230, 0.03)'
       }}>
         {saved && (
           <div style={{ 
@@ -5475,7 +5475,7 @@ export default function App() {
       {/* Score container - fixed position in the holographic frame */}
       <div style={{
         position: "absolute",
-        top: "25%",
+        top: "30%",
         left: "50%",
         transform: "translate(-50%, -50%)",
         width: "min(85%, 450px)",
