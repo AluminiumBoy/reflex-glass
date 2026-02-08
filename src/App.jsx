@@ -4605,6 +4605,9 @@ export default function App() {
   // ── Annotation states ──
   const [showAnnotation, setShowAnnotation] = useState(false);
   const [currentAnnotation, setCurrentAnnotation] = useState(null);
+  
+  // ── Countdown state ──
+  const [countdownNumber, setCountdownNumber] = useState(3);
 
   // ── Refs ──
   const chartRef = useRef(null);
@@ -4718,94 +4721,28 @@ export default function App() {
       lastCandleCount.current = 0; // Reset candle count for tick sounds
 
       // Smooth scrolling reveal animation
-      const duration = 6500; // Gyorsabb, pörgősebb ritmus
+      const duration = 4200; // Gyorsabb, pörgősebb ritmus - csökkentve 6500-ról
       const startTime = Date.now();
 
       const animateScroll = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(1, elapsed / duration);
         
-        // Smoother easing - linear with slight ease at start
-        // Avoids the "sticking" feeling at the end
-        const eased = progress < 0.1 
-          ? progress * 5 // Ease in first 10%
-          : 0.1 * 5 + (progress - 0.1) * (0.9 / 0.9); // Linear for rest
+        // Improved easing - ease-in-out cubic for smoother acceleration at the end
+        // This makes the last candles build faster, avoiding the "slow finish" feeling
+        const eased = progress < 0.5
+          ? 4 * progress * progress * progress // Ease in cubic (first half)
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Ease out cubic (second half - accelerates!)
         
         buildAnimationProgress.current = Math.min(1, eased);
 
         if (progress < 1) {
           animFrameRef.current = requestAnimationFrame(animateScroll);
         } else {
-          // Scrolling complete - set final state immediately
+          // Scrolling complete - show countdown before playing
           buildAnimationProgress.current = 1;
           setWindowStart(newStructure.decisionIndex);
-          setScreen("playing");
-          
-          // Start decision timer
-          const timerStart = Date.now();
-          if (timerRef.current) clearInterval(timerRef.current);
-          timerRef.current = setInterval(() => {
-            const timerElapsed = Date.now() - timerStart;
-            const remaining = Math.max(0, DECISION_MS - timerElapsed);
-            setTimeLeft(remaining);
-
-            if (remaining === 0) {
-              clearInterval(timerRef.current);
-              timerRef.current = null;
-              
-              // Timeout - handle directly instead of calling handleChoice
-              // to avoid stale closure issues
-              const userChoice = Math.random() < 0.5 ? "BUY" : "SELL";
-              
-              haptic([30, 20, 30]);
-              sound.click();
-
-              setChoice(userChoice);
-              setScreen("revealing");
-
-              // Animate continuation reveal
-              let progress = 0;
-              const animate = () => {
-                progress += 0.03;
-                setRevealProgress(progress);
-
-                if (progress < 1) {
-                  animFrameRef.current = requestAnimationFrame(animate);
-                } else {
-                  // Reveal complete - show outcome
-                  setScreen((currentScreen) => {
-                    // Use functional update to get fresh state
-                    return "outcome";
-                  });
-                  
-                  // Update stats with functional updates to ensure fresh state
-                  const correct = userChoice === newStructure.signal;
-                  
-                  setStreak((prevStreak) => {
-                    const newStreak = correct ? prevStreak + 1 : 0;
-                    const multiplier = STREAK_MULT[Math.min(newStreak, STREAK_MULT.length - 1)];
-                    const points = correct ? Math.round(BASE_SCORE * multiplier) : 0;
-                    
-                    setBestStreak((prevBest) => Math.max(prevBest, newStreak));
-                    setScores((prevScores) => [...prevScores, points]);
-                    
-                    return newStreak;
-                  });
-                  
-                  setRoundStats((prevStats) => [...prevStats, { correct, choice: userChoice }]);
-                  
-                  // Generate and set annotation
-                  const annotation = generateAnnotation(newStructure);
-                  setCurrentAnnotation(annotation);
-                  setShowAnnotation(true);
-                  
-                  if (correct) sound.correct();
-                  else sound.wrong();
-                }
-              };
-              animate();
-            }
-          }, 50);
+          setScreen("countdown");
         }
       };
 
@@ -4993,7 +4930,7 @@ export default function App() {
           }
           currentOffset = swipeOffset;
         } 
-        else if (screen === "playing") {
+        else if (screen === "countdown" || screen === "playing") {
           currentCandles = structure.candles.slice(0, structure.decisionIndex + 1);
           currentOffset = swipeOffset;
         } 
@@ -5676,6 +5613,95 @@ export default function App() {
   );
 
   // ── Countdown overlay ──
+  useEffect(() => {
+    if (screen !== "countdown") return;
+    
+    // Reset countdown to 3
+    setCountdownNumber(3);
+    
+    // Countdown sequence: 3 -> 2 -> 1 -> playing
+    const countdownInterval = setInterval(() => {
+      setCountdownNumber((prev) => {
+        if (prev > 1) {
+          sound.tick(prev - 1); // Play tick sound for next number
+          return prev - 1;
+        }
+        return prev;
+      });
+    }, 800); // 800ms between each number
+    
+    // After 2.4s (3 * 800ms), transition to playing
+    const playingTimeout = setTimeout(() => {
+      setScreen("playing");
+      
+      // Start decision timer
+      const timerStart = Date.now();
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        const timerElapsed = Date.now() - timerStart;
+        const remaining = Math.max(0, DECISION_MS - timerElapsed);
+        setTimeLeft(remaining);
+
+        if (remaining === 0) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          
+          // Timeout - handle directly
+          const userChoice = Math.random() < 0.5 ? "BUY" : "SELL";
+          
+          haptic([30, 20, 30]);
+          sound.click();
+
+          setChoice(userChoice);
+          setScreen("revealing");
+
+          // Animate continuation reveal
+          let progress = 0;
+          const animate = () => {
+            progress += 0.03;
+            setRevealProgress(progress);
+
+            if (progress < 1) {
+              animFrameRef.current = requestAnimationFrame(animate);
+            } else {
+              // Reveal complete - show outcome
+              setScreen("outcome");
+              
+              // Update stats
+              const correct = userChoice === structure.signal;
+              
+              setStreak((prevStreak) => {
+                const newStreak = correct ? prevStreak + 1 : 0;
+                const multiplier = STREAK_MULT[Math.min(newStreak, STREAK_MULT.length - 1)];
+                const points = correct ? Math.round(BASE_SCORE * multiplier) : 0;
+                
+                setBestStreak((prevBest) => Math.max(prevBest, newStreak));
+                setScores((prevScores) => [...prevScores, points]);
+                
+                return newStreak;
+              });
+              
+              setRoundStats((prevStats) => [...prevStats, { correct, choice: userChoice }]);
+              
+              // Generate and set annotation
+              const annotation = generateAnnotation(structure);
+              setCurrentAnnotation(annotation);
+              setShowAnnotation(true);
+              
+              if (correct) sound.correct();
+              else sound.wrong();
+            }
+          };
+          animate();
+        }
+      }, 50);
+    }, 2400);
+    
+    return () => {
+      clearInterval(countdownInterval);
+      clearTimeout(playingTimeout);
+    };
+  }, [screen, structure]);
 
   // ── Cleanup RAF on unmount ──
   useEffect(() => {
@@ -5727,7 +5753,7 @@ export default function App() {
       {/* Main content */}
       <div style={{ position: "relative", zIndex: 1, height: "100dvh", overflow: "hidden" }}>
         {screen === "home" && renderHome()}
-        {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
+        {(screen === "building" || screen === "countdown" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
           renderPlaying()}
         {screen === "verdict" && renderVerdict()}
         {screen === "leaderboard" && (
@@ -5741,6 +5767,37 @@ export default function App() {
             padding: 16 
           }}>
             <Leaderboard onBack={() => setScreen("verdict")} />
+          </div>
+        )}
+        
+        {/* Countdown overlay - shows 3-2-1 after building completes */}
+        {screen === "countdown" && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 120,
+                fontWeight: 900,
+                color: C.nGreen,
+                textShadow: `0 0 40px ${C.nGreen}80, 0 0 80px ${C.nGreen}40`,
+                animation: "countdownPulse 0.8s ease-out",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+              }}
+            >
+              {countdownNumber}
+            </div>
           </div>
         )}
       </div>
@@ -5777,6 +5834,20 @@ export default function App() {
           0% { opacity: 0.6; transform: scale(0.98); }
           50% { opacity: 1; transform: scale(1.02); }
           100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes countdownPulse {
+          0% { 
+            opacity: 0; 
+            transform: scale(0.5); 
+          }
+          30% { 
+            opacity: 1; 
+            transform: scale(1.15); 
+          }
+          100% { 
+            opacity: 0.3; 
+            transform: scale(1); 
+          }
         }
       `}</style>
     </div>
