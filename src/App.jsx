@@ -5403,6 +5403,20 @@ export default function App() {
             verticalVelocity.current = 0;
           }}
         />
+        
+        {/* Bottom gradient mask to fade out candles above buttons */}
+        <div style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "120px",
+          background: `linear-gradient(to top, ${C.bg1} 0%, ${C.bg1}ee 15%, ${C.bg1}cc 30%, ${C.bg1}99 50%, ${C.bg1}66 70%, transparent 100%)`,
+          pointerEvents: "none",
+          borderBottomLeftRadius: 16,
+          borderBottomRightRadius: 16,
+        }} />
+        
         {structure && (
           <>
             {screen === "outcome" && (
