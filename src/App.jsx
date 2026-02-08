@@ -5125,7 +5125,8 @@ export default function App() {
             height: "100%", 
             borderRadius: 16, 
             display: "block",
-            touchAction: "none"
+            touchAction: "none",
+            objectFit: "contain"
           }}
           onTouchStart={(e) => {
             if (structure && structure.candles && structure.candles.length > 0) {
