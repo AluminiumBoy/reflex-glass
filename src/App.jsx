@@ -3469,7 +3469,7 @@ function DeveloperSupport({ onClose, onSupport }) {
               }}
             >
               <label style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>
-                🎰 YOLO Custom Amount
+                🎰 Custom Amount
               </label>
               <input
                 type="checkbox"
