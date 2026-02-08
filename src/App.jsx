@@ -5381,7 +5381,7 @@ export default function App() {
     >
       <FinalVerdict
         stats={computeStats()}
-        onRestart={startGame}
+        onRestart={() => setScreen("home")}
         onLeaderboard={() => setScreen("leaderboard")}
         playerName={playerName}
       />
