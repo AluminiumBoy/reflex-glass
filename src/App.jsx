@@ -4789,6 +4789,24 @@ export default function App() {
   const handleSaveName = async () => {
     if (!tempName.trim()) return;
     
+    // Ellenőrizzük hogy a név már használatban van-e
+    if (db) {
+      try {
+        const scoresRef = collection(db, "scores");
+        const q = query(scoresRef);
+        const snapshot = await getDocs(q);
+        
+        const existingNames = snapshot.docs.map(doc => doc.data().name.toLowerCase());
+        if (existingNames.includes(tempName.trim().toLowerCase())) {
+          alert("This name is already in use! Choose a different name.");
+          return;
+        }
+      } catch (error) {
+        console.error("Error checking name availability:", error);
+        // Folytatjuk akkor is, ha a Firebase ellenőrzés sikertelen
+      }
+    }
+    
     try {
       localStorage.setItem("reflexGlassPlayerName", tempName.trim());
       setPlayerName(tempName.trim());
