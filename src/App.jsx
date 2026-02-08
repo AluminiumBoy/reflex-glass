@@ -3410,7 +3410,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           </button>
         </div>
 
-        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
             This whole thing is held together by hope and bad decisions
             If it somehow works for you... congrats, you're as delusional as I am
             Send ETH to keep the delusion alive 
