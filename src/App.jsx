@@ -3371,7 +3371,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: 16,
+        padding: 20,
         overflowY: 'auto',
       }}
       onClick={onClose}
@@ -3379,13 +3379,12 @@ function DeveloperSupport({ onClose, onSupport }) {
       <div
         style={{
           background: 'rgba(14,14,26,0.85)',
-          backdropFilter: 'blur(20px)',
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
           padding: 20,
           maxWidth: 380,
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: '85vh',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -3441,7 +3440,6 @@ function DeveloperSupport({ onClose, onSupport }) {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 transition: 'all 0.2s',
-                minHeight: 50,
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -3503,9 +3501,9 @@ function DeveloperSupport({ onClose, onSupport }) {
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid ${C.glassBr}`,
                 borderRadius: 8,
-                padding: '12px 14px',
+                padding: '10px 14px',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 13,
                 fontFamily: 'monospace',
                 width: '100%',
                 boxSizing: 'border-box',
@@ -3534,7 +3532,6 @@ function DeveloperSupport({ onClose, onSupport }) {
             cursor: isProcessing ? 'not-allowed' : 'pointer',
             opacity: (!selectedAmount && !customAmount) ? 0.5 : 1,
             transition: 'all 0.2s',
-            minHeight: 50,
           }}
         >
           {isProcessing ? '⏳ SENDIN...' : 'SEND IT'}
