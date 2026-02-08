@@ -3886,178 +3886,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 
   return (
     <>
-      {/* Fixed position container for hands - fills entire screen from bottom */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '65vh',
-        pointerEvents: 'none',
-        zIndex: 0,
-        overflow: 'hidden'
+      <GlassPanel style={{ 
+        padding: "24px 20px", 
+        textAlign: "center", 
+        position: 'relative', 
+        zIndex: 2,
+        background: 'rgba(14,14,26,0.75)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(56, 189, 248, 0.3)'
       }}>
-        
-        {/* LEFT HAND - Large crumpled papers coming from bottom left */}
-        <div style={{
-          position: 'absolute',
-          bottom: '-10%',
-          left: '-15%',
-          width: '55%',
-          height: '85%',
-          pointerEvents: 'none',
-          zIndex: 1
-        }}>
-          {/* Large bottom-left crumpled piece 1 */}
-          <div style={{
-            position: 'absolute',
-            left: '5%',
-            bottom: '0%',
-            width: '220px',
-            height: '240px',
-            background: 'linear-gradient(145deg, rgba(160,175,190,0.95) 0%, rgba(140,155,170,0.9) 40%, rgba(115,130,145,0.75) 100%)',
-            borderRadius: '45% 55% 48% 52% / 52% 48% 55% 45%',
-            transform: 'rotate(-18deg)',
-            boxShadow: '-15px 20px 45px rgba(0,0,0,0.6), inset -5px -8px 15px rgba(80,90,100,0.4), inset 3px 3px 12px rgba(200,210,220,0.3)',
-          }}>
-            <div style={{ position: 'absolute', top: '15%', left: '12%', width: '70%', height: '3px', background: 'rgba(70,80,90,0.45)', transform: 'rotate(-12deg)', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}/>
-            <div style={{ position: 'absolute', top: '35%', left: '8%', width: '75%', height: '4px', background: 'rgba(65,75,85,0.5)', transform: 'rotate(8deg)', borderRadius: '50%', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }}/>
-            <div style={{ position: 'absolute', top: '58%', left: '15%', width: '68%', height: '3px', background: 'rgba(70,80,90,0.4)', transform: 'rotate(-5deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '75%', left: '10%', width: '72%', height: '4px', background: 'rgba(65,75,85,0.48)', transform: 'rotate(10deg)', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}/>
-          </div>
-          
-          {/* Large middle-left crumpled piece 2 */}
-          <div style={{
-            position: 'absolute',
-            left: '22%',
-            bottom: '18%',
-            width: '190px',
-            height: '210px',
-            background: 'linear-gradient(135deg, rgba(175,190,205,0.92) 0%, rgba(155,170,185,0.88) 40%, rgba(130,145,160,0.72) 100%)',
-            borderRadius: '48% 52% 55% 45% / 50% 50% 48% 52%',
-            transform: 'rotate(-25deg)',
-            boxShadow: '-12px 18px 40px rgba(0,0,0,0.55), inset -4px -6px 12px rgba(85,95,105,0.35), inset 2px 2px 10px rgba(210,220,230,0.25)',
-          }}>
-            <div style={{ position: 'absolute', top: '20%', left: '15%', width: '65%', height: '3px', background: 'rgba(75,85,95,0.4)', transform: 'rotate(-8deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '42%', left: '10%', width: '70%', height: '3.5px', background: 'rgba(70,80,90,0.45)', transform: 'rotate(12deg)', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}/>
-            <div style={{ position: 'absolute', top: '65%', left: '18%', width: '60%', height: '3px', background: 'rgba(75,85,95,0.38)', transform: 'rotate(-6deg)', borderRadius: '50%' }}/>
-          </div>
-          
-          {/* Upper-left crumpled piece 3 */}
-          <div style={{
-            position: 'absolute',
-            left: '15%',
-            bottom: '38%',
-            width: '165px',
-            height: '180px',
-            background: 'linear-gradient(140deg, rgba(185,200,215,0.9) 0%, rgba(165,180,195,0.85) 40%, rgba(140,155,170,0.68) 100%)',
-            borderRadius: '52% 48% 50% 50% / 48% 52% 50% 50%',
-            transform: 'rotate(-20deg)',
-            boxShadow: '-10px 15px 35px rgba(0,0,0,0.5), inset -3px -5px 10px rgba(90,100,110,0.3)',
-          }}>
-            <div style={{ position: 'absolute', top: '25%', left: '12%', width: '68%', height: '3px', background: 'rgba(80,90,100,0.38)', transform: 'rotate(10deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '52%', left: '15%', width: '62%', height: '3px', background: 'rgba(75,85,95,0.35)', transform: 'rotate(-8deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '72%', left: '10%', width: '65%', height: '3.5px', background: 'rgba(70,80,90,0.4)', transform: 'rotate(7deg)', borderRadius: '50%' }}/>
-          </div>
-          
-          {/* Top-left accent piece 4 */}
-          <div style={{
-            position: 'absolute',
-            left: '32%',
-            bottom: '52%',
-            width: '145px',
-            height: '155px',
-            background: 'linear-gradient(130deg, rgba(190,205,220,0.88) 0%, rgba(170,185,200,0.82) 40%, rgba(145,160,175,0.65) 100%)',
-            borderRadius: '50% 50% 48% 52% / 52% 48% 50% 50%',
-            transform: 'rotate(-28deg)',
-            boxShadow: '-8px 12px 30px rgba(0,0,0,0.45), inset -2px -4px 8px rgba(95,105,115,0.28)',
-          }}>
-            <div style={{ position: 'absolute', top: '28%', left: '18%', width: '60%', height: '2.5px', background: 'rgba(85,95,105,0.35)', transform: 'rotate(-10deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '58%', left: '12%', width: '65%', height: '3px', background: 'rgba(80,90,100,0.38)', transform: 'rotate(8deg)', borderRadius: '50%' }}/>
-          </div>
-        </div>
-
-        {/* RIGHT HAND - Large crumpled papers coming from bottom right */}
-        <div style={{
-          position: 'absolute',
-          bottom: '-10%',
-          right: '-15%',
-          width: '55%',
-          height: '85%',
-          pointerEvents: 'none',
-          zIndex: 1
-        }}>
-          {/* Large bottom-right crumpled piece 1 */}
-          <div style={{
-            position: 'absolute',
-            right: '5%',
-            bottom: '0%',
-            width: '220px',
-            height: '240px',
-            background: 'linear-gradient(215deg, rgba(160,175,190,0.95) 0%, rgba(140,155,170,0.9) 40%, rgba(115,130,145,0.75) 100%)',
-            borderRadius: '55% 45% 52% 48% / 48% 52% 45% 55%',
-            transform: 'rotate(18deg)',
-            boxShadow: '15px 20px 45px rgba(0,0,0,0.6), inset 5px -8px 15px rgba(80,90,100,0.4), inset -3px 3px 12px rgba(200,210,220,0.3)',
-          }}>
-            <div style={{ position: 'absolute', top: '15%', right: '12%', width: '70%', height: '3px', background: 'rgba(70,80,90,0.45)', transform: 'rotate(12deg)', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}/>
-            <div style={{ position: 'absolute', top: '35%', right: '8%', width: '75%', height: '4px', background: 'rgba(65,75,85,0.5)', transform: 'rotate(-8deg)', borderRadius: '50%', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }}/>
-            <div style={{ position: 'absolute', top: '58%', right: '15%', width: '68%', height: '3px', background: 'rgba(70,80,90,0.4)', transform: 'rotate(5deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '75%', right: '10%', width: '72%', height: '4px', background: 'rgba(65,75,85,0.48)', transform: 'rotate(-10deg)', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}/>
-          </div>
-          
-          {/* Large middle-right crumpled piece 2 */}
-          <div style={{
-            position: 'absolute',
-            right: '22%',
-            bottom: '18%',
-            width: '190px',
-            height: '210px',
-            background: 'linear-gradient(225deg, rgba(175,190,205,0.92) 0%, rgba(155,170,185,0.88) 40%, rgba(130,145,160,0.72) 100%)',
-            borderRadius: '52% 48% 45% 55% / 50% 50% 52% 48%',
-            transform: 'rotate(25deg)',
-            boxShadow: '12px 18px 40px rgba(0,0,0,0.55), inset 4px -6px 12px rgba(85,95,105,0.35), inset -2px 2px 10px rgba(210,220,230,0.25)',
-          }}>
-            <div style={{ position: 'absolute', top: '20%', right: '15%', width: '65%', height: '3px', background: 'rgba(75,85,95,0.4)', transform: 'rotate(8deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '42%', right: '10%', width: '70%', height: '3.5px', background: 'rgba(70,80,90,0.45)', transform: 'rotate(-12deg)', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }}/>
-            <div style={{ position: 'absolute', top: '65%', right: '18%', width: '60%', height: '3px', background: 'rgba(75,85,95,0.38)', transform: 'rotate(6deg)', borderRadius: '50%' }}/>
-          </div>
-          
-          {/* Upper-right crumpled piece 3 */}
-          <div style={{
-            position: 'absolute',
-            right: '15%',
-            bottom: '38%',
-            width: '165px',
-            height: '180px',
-            background: 'linear-gradient(220deg, rgba(185,200,215,0.9) 0%, rgba(165,180,195,0.85) 40%, rgba(140,155,170,0.68) 100%)',
-            borderRadius: '48% 52% 50% 50% / 52% 48% 50% 50%',
-            transform: 'rotate(20deg)',
-            boxShadow: '10px 15px 35px rgba(0,0,0,0.5), inset 3px -5px 10px rgba(90,100,110,0.3)',
-          }}>
-            <div style={{ position: 'absolute', top: '25%', right: '12%', width: '68%', height: '3px', background: 'rgba(80,90,100,0.38)', transform: 'rotate(-10deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '52%', right: '15%', width: '62%', height: '3px', background: 'rgba(75,85,95,0.35)', transform: 'rotate(8deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '72%', right: '10%', width: '65%', height: '3.5px', background: 'rgba(70,80,90,0.4)', transform: 'rotate(-7deg)', borderRadius: '50%' }}/>
-          </div>
-          
-          {/* Top-right accent piece 4 */}
-          <div style={{
-            position: 'absolute',
-            right: '32%',
-            bottom: '52%',
-            width: '145px',
-            height: '155px',
-            background: 'linear-gradient(230deg, rgba(190,205,220,0.88) 0%, rgba(170,185,200,0.82) 40%, rgba(145,160,175,0.65) 100%)',
-            borderRadius: '50% 50% 52% 48% / 48% 52% 50% 50%',
-            transform: 'rotate(28deg)',
-            boxShadow: '8px 12px 30px rgba(0,0,0,0.45), inset 2px -4px 8px rgba(95,105,115,0.28)',
-          }}>
-            <div style={{ position: 'absolute', top: '28%', right: '18%', width: '60%', height: '2.5px', background: 'rgba(85,95,105,0.35)', transform: 'rotate(10deg)', borderRadius: '50%' }}/>
-            <div style={{ position: 'absolute', top: '58%', right: '12%', width: '65%', height: '3px', background: 'rgba(80,90,100,0.38)', transform: 'rotate(-8deg)', borderRadius: '50%' }}/>
-          </div>
-        </div>
-      </div>
-
-      <GlassPanel style={{ padding: "24px 20px", textAlign: "center", position: 'relative', zIndex: 2 }}>
         {/* Meme emoji */}
         <div style={{ fontSize: 48, marginBottom: 8 }}>{meme}</div>
         
@@ -5568,7 +5405,7 @@ export default function App() {
         overflowX: "hidden",
         padding: 16,
         gap: 14,
-        backgroundImage: "url('background.png')", // Itt add meg a PNG képed URL-jét
+        backgroundImage: "url('./background.png')", // A feltöltött PNG háttérkép
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
