@@ -3235,9 +3235,9 @@ function DeveloperSupport({ onClose, onSupport }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const predefinedAmounts = [
-    { value: 0.0005, label: '0.0005 ETH', emoji: '☕' },
-    { value: 0.001, label: '0.001 ETH', emoji: '🍕' },
-    { value: 0.003, label: '0.003 ETH', emoji: '🍔' },
+    { value: 0.0005, label: '0.0005 ETH', emoji: '☕', usd: '~$2' },
+    { value: 0.001, label: '0.001 ETH', emoji: '🍕', usd: '~$4' },
+    { value: 0.003, label: '0.003 ETH', emoji: '🍔', usd: '~$12' },
   ];
 
   const handleSupport = async () => {
@@ -3371,7 +3371,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: 20,
+        padding: '12px',
         overflowY: 'auto',
       }}
       onClick={onClose}
@@ -3381,17 +3381,16 @@ function DeveloperSupport({ onClose, onSupport }) {
           background: 'rgba(14,14,26,0.85)',
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
-          padding: 16,
+          padding: '20px',
           maxWidth: 380,
           width: '100%',
-          maxHeight: '70vh',
+          maxHeight: '85vh',
           overflowY: 'auto',
-          transform: 'translateY(-8vh)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 16, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
           <button
@@ -3400,11 +3399,11 @@ function DeveloperSupport({ onClose, onSupport }) {
               background: 'transparent',
               border: 'none',
               color: 'rgba(255,255,255,0.5)',
-              fontSize: 24,
+              fontSize: 28,
               cursor: 'pointer',
               padding: 0,
               width: 32,
-              height: 24,
+              height: 32,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -3414,11 +3413,11 @@ function DeveloperSupport({ onClose, onSupport }) {
           </button>
         </div>
 
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 16, lineHeight: 1.5 }}>
             Send ETH to keep the delusion alive 🚀
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
           {predefinedAmounts.map((amt) => (
             <button
               key={amt.value}
@@ -3432,22 +3431,23 @@ function DeveloperSupport({ onClose, onSupport }) {
                 background: selectedAmount === amt.value ? C.nGreen + '20' : 'rgba(255,255,255,0.05)',
                 border: `2px solid ${selectedAmount === amt.value ? C.nGreen : C.glassBr}`,
                 borderRadius: 12,
-                padding: '10px 14px',
+                padding: '14px 16px',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 600,
                 cursor: 'pointer',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 transition: 'all 0.2s',
+                minHeight: 48,
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{amt.emoji}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>{amt.emoji}</span>
                 <span>{amt.label}</span>
               </span>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{amt.usd}</span>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{amt.usd}</span>
             </button>
           ))}
 
@@ -3456,10 +3456,10 @@ function DeveloperSupport({ onClose, onSupport }) {
               background: selectedAmount === 'custom' ? C.nBlue + '20' : 'rgba(255,255,255,0.05)',
               border: `2px solid ${selectedAmount === 'custom' ? C.nBlue : C.glassBr}`,
               borderRadius: 12,
-              padding: 10,
+              padding: '14px 16px',
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 10,
             }}
           >
             <div
@@ -3467,10 +3467,10 @@ function DeveloperSupport({ onClose, onSupport }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 6,
+                marginBottom: 4,
               }}
             >
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+              <label style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>
                 🎰 YOLO Custom Amount
               </label>
               <input
@@ -3483,7 +3483,7 @@ function DeveloperSupport({ onClose, onSupport }) {
                     sound.click();
                   }
                 }}
-                style={{ width: 20, height: 20, cursor: 'pointer' }}
+                style={{ width: 24, height: 24, cursor: 'pointer' }}
               />
             </div>
             <input
@@ -3502,9 +3502,9 @@ function DeveloperSupport({ onClose, onSupport }) {
                 background: 'rgba(255,255,255,0.05)',
                 border: `1px solid ${C.glassBr}`,
                 borderRadius: 8,
-                padding: '10px 14px',
+                padding: '12px 14px',
                 color: '#fff',
-                fontSize: 13,
+                fontSize: 14,
                 fontFamily: 'monospace',
                 width: '100%',
                 boxSizing: 'border-box',
@@ -3524,18 +3524,19 @@ function DeveloperSupport({ onClose, onSupport }) {
               : `linear-gradient(135deg, ${C.nGreen}, ${C.nBlue})`,
             border: 'none',
             borderRadius: 12,
-            padding: '11px 18px',
+            padding: '16px 20px',
             color: '#fff',
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '1px',
             cursor: isProcessing ? 'not-allowed' : 'pointer',
             opacity: (!selectedAmount && !customAmount) ? 0.5 : 1,
             transition: 'all 0.2s',
+            minHeight: 52,
           }}
         >
-          {isProcessing ? '⏳ SENDIN...' : '   SEND IT   '}
+          {isProcessing ? '⏳ SENDIN...' : 'SEND IT'}
         </button>
       </div>
     </div>
