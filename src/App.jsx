@@ -3386,7 +3386,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           width: '100%',
           maxHeight: '70vh',
           overflowY: 'auto',
-          marginTop: '15vh',
+          marginTop: '50vh',
         }}
         onClick={(e) => e.stopPropagation()}
       >
