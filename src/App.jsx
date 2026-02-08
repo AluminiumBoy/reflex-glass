@@ -3372,7 +3372,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
-        paddingTop: '100vh',
+        paddingTop: '30vh',
       }}
       onClick={onClose}
     >
@@ -3381,7 +3381,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           background: 'rgba(14,14,26,0.85)',
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
-          padding: 16,
+          padding: 50,
           maxWidth: 380,
           width: '100%',
           maxHeight: '70vh',
