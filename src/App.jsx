@@ -2958,7 +2958,11 @@ class ChartRenderer {
     minPrice -= range * pad;
     maxPrice += range * pad;
 
-    const toY = price => height - 50 - ((price - minPrice) / (maxPrice - minPrice)) * (height - 90) + verticalOffset;
+    // Increased bottom padding from 50 to 150 to make room for buttons
+    const bottomPadding = mobile ? 150 : 150;
+    const topPadding = 50;
+    const chartHeight = height - bottomPadding - topPadding;
+    const toY = price => topPadding + (1 - ((price - minPrice) / (maxPrice - minPrice))) * chartHeight + verticalOffset;
 
     const minBodyHeight = mobile ? 5 : 3;
     const maxWickHeight = mobile ? 25 : 20;
@@ -2967,7 +2971,7 @@ class ChartRenderer {
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
     ctx.lineWidth = 0.5;
     for (let i = 0; i < 5; i++) {
-      const y = 50 + (i / 4) * (height - 100);
+      const y = topPadding + (i / 4) * chartHeight;
       ctx.beginPath();
       ctx.moveTo(leftPadding, y);
       ctx.lineTo(width - rightPadding + 10, y);
@@ -5403,20 +5407,6 @@ export default function App() {
             verticalVelocity.current = 0;
           }}
         />
-        
-        {/* Bottom gradient mask to fade out candles above buttons */}
-        <div style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: "120px",
-          background: `linear-gradient(to top, ${C.bg1} 0%, ${C.bg1}ee 15%, ${C.bg1}cc 30%, ${C.bg1}99 50%, ${C.bg1}66 70%, transparent 100%)`,
-          pointerEvents: "none",
-          borderBottomLeftRadius: 16,
-          borderBottomRightRadius: 16,
-        }} />
-        
         {structure && (
           <>
             {screen === "outcome" && (
