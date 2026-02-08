@@ -3372,7 +3372,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
-        paddingTop: '50vh',
+        paddingTop: '100vh',
       }}
       onClick={onClose}
     >
