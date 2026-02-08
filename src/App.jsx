@@ -3387,7 +3387,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 250 }}>
-          <div style={{ fontSize: 30, fontWeight: 100, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div style={{ fontSize: 20, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
           <button
@@ -3400,7 +3400,7 @@ function DeveloperSupport({ onClose, onSupport }) {
               cursor: 'pointer',
               padding: 0,
               width: 32,
-              height: 32,
+              height: 24,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -3410,7 +3410,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           </button>
         </div>
 
-        <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.6 }}>
             This whole thing is held together by hope and bad decisions
             If it somehow works for you... congrats, you're as delusional as I am
             Send ETH to keep the delusion alive 
