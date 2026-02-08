@@ -3368,23 +3368,22 @@ function DeveloperSupport({ onClose, onSupport }) {
         background: 'rgba(6,6,12,0.95)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
-        paddingTop: '2vh',
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: C.glass,
+          background: 'rgba(14,14,26,0.85)',
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
           padding: 20,
           maxWidth: 380,
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: '85vh',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
