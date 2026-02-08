@@ -2871,15 +2871,17 @@ class ChartRenderer {
     return width < 150;
   }
 
-  setDimensions(width) {
+  setDimensions(width, height) {
     const dpr = window.devicePixelRatio || 1;
     const mobile = this.isMobile(width);
-    const height = mobile ? Math.floor(window.innerHeight * 0.65) : 440;
+    
+    // Use provided height, fallback to calculated if not provided
+    const actualHeight = height || (mobile ? Math.floor(window.innerHeight * 0.65) : 440);
 
     this.canvas.width = width * dpr;
-    this.canvas.height = height * dpr;
+    this.canvas.height = actualHeight * dpr;
     this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
+    this.canvas.style.height = `${actualHeight}px`;
 
     this.ctx = this.canvas.getContext("2d");
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -5125,8 +5127,7 @@ export default function App() {
             height: "100%", 
             borderRadius: 16, 
             display: "block",
-            touchAction: "none",
-            objectFit: "contain"
+            touchAction: "none"
           }}
           onTouchStart={(e) => {
             if (structure && structure.candles && structure.candles.length > 0) {
