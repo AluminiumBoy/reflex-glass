@@ -3372,7 +3372,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
-        paddingTop: '10vh',
+        paddingTop: '4vh',
       }}
       onClick={onClose}
     >
@@ -3538,23 +3538,6 @@ function DeveloperSupport({ onClose, onSupport }) {
         >
           {isProcessing ? '⏳ SENDIN...' : '   SEND IT   '}
         </button>
-
-        <div
-          style={{
-            marginTop: 16,
-            padding: 12,
-            background: C.bg1,
-            borderRadius: 8,
-            fontSize: 11,
-            color: 'rgba(255,255,255,0.5)',
-            textAlign: 'center',
-            lineHeight: 1.4,
-          }}
-        >
-          Built with love, caffeine, & unopened therapy bills 
-          <br />
-          No sign up, no sus stuff, just vibes 
-        </div>
       </div>
     </div>
   );
