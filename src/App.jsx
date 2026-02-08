@@ -3371,7 +3371,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: '12px',
+        padding: 16,
         overflowY: 'auto',
       }}
       onClick={onClose}
@@ -3379,18 +3379,19 @@ function DeveloperSupport({ onClose, onSupport }) {
       <div
         style={{
           background: 'rgba(14,14,26,0.85)',
+          backdropFilter: 'blur(20px)',
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
-          padding: '20px',
+          padding: 20,
           maxWidth: 380,
           width: '100%',
-          maxHeight: '85vh',
+          maxHeight: '90vh',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
           <button
@@ -3399,11 +3400,11 @@ function DeveloperSupport({ onClose, onSupport }) {
               background: 'transparent',
               border: 'none',
               color: 'rgba(255,255,255,0.5)',
-              fontSize: 28,
+              fontSize: 24,
               cursor: 'pointer',
               padding: 0,
               width: 32,
-              height: 32,
+              height: 24,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -3413,11 +3414,11 @@ function DeveloperSupport({ onClose, onSupport }) {
           </button>
         </div>
 
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 16, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.4 }}>
             Send ETH to keep the delusion alive 🚀
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
           {predefinedAmounts.map((amt) => (
             <button
               key={amt.value}
@@ -3431,7 +3432,7 @@ function DeveloperSupport({ onClose, onSupport }) {
                 background: selectedAmount === amt.value ? C.nGreen + '20' : 'rgba(255,255,255,0.05)',
                 border: `2px solid ${selectedAmount === amt.value ? C.nGreen : C.glassBr}`,
                 borderRadius: 12,
-                padding: '14px 16px',
+                padding: '12px 16px',
                 color: '#fff',
                 fontSize: 15,
                 fontWeight: 600,
@@ -3440,11 +3441,11 @@ function DeveloperSupport({ onClose, onSupport }) {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 transition: 'all 0.2s',
-                minHeight: 48,
+                minHeight: 50,
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18 }}>{amt.emoji}</span>
+                <span style={{ fontSize: 20 }}>{amt.emoji}</span>
                 <span>{amt.label}</span>
               </span>
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{amt.usd}</span>
@@ -3456,10 +3457,10 @@ function DeveloperSupport({ onClose, onSupport }) {
               background: selectedAmount === 'custom' ? C.nBlue + '20' : 'rgba(255,255,255,0.05)',
               border: `2px solid ${selectedAmount === 'custom' ? C.nBlue : C.glassBr}`,
               borderRadius: 12,
-              padding: '14px 16px',
+              padding: 10,
               display: 'flex',
               flexDirection: 'column',
-              gap: 10,
+              gap: 6,
             }}
           >
             <div
@@ -3467,10 +3468,10 @@ function DeveloperSupport({ onClose, onSupport }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 4,
+                marginBottom: 6,
               }}
             >
-              <label style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
                 🎰 YOLO Custom Amount
               </label>
               <input
@@ -3483,7 +3484,7 @@ function DeveloperSupport({ onClose, onSupport }) {
                     sound.click();
                   }
                 }}
-                style={{ width: 24, height: 24, cursor: 'pointer' }}
+                style={{ width: 20, height: 20, cursor: 'pointer' }}
               />
             </div>
             <input
@@ -3524,7 +3525,7 @@ function DeveloperSupport({ onClose, onSupport }) {
               : `linear-gradient(135deg, ${C.nGreen}, ${C.nBlue})`,
             border: 'none',
             borderRadius: 12,
-            padding: '16px 20px',
+            padding: '14px 20px',
             color: '#fff',
             fontSize: 16,
             fontWeight: 700,
@@ -3533,7 +3534,7 @@ function DeveloperSupport({ onClose, onSupport }) {
             cursor: isProcessing ? 'not-allowed' : 'pointer',
             opacity: (!selectedAmount && !customAmount) ? 0.5 : 1,
             transition: 'all 0.2s',
-            minHeight: 52,
+            minHeight: 50,
           }}
         >
           {isProcessing ? '⏳ SENDIN...' : 'SEND IT'}
