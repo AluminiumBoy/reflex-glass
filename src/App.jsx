@@ -5568,6 +5568,10 @@ export default function App() {
         overflowX: "hidden",
         padding: 16,
         gap: 14,
+        backgroundImage: "url('background.png')", // Itt add meg a PNG képed URL-jét
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
       <FinalVerdict
