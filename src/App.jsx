@@ -3381,12 +3381,12 @@ function DeveloperSupport({ onClose, onSupport }) {
           border: `1px solid ${C.glassBr}`,
           borderRadius: 20,
           padding: 20,
-          maxWidth: 380,
+          maxWidth: 280,
           width: '100%',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 300 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ fontSize: 18, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
