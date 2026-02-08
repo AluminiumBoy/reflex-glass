@@ -3368,7 +3368,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         background: 'rgba(6,6,12,0.95)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
@@ -3386,7 +3386,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           width: '100%',
           maxHeight: '70vh',
           overflowY: 'auto',
-          marginTop: '50vh',
+          transform: 'translateY(-8vh)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
