@@ -3886,7 +3886,131 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 
   return (
     <>
-      <GlassPanel style={{ padding: "24px 20px", textAlign: "center" }}>
+      {/* Crumpled paper hands background - positioned absolutely */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '50%',
+        pointerEvents: 'none',
+        zIndex: 0,
+        overflow: 'hidden'
+      }}>
+        {/* Left hand */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-5%',
+          left: '-8%',
+          width: '35%',
+          height: '60%',
+          background: 'radial-gradient(ellipse at center, rgba(200,210,220,0.95) 0%, rgba(180,190,200,0.85) 40%, rgba(160,170,180,0.6) 100%)',
+          borderRadius: '45% 55% 60% 40% / 50% 50% 50% 50%',
+          transform: 'rotate(-25deg) skewX(-8deg)',
+          filter: 'drop-shadow(-10px 15px 25px rgba(0,0,0,0.5))',
+          clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%)'
+        }}>
+          {/* Wrinkle effects on left hand */}
+          <div style={{
+            position: 'absolute',
+            top: '15%',
+            left: '20%',
+            width: '60%',
+            height: '3px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.4), transparent)',
+            transform: 'rotate(-12deg)',
+            borderRadius: '50%'
+          }}/>
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '25%',
+            width: '50%',
+            height: '4px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.5), transparent)',
+            transform: 'rotate(8deg)',
+            borderRadius: '50%'
+          }}/>
+          <div style={{
+            position: 'absolute',
+            top: '55%',
+            left: '18%',
+            width: '65%',
+            height: '3px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.35), transparent)',
+            transform: 'rotate(-5deg)',
+            borderRadius: '50%'
+          }}/>
+          <div style={{
+            position: 'absolute',
+            top: '70%',
+            left: '22%',
+            width: '55%',
+            height: '4px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.45), transparent)',
+            transform: 'rotate(10deg)',
+            borderRadius: '50%'
+          }}/>
+        </div>
+        
+        {/* Right hand */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-5%',
+          right: '-8%',
+          width: '35%',
+          height: '60%',
+          background: 'radial-gradient(ellipse at center, rgba(200,210,220,0.95) 0%, rgba(180,190,200,0.85) 40%, rgba(160,170,180,0.6) 100%)',
+          borderRadius: '55% 45% 40% 60% / 50% 50% 50% 50%',
+          transform: 'rotate(25deg) skewX(8deg)',
+          filter: 'drop-shadow(10px 15px 25px rgba(0,0,0,0.5))',
+          clipPath: 'polygon(0% 0%, 80% 0%, 100% 100%, 0% 100%)'
+        }}>
+          {/* Wrinkle effects on right hand */}
+          <div style={{
+            position: 'absolute',
+            top: '18%',
+            right: '20%',
+            width: '60%',
+            height: '3px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.4), transparent)',
+            transform: 'rotate(12deg)',
+            borderRadius: '50%'
+          }}/>
+          <div style={{
+            position: 'absolute',
+            top: '38%',
+            right: '25%',
+            width: '50%',
+            height: '4px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.5), transparent)',
+            transform: 'rotate(-8deg)',
+            borderRadius: '50%'
+          }}/>
+          <div style={{
+            position: 'absolute',
+            top: '58%',
+            right: '18%',
+            width: '65%',
+            height: '3px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.35), transparent)',
+            transform: 'rotate(5deg)',
+            borderRadius: '50%'
+          }}/>
+          <div style={{
+            position: 'absolute',
+            top: '72%',
+            right: '22%',
+            width: '55%',
+            height: '4px',
+            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.45), transparent)',
+            transform: 'rotate(-10deg)',
+            borderRadius: '50%'
+          }}/>
+        </div>
+      </div>
+
+      <GlassPanel style={{ padding: "24px 20px", textAlign: "center", position: 'relative', zIndex: 1 }}>
         {/* Meme emoji */}
         <div style={{ fontSize: 48, marginBottom: 8 }}>{meme}</div>
         
