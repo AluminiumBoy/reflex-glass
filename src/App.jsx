@@ -5024,7 +5024,7 @@ export default function App() {
         flexDirection: "column", 
         alignItems: "center", 
         marginTop: "auto",
-        paddingBottom: 20
+        paddingBottom: 40
       }}>
         <img 
           src="logo.png" 
