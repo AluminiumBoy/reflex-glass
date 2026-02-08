@@ -3833,6 +3833,9 @@ const SupportDevButton = () => {
   const [customAmount, setCustomAmount] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [txStatus, setTxStatus] = useState(null); // 'success', 'error', or null
+  const [txHash, setTxHash] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const RECIPIENT_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";
   const BASE_CHAIN_ID = "0x2105"; // Base Mainnet (8453 in decimal)
@@ -3840,10 +3843,14 @@ const SupportDevButton = () => {
   const handleDonate = async (amount) => {
     try {
       setIsConnecting(true);
+      setTxStatus(null);
+      setErrorMessage("");
+      setTxHash("");
 
       // Check if MetaMask is installed
       if (!window.ethereum) {
-        alert("Please install MetaMask or another Web3 wallet to donate! 🦊");
+        setTxStatus('error');
+        setErrorMessage("Please install MetaMask or another Web3 wallet to donate! 🦊");
         setIsConnecting(false);
         return;
       }
@@ -3885,13 +3892,15 @@ const SupportDevButton = () => {
               });
             } catch (addError) {
               console.error("Error adding Base network:", addError);
-              alert("Failed to add Base network. Please add it manually.");
+              setTxStatus('error');
+              setErrorMessage("Failed to add Base network. Please add it manually.");
               setIsConnecting(false);
               return;
             }
           } else {
             console.error("Error switching to Base network:", switchError);
-            alert("Failed to switch to Base network.");
+            setTxStatus('error');
+            setErrorMessage("Failed to switch to Base network.");
             setIsConnecting(false);
             return;
           }
@@ -3912,19 +3921,27 @@ const SupportDevButton = () => {
       });
 
       console.log("Transaction sent:", transactionHash);
-      alert(`🎉 Thank you for your ${amount} ETH donation!\n\nTransaction: ${transactionHash}\n\nView on BaseScan: https://basescan.org/tx/${transactionHash}`);
+      setTxHash(transactionHash);
+      setTxStatus('success');
       
-      setShowOptions(false);
-      setShowCustomInput(false);
-      setCustomAmount("");
+      // Auto-close success message after 5 seconds
+      setTimeout(() => {
+        setShowOptions(false);
+        setShowCustomInput(false);
+        setCustomAmount("");
+        setTxStatus(null);
+        setTxHash("");
+      }, 5000);
       
     } catch (error) {
       console.error("Donation error:", error);
+      setTxStatus('error');
+      
       if (error.code === 4001) {
         // User rejected the transaction
-        alert("Transaction cancelled.");
+        setErrorMessage("Transaction cancelled by user.");
       } else {
-        alert(`Error: ${error.message || "Transaction failed"}`);
+        setErrorMessage(error.message || "Transaction failed. Please try again.");
       }
     } finally {
       setIsConnecting(false);
@@ -3936,11 +3953,150 @@ const SupportDevButton = () => {
     if (amount && amount > 0) {
       handleDonate(amount);
     } else {
-      alert("Please enter a valid amount.");
+      setTxStatus('error');
+      setErrorMessage("Please enter a valid amount.");
     }
   };
 
   if (showOptions) {
+    // Success state
+    if (txStatus === 'success') {
+      return (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 100, 0.15))",
+          border: "1.5px solid rgba(0, 230, 118, 0.4)",
+          borderRadius: 12,
+          padding: "16px",
+          backdropFilter: "blur(12px)",
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontSize: 32,
+            marginBottom: 8,
+          }}>
+            🎉
+          </div>
+          <div style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: "rgba(0, 230, 118, 1)",
+            marginBottom: 8,
+          }}>
+            Thank you for your support!
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: "rgba(255, 255, 255, 0.8)",
+            marginBottom: 12,
+            lineHeight: 1.5,
+          }}>
+            Your donation helps keep this project alive and improving. We truly appreciate your generosity! 💚
+          </div>
+          {txHash && (
+            <a
+              href={`https://basescan.org/tx/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-block",
+                fontSize: 10,
+                color: "rgba(100, 200, 255, 0.9)",
+                textDecoration: "none",
+                padding: "6px 12px",
+                background: "rgba(0, 122, 255, 0.15)",
+                border: "1px solid rgba(100, 200, 255, 0.3)",
+                borderRadius: 8,
+                marginBottom: 12,
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "rgba(0, 122, 255, 0.25)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(0, 122, 255, 0.15)";
+              }}
+            >
+              View on BaseScan →
+            </a>
+          )}
+          <div style={{
+            fontSize: 9,
+            color: "rgba(255, 255, 255, 0.5)",
+            marginTop: 8,
+          }}>
+            Closing in 5 seconds...
+          </div>
+        </div>
+      );
+    }
+
+    // Error state
+    if (txStatus === 'error') {
+      return (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(255, 77, 77, 0.15), rgba(255, 50, 50, 0.1))",
+          border: "1.5px solid rgba(255, 77, 77, 0.35)",
+          borderRadius: 12,
+          padding: "16px",
+          backdropFilter: "blur(12px)",
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontSize: 32,
+            marginBottom: 8,
+          }}>
+            ⚠️
+          </div>
+          <div style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: "rgba(255, 100, 100, 1)",
+            marginBottom: 8,
+          }}>
+            Transaction Failed
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: "rgba(255, 255, 255, 0.8)",
+            marginBottom: 12,
+            lineHeight: 1.5,
+          }}>
+            {errorMessage}
+          </div>
+          <button
+            onClick={() => {
+              setTxStatus(null);
+              setErrorMessage("");
+              setShowOptions(false);
+              setShowCustomInput(false);
+              setCustomAmount("");
+            }}
+            style={{
+              width: "100%",
+              padding: "8px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.9)",
+              background: "rgba(255, 77, 77, 0.2)",
+              border: "1px solid rgba(255, 77, 77, 0.3)",
+              borderRadius: 8,
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(255, 77, 77, 0.3)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(255, 77, 77, 0.2)";
+            }}
+          >
+            Close
+          </button>
+        </div>
+      );
+    }
+
+    // Default donation options state
     return (
       <div style={{
         background: "linear-gradient(135deg, rgba(0, 82, 255, 0.15), rgba(0, 122, 255, 0.1))",
