@@ -3886,129 +3886,154 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 
   return (
     <>
-      {/* Crumpled paper hands background - positioned absolutely */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '50%',
-        pointerEvents: 'none',
-        zIndex: 0,
-        overflow: 'hidden'
-      }}>
-        {/* Left hand */}
-        <div style={{
-          position: 'absolute',
-          bottom: '-5%',
-          left: '-8%',
-          width: '35%',
-          height: '60%',
-          background: 'radial-gradient(ellipse at center, rgba(200,210,220,0.95) 0%, rgba(180,190,200,0.85) 40%, rgba(160,170,180,0.6) 100%)',
-          borderRadius: '45% 55% 60% 40% / 50% 50% 50% 50%',
-          transform: 'rotate(-25deg) skewX(-8deg)',
-          filter: 'drop-shadow(-10px 15px 25px rgba(0,0,0,0.5))',
-          clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%)'
-        }}>
-          {/* Wrinkle effects on left hand */}
-          <div style={{
-            position: 'absolute',
-            top: '15%',
-            left: '20%',
-            width: '60%',
-            height: '3px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.4), transparent)',
-            transform: 'rotate(-12deg)',
-            borderRadius: '50%'
-          }}/>
-          <div style={{
-            position: 'absolute',
-            top: '35%',
-            left: '25%',
-            width: '50%',
-            height: '4px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.5), transparent)',
-            transform: 'rotate(8deg)',
-            borderRadius: '50%'
-          }}/>
-          <div style={{
-            position: 'absolute',
-            top: '55%',
-            left: '18%',
-            width: '65%',
-            height: '3px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.35), transparent)',
-            transform: 'rotate(-5deg)',
-            borderRadius: '50%'
-          }}/>
-          <div style={{
-            position: 'absolute',
-            top: '70%',
-            left: '22%',
-            width: '55%',
-            height: '4px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.45), transparent)',
-            transform: 'rotate(10deg)',
-            borderRadius: '50%'
-          }}/>
-        </div>
+      <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: 450 }}>
+        {/* Crumpled paper hands - positioned to hold the panel */}
         
-        {/* Right hand */}
+        {/* LEFT HAND - Multiple crumpled paper pieces */}
         <div style={{
           position: 'absolute',
-          bottom: '-5%',
-          right: '-8%',
-          width: '35%',
-          height: '60%',
-          background: 'radial-gradient(ellipse at center, rgba(200,210,220,0.95) 0%, rgba(180,190,200,0.85) 40%, rgba(160,170,180,0.6) 100%)',
-          borderRadius: '55% 45% 40% 60% / 50% 50% 50% 50%',
-          transform: 'rotate(25deg) skewX(8deg)',
-          filter: 'drop-shadow(10px 15px 25px rgba(0,0,0,0.5))',
-          clipPath: 'polygon(0% 0%, 80% 0%, 100% 100%, 0% 100%)'
+          left: '-15%',
+          top: '35%',
+          width: '120px',
+          height: '280px',
+          pointerEvents: 'none',
+          zIndex: 0
         }}>
-          {/* Wrinkle effects on right hand */}
+          {/* Main left crumpled piece */}
           <div style={{
             position: 'absolute',
-            top: '18%',
-            right: '20%',
-            width: '60%',
-            height: '3px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.4), transparent)',
-            transform: 'rotate(12deg)',
-            borderRadius: '50%'
-          }}/>
+            left: '20%',
+            top: '15%',
+            width: '85px',
+            height: '95px',
+            background: 'linear-gradient(135deg, rgba(210,220,230,0.95) 0%, rgba(180,195,210,0.9) 50%, rgba(150,165,180,0.75) 100%)',
+            borderRadius: '42% 58% 55% 45% / 48% 52% 48% 52%',
+            transform: 'rotate(-22deg)',
+            boxShadow: '-8px 12px 24px rgba(0,0,0,0.4), inset -3px -3px 8px rgba(120,130,140,0.3), inset 2px 2px 6px rgba(255,255,255,0.2)',
+          }}>
+            <div style={{ position: 'absolute', top: '20%', left: '15%', width: '60%', height: '2px', background: 'rgba(100,110,120,0.35)', transform: 'rotate(-8deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '45%', left: '10%', width: '70%', height: '2.5px', background: 'rgba(90,100,110,0.4)', transform: 'rotate(12deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '65%', left: '20%', width: '55%', height: '2px', background: 'rgba(100,110,120,0.3)', transform: 'rotate(-5deg)', borderRadius: '50%' }}/>
+          </div>
+          
+          {/* Second left piece */}
           <div style={{
             position: 'absolute',
-            top: '38%',
-            right: '25%',
-            width: '50%',
-            height: '4px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.5), transparent)',
-            transform: 'rotate(-8deg)',
-            borderRadius: '50%'
-          }}/>
+            left: '0%',
+            top: '45%',
+            width: '75px',
+            height: '85px',
+            background: 'linear-gradient(125deg, rgba(195,205,215,0.9) 0%, rgba(170,185,200,0.85) 50%, rgba(145,160,175,0.7) 100%)',
+            borderRadius: '48% 52% 58% 42% / 45% 55% 45% 55%',
+            transform: 'rotate(-15deg)',
+            boxShadow: '-6px 10px 20px rgba(0,0,0,0.35), inset -2px -2px 6px rgba(110,120,130,0.25)',
+          }}>
+            <div style={{ position: 'absolute', top: '25%', left: '12%', width: '65%', height: '2px', background: 'rgba(95,105,115,0.3)', transform: 'rotate(10deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '55%', left: '18%', width: '58%', height: '2.5px', background: 'rgba(90,100,110,0.35)', transform: 'rotate(-8deg)', borderRadius: '50%' }}/>
+          </div>
+          
+          {/* Third left piece */}
           <div style={{
             position: 'absolute',
-            top: '58%',
-            right: '18%',
-            width: '65%',
-            height: '3px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.35), transparent)',
-            transform: 'rotate(5deg)',
-            borderRadius: '50%'
-          }}/>
+            left: '35%',
+            top: '65%',
+            width: '70px',
+            height: '75px',
+            background: 'linear-gradient(140deg, rgba(185,195,205,0.88) 0%, rgba(160,175,190,0.82) 50%, rgba(140,155,170,0.68) 100%)',
+            borderRadius: '55% 45% 50% 50% / 52% 48% 52% 48%',
+            transform: 'rotate(-28deg)',
+            boxShadow: '-5px 8px 18px rgba(0,0,0,0.3), inset -2px -2px 5px rgba(105,115,125,0.2)',
+          }}>
+            <div style={{ position: 'absolute', top: '30%', left: '20%', width: '55%', height: '2px', background: 'rgba(100,110,120,0.3)', transform: 'rotate(-12deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '60%', left: '15%', width: '60%', height: '2px', background: 'rgba(95,105,115,0.28)', transform: 'rotate(8deg)', borderRadius: '50%' }}/>
+          </div>
+          
+          {/* Bottom left piece */}
           <div style={{
             position: 'absolute',
-            top: '72%',
-            right: '22%',
-            width: '55%',
-            height: '4px',
-            background: 'linear-gradient(90deg, transparent, rgba(100,110,120,0.45), transparent)',
-            transform: 'rotate(-10deg)',
-            borderRadius: '50%'
+            left: '10%',
+            bottom: '0%',
+            width: '80px',
+            height: '70px',
+            background: 'linear-gradient(130deg, rgba(200,210,220,0.92) 0%, rgba(175,190,205,0.86) 50%, rgba(150,165,180,0.72) 100%)',
+            borderRadius: '50% 50% 45% 55% / 48% 52% 48% 52%',
+            transform: 'rotate(-18deg)',
+            boxShadow: '-7px 9px 20px rgba(0,0,0,0.35), inset -2px -2px 6px rgba(110,120,130,0.22)',
           }}/>
         </div>
-      </div>
+
+        {/* RIGHT HAND - Multiple crumpled paper pieces */}
+        <div style={{
+          position: 'absolute',
+          right: '-15%',
+          top: '35%',
+          width: '120px',
+          height: '280px',
+          pointerEvents: 'none',
+          zIndex: 0
+        }}>
+          {/* Main right crumpled piece */}
+          <div style={{
+            position: 'absolute',
+            right: '20%',
+            top: '15%',
+            width: '85px',
+            height: '95px',
+            background: 'linear-gradient(225deg, rgba(210,220,230,0.95) 0%, rgba(180,195,210,0.9) 50%, rgba(150,165,180,0.75) 100%)',
+            borderRadius: '58% 42% 45% 55% / 52% 48% 52% 48%',
+            transform: 'rotate(22deg)',
+            boxShadow: '8px 12px 24px rgba(0,0,0,0.4), inset 3px -3px 8px rgba(120,130,140,0.3), inset -2px 2px 6px rgba(255,255,255,0.2)',
+          }}>
+            <div style={{ position: 'absolute', top: '20%', right: '15%', width: '60%', height: '2px', background: 'rgba(100,110,120,0.35)', transform: 'rotate(8deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '45%', right: '10%', width: '70%', height: '2.5px', background: 'rgba(90,100,110,0.4)', transform: 'rotate(-12deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '65%', right: '20%', width: '55%', height: '2px', background: 'rgba(100,110,120,0.3)', transform: 'rotate(5deg)', borderRadius: '50%' }}/>
+          </div>
+          
+          {/* Second right piece */}
+          <div style={{
+            position: 'absolute',
+            right: '0%',
+            top: '45%',
+            width: '75px',
+            height: '85px',
+            background: 'linear-gradient(235deg, rgba(195,205,215,0.9) 0%, rgba(170,185,200,0.85) 50%, rgba(145,160,175,0.7) 100%)',
+            borderRadius: '52% 48% 42% 58% / 55% 45% 55% 45%',
+            transform: 'rotate(15deg)',
+            boxShadow: '6px 10px 20px rgba(0,0,0,0.35), inset 2px -2px 6px rgba(110,120,130,0.25)',
+          }}>
+            <div style={{ position: 'absolute', top: '25%', right: '12%', width: '65%', height: '2px', background: 'rgba(95,105,115,0.3)', transform: 'rotate(-10deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '55%', right: '18%', width: '58%', height: '2.5px', background: 'rgba(90,100,110,0.35)', transform: 'rotate(8deg)', borderRadius: '50%' }}/>
+          </div>
+          
+          {/* Third right piece */}
+          <div style={{
+            position: 'absolute',
+            right: '35%',
+            top: '65%',
+            width: '70px',
+            height: '75px',
+            background: 'linear-gradient(220deg, rgba(185,195,205,0.88) 0%, rgba(160,175,190,0.82) 50%, rgba(140,155,170,0.68) 100%)',
+            borderRadius: '45% 55% 50% 50% / 48% 52% 48% 52%',
+            transform: 'rotate(28deg)',
+            boxShadow: '5px 8px 18px rgba(0,0,0,0.3), inset 2px -2px 5px rgba(105,115,125,0.2)',
+          }}>
+            <div style={{ position: 'absolute', top: '30%', right: '20%', width: '55%', height: '2px', background: 'rgba(100,110,120,0.3)', transform: 'rotate(12deg)', borderRadius: '50%' }}/>
+            <div style={{ position: 'absolute', top: '60%', right: '15%', width: '60%', height: '2px', background: 'rgba(95,105,115,0.28)', transform: 'rotate(-8deg)', borderRadius: '50%' }}/>
+          </div>
+          
+          {/* Bottom right piece */}
+          <div style={{
+            position: 'absolute',
+            right: '10%',
+            bottom: '0%',
+            width: '80px',
+            height: '70px',
+            background: 'linear-gradient(230deg, rgba(200,210,220,0.92) 0%, rgba(175,190,205,0.86) 50%, rgba(150,165,180,0.72) 100%)',
+            borderRadius: '50% 50% 55% 45% / 52% 48% 52% 48%',
+            transform: 'rotate(18deg)',
+            boxShadow: '7px 9px 20px rgba(0,0,0,0.35), inset 2px -2px 6px rgba(110,120,130,0.22)',
+          }}/>
+        </div>
 
       <GlassPanel style={{ padding: "24px 20px", textAlign: "center", position: 'relative', zIndex: 1 }}>
         {/* Meme emoji */}
@@ -4220,6 +4245,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           </GlassButton>
         </div>
       </GlassPanel>
+      </div> {/* Close relative wrapper */}
 
       {showSupport && (
         <DeveloperSupport
