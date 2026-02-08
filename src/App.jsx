@@ -3384,7 +3384,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           padding: 20,
           maxWidth: 380,
           width: '100%',
-          maxHeight: '85vh',
+          maxHeight: '585vh',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
