@@ -60,7 +60,7 @@ const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
 // Developer support wallet address (Base network)
-const DEVELOPER_WALLET = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"; // Replace with actual wallet
+const DEVELOPER_WALLET = "0xa800F14C07935e850e9e20221956d99920E9a498"; // Replace with actual wallet
 
 // Single difficulty mode
 const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
@@ -3387,7 +3387,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <div style={{ fontSize: 20, fontWeight: 500, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
           <button
