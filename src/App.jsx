@@ -3887,24 +3887,25 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   return (
     <>
       <GlassPanel style={{ 
-        padding: "24px 20px", 
+        padding: "20px 16px", 
         textAlign: "center", 
         position: 'relative', 
         zIndex: 2,
-        background: 'rgba(14,14,26,0.75)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(56, 189, 248, 0.3)'
+        background: 'transparent',
+        backdropFilter: 'none',
+        border: 'none',
+        boxShadow: 'none',
       }}>
         {/* Meme emoji */}
-        <div style={{ fontSize: 48, marginBottom: 8 }}>{meme}</div>
+        <div style={{ fontSize: 48, marginBottom: 8, textShadow: "0 0 20px rgba(56, 189, 248, 0.6)" }}>{meme}</div>
         
         {/* Grade */}
-        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: gradeColor }}>
+        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8, color: gradeColor, textShadow: `0 0 20px ${gradeColor}80` }}>
           {grade}
         </div>
         
         {/* Player name */}
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", marginBottom: 12, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
           {playerName}
         </div>
         
@@ -3918,6 +3919,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             marginBottom: 20,
+            filter: "drop-shadow(0 0 15px rgba(0, 255, 170, 0.5))",
           }}
         >
           {stats.totalScore.toLocaleString()}
@@ -3927,13 +3929,13 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div
           style={{
             padding: "16px",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "transparent",
+            border: "none",
             borderRadius: 12,
             marginBottom: 20,
           }}
         >
-          <div style={{ fontSize: 14, fontStyle: "italic", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 14, fontStyle: "italic", color: "rgba(255,255,255,0.9)", lineHeight: 1.5, textShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
             "{roast}"
           </div>
         </div>
@@ -3948,26 +3950,26 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           }}
         >
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
               ACCURACY
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.nGreen, textShadow: `0 0 10px ${C.nGreen}80` }}>
               {stats.accuracy}%
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
               CORRECT
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.nBlue, textShadow: `0 0 10px ${C.nBlue}80` }}>
               {stats.correct}/{stats.total}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 4, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
               BEST STREAK
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.nPurple, textShadow: `0 0 10px ${C.nPurple}80` }}>
               {stats.bestStreak}
             </div>
           </div>
@@ -5401,22 +5403,29 @@ export default function App() {
         flexDirection: "column",
         height: "100dvh",
         justifyContent: "center",
+        alignItems: "center",
         overflowY: "auto",
         overflowX: "hidden",
         padding: 16,
-        gap: 14,
-        backgroundImage: "url('./background.png')", // A feltöltött PNG háttérkép
+        backgroundImage: "url('./background.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      <FinalVerdict
-        stats={computeStats()}
-        onRestart={() => setScreen("home")}
-        onLeaderboard={() => setScreen("leaderboard")}
-        playerName={playerName}
-      />
+      <div style={{
+        width: "min(90%, 500px)",
+        maxHeight: "70vh",
+        overflowY: "auto",
+        marginTop: "-5vh", // A keret közepére igazítás
+      }}>
+        <FinalVerdict
+          stats={computeStats()}
+          onRestart={() => setScreen("home")}
+          onLeaderboard={() => setScreen("leaderboard")}
+          playerName={playerName}
+        />
+      </div>
     </div>
   );
 
