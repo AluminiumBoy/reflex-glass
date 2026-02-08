@@ -3368,10 +3368,11 @@ function DeveloperSupport({ onClose, onSupport }) {
         background: 'rgba(6,6,12,0.95)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 9999,
         padding: 20,
+        paddingTop: '15vh',
       }}
       onClick={onClose}
     >
