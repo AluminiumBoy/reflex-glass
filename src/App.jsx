@@ -3589,20 +3589,20 @@ const GlassButton = React.memo(({ children, onClick, color, disabled, style }) =
   }, []);
   
   const buttonStyle = useMemo(() => ({
-    background: disabled ? `${C.glass}` : `linear-gradient(135deg, ${color}22, ${color}11)`,
-    border: `1.5px solid ${disabled ? `${color}25` : color}55`,
+    background: disabled ? `rgba(12, 20, 35, 0.15)` : `linear-gradient(135deg, ${color}35, ${color}20)`,
+    border: `1.5px solid ${disabled ? `${color}15` : color}50`,
     borderRadius: 16,
     padding: "12px 24px",
-    color: disabled ? "rgba(255,255,255,0.5)" : "#fff",
+    color: disabled ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.95)",
     fontSize: 14,
     fontWeight: 600,
     cursor: disabled ? "wait" : "pointer",
-    backdropFilter: "blur(16px)",
+    backdropFilter: "blur(10px)",
     transform: !disabled && isHovered ? "translateY(-1px)" : "translateY(0)",
-    boxShadow: !disabled && isHovered ? `0 6px 20px ${color}33` : (disabled ? "none" : `0 0 0 ${color}00`),
+    boxShadow: !disabled && isHovered ? `0 6px 20px ${color}35` : (disabled ? "none" : `0 2px 8px ${color}15`),
     transition: "all 0.2s ease",
     willChange: "transform, box-shadow",
-    opacity: disabled ? 0.6 : 1,
+    opacity: disabled ? 0.6 : 0.9,
     animation: disabled ? "none" : "buttonActivate 0.3s ease-out",
     ...style,
   }), [disabled, color, isHovered, style]);
