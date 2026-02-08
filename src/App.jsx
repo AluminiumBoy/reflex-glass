@@ -3894,14 +3894,14 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         marginBottom: 16,
       }}>
         
-        {/* Score - fits in frame - moved down a bit */}
+        {/* Score - fits in frame */}
         <div
           style={{
             fontSize: 56,
             fontWeight: 900,
             fontFamily: "monospace",
             color: "rgba(150, 200, 255, 0.95)",
-            marginTop: 30,
+            marginTop: 0,
             marginBottom: 20,
             textShadow: "0 0 25px rgba(100, 180, 255, 0.7), 0 0 50px rgba(100, 180, 255, 0.3), 0 3px 6px rgba(0,0,0,0.4)",
             letterSpacing: '3px'
@@ -5475,7 +5475,7 @@ export default function App() {
       {/* Score container - fixed position in the holographic frame */}
       <div style={{
         position: "absolute",
-        top: "50%",
+        top: "25%",
         left: "50%",
         transform: "translate(-50%, -50%)",
         width: "min(85%, 450px)",
