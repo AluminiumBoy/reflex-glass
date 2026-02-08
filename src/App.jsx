@@ -3386,7 +3386,7 @@ function DeveloperSupport({ onClose, onSupport }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: -100 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 300 }}>
           <div style={{ fontSize: 18, fontWeight: 250, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
              SUPP THE DEV 
           </div>
