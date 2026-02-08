@@ -3893,18 +3893,6 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         zIndex: 2,
         marginBottom: 16,
       }}>
-        {/* Player name - compact */}
-        <div style={{ 
-          fontSize: 14, 
-          fontWeight: 700,
-          color: "rgba(100, 200, 230, 0.9)", 
-          marginBottom: 14, 
-          textShadow: "0 0 15px rgba(100, 200, 230, 0.6), 0 0 30px rgba(100, 200, 230, 0.3)",
-          letterSpacing: '2.5px',
-          textTransform: 'uppercase'
-        }}>
-          {playerName}
-        </div>
         
         {/* Score - fits in frame */}
         <div
@@ -3921,7 +3909,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           {stats.totalScore.toLocaleString()}
         </div>
 
-        {/* Grade - smaller */}
+        {/* Player name instead of grade */}
         <div style={{ 
           fontSize: 13, 
           fontWeight: 700, 
@@ -3930,7 +3918,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           textShadow: `0 0 12px rgba(255, 200, 100, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
           letterSpacing: '1.5px'
         }}>
-          {grade}
+          {playerName}
         </div>
 
         {/* Roast Section - compact */}
