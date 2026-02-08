@@ -3885,7 +3885,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   }
 
   return (
-    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, height: '100vh', width: '100%' }}>
       {/* Score display - positioned in the holographic frame */}
       <div style={{ 
         textAlign: "center", 
@@ -4018,7 +4018,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
       {/* Action buttons - almost fully transparent and at bottom */}
       <div style={{ 
         position: "absolute",
-        bottom: 20,
+        bottom: 10,
         left: "50%",
         transform: "translateX(-50%)",
         width: "min(85%, 450px)",
@@ -5475,9 +5475,9 @@ export default function App() {
       {/* Score container - fixed position in the holographic frame */}
       <div style={{
         position: "absolute",
-        top: "30%",
+        top: "20%",
         left: "50%",
-        transform: "translate(-50%, -50%)",
+        transform: "translate(-50%, 0)",
         width: "min(85%, 450px)",
         pointerEvents: "none",
       }}>
