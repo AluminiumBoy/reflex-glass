@@ -3371,10 +3371,8 @@ function DeveloperSupport({ onClose, onSupport }) {
         alignItems: 'flex-start',
         justifyContent: 'center',
         zIndex: 9999,
-        paddingLeft: 20,
-        paddingRight: 20,
-        paddingBottom: 20,
-        paddingTop: '200vh',
+        padding: 20,
+        overflowY: 'auto',
       }}
       onClick={onClose}
     >
@@ -3388,6 +3386,7 @@ function DeveloperSupport({ onClose, onSupport }) {
           width: '100%',
           maxHeight: '70vh',
           overflowY: 'auto',
+          marginTop: '15vh',
         }}
         onClick={(e) => e.stopPropagation()}
       >
