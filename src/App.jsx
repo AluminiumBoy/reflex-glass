@@ -3898,7 +3898,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div
           style={{
             fontSize: 56,
-            fontWeight: 900,
+            fontWeight: 800,
             fontFamily: "monospace",
             color: "rgba(150, 200, 255, 0.95)",
             marginTop: 0,
@@ -4153,7 +4153,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               sound.click();
               setShowSupport(true);
             }} 
-            color="rgba(160, 100, 230, 1)" 
+            color="rgba(255, 170, 50, 1)" 
             style={{ 
               padding: "10px 0", 
               display: "flex", 
@@ -4164,8 +4164,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.8px",
-              background: "linear-gradient(135deg, rgba(160, 100, 230, 0.25), rgba(160, 100, 230, 0.15))",
-              border: "1.5px solid rgba(160, 100, 230, 0.4)",
+              background: "linear-gradient(135deg, rgba(255, 170, 50, 0.25), rgba(255, 140, 30, 0.15))",
+              border: "1.5px solid rgba(255, 170, 50, 0.4)",
               color: "rgba(255, 255, 255, 0.95)"
             }}
           >
