@@ -4015,32 +4015,18 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         </div>
       </div>
 
-      {/* Action buttons - almost fully transparent and at bottom */}
+      {/* Action buttons - transparent, no background */}
       <div style={{ 
         position: "absolute",
         bottom: 140,
         left: "50%",
         transform: "translateX(-50%)",
         width: "min(85%, 450px)",
-        padding: "10px", 
-        background: 'rgba(12, 20, 35, 0.08)',
-        backdropFilter: 'blur(6px)',
-        borderRadius: '14px',
-        border: '1px solid rgba(100, 180, 230, 0.05)',
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(100, 180, 230, 0.03)'
+        padding: "10px"
       }}>
         {saved && (
           <div style={{ 
-            padding: "7px", 
-            marginBottom: 8,
-            background: `rgba(80, 230, 180, 0.1)`,
-            border: `1px solid rgba(80, 230, 180, 0.25)`,
-            borderRadius: 10,
-            color: "rgba(100, 255, 200, 0.85)",
-            fontSize: 10,
-            fontWeight: 600,
-            textAlign: 'center',
-            textShadow: '0 0 8px rgba(80, 230, 180, 0.4)'
+            display: "none"
           }}>
             ✓ Score saved to leaderboard!
           </div>
@@ -4056,8 +4042,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               fontSize: 11,
               fontWeight: 600,
               color: "rgba(255,255,255,0.85)",
-              background: "rgba(0, 0, 0, 0.5)",
-              border: "1px solid rgba(255,255,255,0.15)",
+              background: "rgba(0, 0, 0, 0.2)",
+              border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: 10,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -4065,20 +4051,20 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              backdropFilter: 'blur(8px)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)'
+              backdropFilter: 'blur(6px)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)'
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = "translateY(-1px)";
-              e.target.style.boxShadow = "0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12)";
-              e.target.style.background = "rgba(15, 15, 15, 0.6)";
-              e.target.style.borderColor = "rgba(255,255,255,0.25)";
+              e.target.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)";
+              e.target.style.background = "rgba(15, 15, 15, 0.3)";
+              e.target.style.borderColor = "rgba(255,255,255,0.2)";
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.08)";
-              e.target.style.background = "rgba(0, 0, 0, 0.5)";
-              e.target.style.borderColor = "rgba(255,255,255,0.15)";
+              e.target.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.05)";
+              e.target.style.background = "rgba(0, 0, 0, 0.2)";
+              e.target.style.borderColor = "rgba(255,255,255,0.1)";
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -4095,8 +4081,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               fontSize: 11,
               fontWeight: 600,
               color: "rgba(255,255,255,0.9)",
-              background: copied ? "rgba(0, 230, 118, 0.7)" : "linear-gradient(135deg, rgba(30, 100, 255, 0.6) 0%, rgba(50, 180, 255, 0.6) 100%)",
-              border: copied ? "1px solid rgba(0, 230, 118, 0.5)" : "1px solid rgba(100, 180, 255, 0.3)",
+              background: copied ? "rgba(0, 230, 118, 0.3)" : "linear-gradient(135deg, rgba(30, 100, 255, 0.25) 0%, rgba(50, 180, 255, 0.25) 100%)",
+              border: copied ? "1px solid rgba(0, 230, 118, 0.3)" : "1px solid rgba(100, 180, 255, 0.2)",
               borderRadius: 10,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -4104,18 +4090,18 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              backdropFilter: 'blur(8px)',
-              boxShadow: copied ? '0 0 16px rgba(0, 230, 118, 0.3)' : 'inset 0 1px 0 rgba(255,255,255,0.15)'
+              backdropFilter: 'blur(6px)',
+              boxShadow: copied ? '0 0 12px rgba(0, 230, 118, 0.2)' : 'inset 0 1px 0 rgba(255,255,255,0.08)'
             }}
             onMouseEnter={(e) => {
               if (!copied) {
                 e.target.style.transform = "translateY(-1px)";
-                e.target.style.boxShadow = "0 4px 20px rgba(50, 180, 255, 0.4), inset 0 1px 0 rgba(255,255,255,0.25)";
+                e.target.style.boxShadow = "0 4px 16px rgba(50, 180, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)";
               }
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = copied ? '0 0 16px rgba(0, 230, 118, 0.3)' : 'inset 0 1px 0 rgba(255,255,255,0.15)';
+              e.target.style.boxShadow = copied ? '0 0 12px rgba(0, 230, 118, 0.2)' : 'inset 0 1px 0 rgba(255,255,255,0.08)';
             }}
           >
             <svg width="14" height="14" viewBox="0 0 111 111" fill="currentColor" style={{ opacity: copied ? 0 : 1 }}>
