@@ -3901,8 +3901,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             fontWeight: 800,
             fontFamily: "monospace",
             color: "rgba(150, 200, 255, 0.95)",
-            marginTop: 0,
-            marginBottom: 15,
+            marginTop: 10,
+            marginBottom: 20,
             textShadow: "0 0 25px rgba(100, 180, 255, 0.7), 0 0 50px rgba(100, 180, 255, 0.3), 0 3px 6px rgba(0,0,0,0.4)",
             letterSpacing: '3px'
           }}
