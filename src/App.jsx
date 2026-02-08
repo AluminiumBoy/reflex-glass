@@ -3885,7 +3885,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   }
 
   return (
-    <>
+    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
       {/* Score display - positioned in the holographic frame */}
       <div style={{ 
         textAlign: "center", 
@@ -3894,14 +3894,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         marginBottom: 16,
       }}>
         
-        {/* Score - fits in frame */}
+        {/* Score - fits in frame - moved down a bit */}
         <div
           style={{
             fontSize: 56,
             fontWeight: 900,
             fontFamily: "monospace",
             color: "rgba(150, 200, 255, 0.95)",
-            marginBottom: 14,
+            marginTop: 30,
+            marginBottom: 20,
             textShadow: "0 0 25px rgba(100, 180, 255, 0.7), 0 0 50px rgba(100, 180, 255, 0.3), 0 3px 6px rgba(0,0,0,0.4)",
             letterSpacing: '3px'
           }}
@@ -3909,14 +3910,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           {stats.totalScore.toLocaleString()}
         </div>
 
-        {/* Player name instead of grade */}
+        {/* Player name instead of grade - blue color */}
         <div style={{ 
           fontSize: 13, 
           fontWeight: 700, 
           marginBottom: 18, 
-          color: `rgba(255, 200, 100, 0.85)`, 
-          textShadow: `0 0 12px rgba(255, 200, 100, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
-          letterSpacing: '1.5px'
+          color: "rgba(100, 200, 230, 0.9)", 
+          textShadow: "0 0 15px rgba(100, 200, 230, 0.6), 0 0 30px rgba(100, 200, 230, 0.3)",
+          letterSpacing: '2.5px',
+          textTransform: 'uppercase'
         }}>
           {playerName}
         </div>
@@ -4003,8 +4005,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             <div style={{ 
               fontSize: 18, 
               fontWeight: 800, 
-              color: "rgba(180, 130, 230, 0.9)", 
-              textShadow: `0 0 12px rgba(180, 130, 230, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
+              color: "rgba(255, 100, 80, 0.9)", 
+              textShadow: `0 0 12px rgba(255, 100, 80, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
               fontFamily: 'monospace'
             }}>
               {stats.bestStreak}
@@ -4013,14 +4015,19 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         </div>
       </div>
 
-      {/* Action buttons - more transparent and compact */}
+      {/* Action buttons - almost fully transparent and at bottom */}
       <div style={{ 
+        position: "absolute",
+        bottom: 20,
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "min(85%, 450px)",
         padding: "10px", 
-        background: 'rgba(12, 20, 35, 0.6)',
-        backdropFilter: 'blur(16px)',
+        background: 'rgba(12, 20, 35, 0.15)',
+        backdropFilter: 'blur(8px)',
         borderRadius: '14px',
-        border: '1px solid rgba(100, 180, 230, 0.15)',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(100, 180, 230, 0.08)'
+        border: '1px solid rgba(100, 180, 230, 0.08)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(100, 180, 230, 0.05)'
       }}>
         {saved && (
           <div style={{ 
@@ -4171,7 +4178,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           }}
         />
       )}
-    </>
+    </div>
   );
 };
 
