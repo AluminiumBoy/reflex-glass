@@ -3749,8 +3749,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               fontSize: 11,
               fontWeight: 600,
               color: "rgba(255,255,255,0.9)",
-              background: copied ? "rgba(0, 230, 118, 0.3)" : "linear-gradient(135deg, rgba(100, 80, 255, 0.25) 0%, rgba(150, 100, 255, 0.25) 100%)",
-              border: copied ? "1px solid rgba(0, 230, 118, 0.3)" : "1px solid rgba(150, 100, 255, 0.2)",
+              background: copied ? "rgba(0, 230, 118, 0.3)" : "linear-gradient(135deg, rgba(30, 100, 255, 0.25) 0%, rgba(50, 180, 255, 0.25) 100%)",
+              border: copied ? "1px solid rgba(0, 230, 118, 0.3)" : "1px solid rgba(100, 180, 255, 0.2)",
               borderRadius: 10,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -3764,7 +3764,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             onMouseEnter={(e) => {
               if (!copied) {
                 e.target.style.transform = "translateY(-1px)";
-                e.target.style.boxShadow = "0 4px 16px rgba(150, 100, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)";
+                e.target.style.boxShadow = "0 4px 16px rgba(50, 180, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)";
               }
             }}
             onMouseLeave={(e) => {
