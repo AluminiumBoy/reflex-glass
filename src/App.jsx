@@ -453,7 +453,7 @@ async function genericShare(stats, roast) {
     ctx.shadowBlur = 0;
   };
   
-  drawStat('ACCURACY', `${accuracy}%`, 'rgba(50, 230, 180, 0.9)', centerX - columnWidth, statsY);
+  drawStat('ACCURACY', `${accuracy}%`, 'rgba(100, 280, 180, 0.9)', centerX - columnWidth, statsY);
   drawStat('CORRECT', `${correct}/${total}`, 'rgba(100, 200, 255, 0.9)', centerX, statsY);
   drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', centerX + columnWidth, statsY);
   
