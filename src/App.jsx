@@ -430,30 +430,33 @@ async function genericShare(stats, roast) {
   }
   ctx.shadowBlur = 0;
   
-  // Stats grid - 3 columns matching verdict screen layout exactly
+  // Stats grid - 3 columns matching verdict screen EXACTLY
   const statsY = y + 100;
-  const totalWidth = 1000; // Slightly narrower to fit all stats comfortably
-  const columnWidth = totalWidth / 3; // Equal columns like in verdict screen
-  const startX = centerX - totalWidth / 2; // Start from left edge
   
-  // Helper to draw stat - LEFT aligned to match verdict screen
+  // Match the app's layout: equal columns, left-aligned
+  const totalWidth = 1050;
+  const columnWidth = totalWidth / 3; // ~350px per column
+  const startX = centerX - totalWidth / 2;
+  
+  // Helper to draw stat - matching app's exact sizes with 3x scale
   const drawStat = (label, value, color, columnIndex, y) => {
-    const x = startX + (columnIndex * columnWidth) + 60; // More padding to keep stats visible
+    // Position in column (with padding from left)
+    const x = startX + (columnIndex * columnWidth) + 50;
     
-    // Label
-    ctx.textAlign = 'left'; // LEFT aligned like verdict screen
-    ctx.font = 'bold 20px sans-serif';
+    // Label - app has fontSize: 8, scale 3x = 24px
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 24px sans-serif';
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 8;
     ctx.fillText(label, x, y);
     
-    // Value
-    ctx.font = 'bold 45px monospace';
+    // Value - app has fontSize: 18, scale 3x = 54px
+    ctx.font = 'bold 54px monospace';
     ctx.fillStyle = color;
     ctx.shadowColor = color.replace('0.9)', '0.5)');
     ctx.shadowBlur = 30;
-    ctx.fillText(value, x, y + 50);
+    ctx.fillText(value, x, y + 62); // spacing: marginBottom 4 * 3 = 12, plus font height
     ctx.shadowBlur = 0;
   };
   
