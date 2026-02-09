@@ -4581,7 +4581,9 @@ const Leaderboard = ({ onBack, currentPlayerName }) => {
       gap: 16, 
       maxWidth: 480, 
       margin: "0 auto",
-      padding: 16 
+      padding: 16,
+      maxHeight: "100dvh",
+      overflow: "hidden"
     }}>
       <div style={{ 
         textAlign: "center", 
@@ -4590,7 +4592,8 @@ const Leaderboard = ({ onBack, currentPlayerName }) => {
         background: `linear-gradient(135deg, ${C.nGreen} 0%, ${C.nPurple} 100%)`,
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
-        marginBottom: 8
+        marginBottom: 8,
+        flexShrink: 0
       }}>
         🏆 Leaderboard
       </div>
@@ -4600,14 +4603,22 @@ const Leaderboard = ({ onBack, currentPlayerName }) => {
           Loading...
         </div>
       ) : (
-        <>
+        <div style={{
+          flex: 1,
+          overflowY: "auto",
+          overflowX: "hidden",
+          paddingRight: 4,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16
+        }}>
           {/* Current Player Stats - Show at top if player exists */}
           {playerStats && (
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ flexShrink: 0 }}>
               <div style={{
                 fontSize: 13,
                 fontWeight: 700,
-                color: C.nPurple,
+                color: C.nBlue,
                 marginBottom: 8,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
@@ -4617,22 +4628,22 @@ const Leaderboard = ({ onBack, currentPlayerName }) => {
               </div>
               <div
                 style={{
-                  background: `linear-gradient(135deg, ${C.nPurple}20 0%, ${C.nPurple}08 100%)`,
-                  border: `2px solid ${C.nPurple}`,
+                  background: `linear-gradient(135deg, ${C.nBlue}20 0%, ${C.nBlue}08 100%)`,
+                  border: `2px solid ${C.nBlue}`,
                   borderRadius: 12,
                   padding: "14px 16px",
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
                   backdropFilter: "blur(20px)",
-                  boxShadow: `0 0 25px ${C.nPurple}30`,
+                  boxShadow: `0 0 25px ${C.nBlue}30`,
                 }}
               >
                 <div style={{ 
                   fontSize: 22, 
                   fontWeight: 700,
                   minWidth: 40,
-                  color: C.nPurple,
+                  color: C.nBlue,
                   textAlign: "center"
                 }}>
                   #{playerRank}
@@ -4680,102 +4691,104 @@ const Leaderboard = ({ onBack, currentPlayerName }) => {
           )}
 
           {/* Top 10 Section */}
-          <div style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: C.nGreen,
-            marginBottom: 8,
-            marginTop: playerStats ? 12 : 0,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-            textAlign: "center"
-          }}>
-            Top 10
-          </div>
-
-          {entries.length === 0 ? (
-            <div style={{ 
-              textAlign: "center", 
-              color: "rgba(255,255,255,0.5)", 
-              padding: 40,
-              fontSize: 14
+          <div style={{ flexShrink: 0 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: C.nGreen,
+              marginBottom: 8,
+              marginTop: playerStats ? 4 : 0,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              textAlign: "center"
             }}>
-              No scores yet. Be the first!
+              Top 10
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {entries.map((entry, idx) => (
-                <div
-                  key={entry.name + idx}
-                  style={{
-                    background: C.glass,
-                    border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
-                    borderRadius: 12,
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    backdropFilter: "blur(20px)",
-                    boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none"
-                  }}
-                >
-                  <div style={{ 
-                    fontSize: 20, 
-                    fontWeight: 700,
-                    minWidth: 32,
-                    color: idx === 0 ? C.nGreen : idx === 1 ? C.nPurple : idx === 2 ? C.nBlue : "rgba(255,255,255,0.6)"
-                  }}>
-                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
-                  </div>
-                  <div style={{ flex: 1 }}>
+
+            {entries.length === 0 ? (
+              <div style={{ 
+                textAlign: "center", 
+                color: "rgba(255,255,255,0.5)", 
+                padding: 40,
+                fontSize: 14
+              }}>
+                No scores yet. Be the first!
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {entries.map((entry, idx) => (
+                  <div
+                    key={entry.name + idx}
+                    style={{
+                      background: C.glass,
+                      border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
+                      borderRadius: 12,
+                      padding: "12px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      backdropFilter: "blur(20px)",
+                      boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none"
+                    }}
+                  >
                     <div style={{ 
-                      fontSize: 16, 
-                      fontWeight: 600,
-                      color: "#fff",
-                      marginBottom: 2
-                    }}>
-                      {entry.name}
-                    </div>
-                    <div style={{ 
-                      fontSize: 11, 
-                      color: "rgba(255,255,255,0.5)",
-                      fontFamily: "monospace"
-                    }}>
-                      {entry.games} game{entry.games !== 1 ? "s" : ""} • Best: {entry.bestScore.toLocaleString()}
-                    </div>
-                  </div>
-                  <div style={{ 
-                    textAlign: "right",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2
-                  }}>
-                    <div style={{ 
-                      fontSize: 18, 
+                      fontSize: 20, 
                       fontWeight: 700,
-                      color: C.nGreen
+                      minWidth: 32,
+                      color: idx === 0 ? C.nGreen : idx === 1 ? C.nPurple : idx === 2 ? C.nBlue : "rgba(255,255,255,0.6)"
                     }}>
-                      {entry.totalScore.toLocaleString()}
+                      {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        fontSize: 16, 
+                        fontWeight: 600,
+                        color: "#fff",
+                        marginBottom: 2
+                      }}>
+                        {entry.name}
+                      </div>
+                      <div style={{ 
+                        fontSize: 11, 
+                        color: "rgba(255,255,255,0.5)",
+                        fontFamily: "monospace"
+                      }}>
+                        {entry.games} game{entry.games !== 1 ? "s" : ""} • Best: {entry.bestScore.toLocaleString()}
+                      </div>
                     </div>
                     <div style={{ 
-                      fontSize: 10, 
-                      color: "rgba(255,255,255,0.4)",
-                      fontFamily: "monospace"
+                      textAlign: "right",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2
                     }}>
-                      🔥 {entry.bestStreak}
+                      <div style={{ 
+                        fontSize: 18, 
+                        fontWeight: 700,
+                        color: C.nGreen
+                      }}>
+                        {entry.totalScore.toLocaleString()}
+                      </div>
+                      <div style={{ 
+                        fontSize: 10, 
+                        color: "rgba(255,255,255,0.4)",
+                        fontFamily: "monospace"
+                      }}>
+                        🔥 {entry.bestStreak}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <GlassButton 
         onClick={onBack} 
         color={C.nPurple} 
-        style={{ marginTop: 8 }}
+        style={{ marginTop: 8, flexShrink: 0 }}
       >
         Back
       </GlassButton>
@@ -5313,6 +5326,37 @@ export default function App() {
     
     // Check if user is changing their name (has previous saved name)
     const previousName = localStorage.getItem("reflexGlassPlayerName");
+    
+    // If changing to a different name, check if the new name is available
+    if (tempName.trim().toLowerCase() !== (previousName || "").toLowerCase()) {
+      try {
+        let scores = [];
+        
+        if (db) {
+          const scoresQuery = query(
+            collection(db, "scores"),
+            orderBy("timestamp", "desc")
+          );
+          const querySnapshot = await getDocs(scoresQuery);
+          scores = querySnapshot.docs.map(doc => doc.data());
+        } else {
+          scores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+        }
+        
+        // Check if this username exists (case-insensitive)
+        const normalizedNewName = tempName.trim().toLowerCase();
+        const existingNames = scores
+          .filter(s => s.name && s.name.trim())
+          .map(s => s.name.trim().toLowerCase());
+        
+        if (existingNames.includes(normalizedNewName)) {
+          alert("This username is already taken. Please choose a different one.");
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking username:", err);
+      }
+    }
     
     if (previousName && previousName !== tempName.trim()) {
       // User is changing their name - delete ALL previous scores with old name
