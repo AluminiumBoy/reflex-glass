@@ -440,8 +440,8 @@ async function genericShare(stats, roast) {
   // Stats grid - EXACT match to app's grid layout
   const statsY = y + 150;
   const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
-  const columnWidth = gridWidth / 8;
-  const gridStartX = contentX - gridWidth / 5;
+  const columnWidth = gridWidth / 3;
+  const gridStartX = contentX - gridWidth / 1;
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
