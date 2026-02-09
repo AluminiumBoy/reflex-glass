@@ -453,9 +453,9 @@ async function genericShare(stats, roast) {
     ctx.shadowBlur = 0;
   };
   
-  drawStat('ACCURACY', `${accuracy}%`, 'rgba(100, 230, 180, 0.9)', startX, statsY);
-  drawStat('CORRECT', `${correct}/${total}`, 'rgba(100, 200, 255, 0.9)', startX + columnWidth, statsY);
-  drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', startX + columnWidth * 2, statsY);
+  drawStat('ACCURACY', `${accuracy}%`, 'rgba(100, 230, 180, 0.9)', centerX - columnWidth, statsY);
+  drawStat('CORRECT', `${correct}/${total}`, 'rgba(100, 200, 255, 0.9)', centerX, statsY);
+  drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', centerX + columnWidth, statsY);
   
   // Try Web Share API with image, fallback to clipboard
   const shareText = 
