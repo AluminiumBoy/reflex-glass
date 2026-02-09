@@ -5186,17 +5186,7 @@ export default function App() {
     const previousName = localStorage.getItem("reflexGlassPlayerName");
     
     if (previousName && previousName !== tempName.trim()) {
-      // User is changing their name - warn about stats deletion
-      const confirmChange = window.confirm(
-        `⚠️ WARNING!\n\nYou are currently saved as "${previousName}".\n\nIf you change your name to "${tempName.trim()}", all your previous statistics will be deleted!\n\nAre you sure you want to continue?`
-      );
-      
-      if (!confirmChange) {
-        setTempName(previousName);
-        return;
-      }
-      
-      // User confirmed - delete all previous scores from this device
+      // User is changing their name - automatically delete all previous scores
       try {
         if (db) {
           // Delete from Firebase - all scores with the old name from this device
@@ -5292,7 +5282,7 @@ export default function App() {
               }
             }}
             maxLength={20}
-            disabled={!isEditingName}
+            readOnly={!isEditingName}
             inputMode="text"
             autoComplete="username"
             style={{
@@ -5310,7 +5300,8 @@ export default function App() {
               cursor: isEditingName ? "text" : "default",
               opacity: isEditingName ? 1 : 0.9,
               boxSizing: "border-box",
-              WebkitAppearance: "none"
+              WebkitAppearance: "none",
+              touchAction: "manipulation"
             }}
           />
           {isEditingName ? (
@@ -5332,7 +5323,9 @@ export default function App() {
                   fontSize: 18,
                   fontWeight: 700,
                   opacity: tempName.trim() ? 1 : 0.4,
-                  transition: "all 0.2s"
+                  transition: "all 0.2s",
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation"
                 }}
               >
                 ✓
@@ -5353,7 +5346,9 @@ export default function App() {
                     justifyContent: "center",
                     fontSize: 16,
                     fontWeight: 700,
-                    transition: "all 0.2s"
+                    transition: "all 0.2s",
+                    WebkitTapHighlightColor: "transparent",
+                    touchAction: "manipulation"
                   }}
                 >
                   ✕
@@ -5363,15 +5358,15 @@ export default function App() {
           ) : (
             playerName && (
               <button
-                onClick={() => {
-                  const confirmEdit = window.confirm(
-                    `⚠️ WARNING!\n\nIf you change your name, all your previous statistics will be deleted!\n\nAre you sure you want to edit your name?`
-                  );
-                  
-                  if (confirmEdit) {
-                    setTempName(playerName);
-                    setIsEditingName(true);
-                  }
+                onClick={(e) => {
+                  e.preventDefault();
+                  setTempName(playerName);
+                  setIsEditingName(true);
+                  // Focus input after state update
+                  setTimeout(() => {
+                    const input = document.querySelector('input[type="text"]');
+                    if (input) input.focus();
+                  }, 100);
                 }}
                 style={{
                   position: "absolute",
@@ -5389,7 +5384,9 @@ export default function App() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: 16,
-                  transition: "all 0.2s"
+                  transition: "all 0.2s",
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation"
                 }}
               >
                 ✎
@@ -5397,6 +5394,21 @@ export default function App() {
             )
           )}
         </div>
+        {isEditingName && playerName && (
+          <div style={{
+            fontSize: 10,
+            color: "rgba(255, 180, 100, 0.8)",
+            textAlign: "center",
+            marginTop: 12,
+            lineHeight: 1.4,
+            padding: "8px 12px",
+            background: "rgba(255, 180, 100, 0.1)",
+            borderRadius: 8,
+            border: "1px solid rgba(255, 180, 100, 0.2)"
+          }}>
+            ⚠️ Changing your name will delete all your previous statistics
+          </div>
+        )}
       </GlassPanel>
 
       <GlassButton
