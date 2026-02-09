@@ -438,9 +438,9 @@ async function genericShare(stats, roast) {
   ctx.shadowBlur = 0;
   
   // Stats grid - EXACT match to app's grid layout
-  const statsY = y + 125;
+  const statsY = y + 120;
   const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
-  const columnWidth = gridWidth / 5;
+  const columnWidth = gridWidth / 6;
   const gridStartX = contentX - gridWidth / 5;
   
   // Helper to draw stat - EXACT app proportions
