@@ -382,6 +382,8 @@ async function genericShare(stats, roast) {
   // App uses width: min(85%, 450px), we'll use 450px as base and scale everything
   // Canvas is 1400px wide, so content area should be: 450 * (1400/450) = proportional
   
+  const centerY = 600; // Vertical center position
+  const centerX = 700; // Horizontal center (canvas width / 2)
   const appWidth = 450; // App's content width
   const scale = 1400 / 450; // ~3.11x scale factor
   const contentWidth = 450 * scale; // ~1400px
