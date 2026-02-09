@@ -3468,17 +3468,48 @@ class ChartRenderer {
           if (x === null) break;
           const y = toY(h.price);
 
-          // Pulzáló kör - NINCS LABEL
+          // Profi pulzáló kör - tiszta, éles szélekkel
           const isPulsing = h.pulse === true;
           const pulseScale = isPulsing ? 1 + Math.sin(Date.now() / 300) * 0.15 : 1;
           const radius = (h.radius || 6) * pulseScale;
           
-          ctx.strokeStyle = h.color || C.nGreen;
-          ctx.lineWidth = 2;
-          ctx.globalAlpha = isPulsing ? 0.8 + Math.sin(Date.now() / 300) * 0.2 : 1;
+          // Anti-aliasing bekapcsolása
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // Profi dupla körvonal effekt
+          const color = h.color || C.nGreen;
+          
+          // Külső fénylő kör (glow effect)
+          if (isPulsing) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          
+          // Fő körvonal - vastagabb, professzionálisabb
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          ctx.globalAlpha = isPulsing ? 0.85 + Math.sin(Date.now() / 300) * 0.15 : 1;
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.stroke();
+          
+          // Belső fill - átlátszó
+          ctx.fillStyle = color + '20';
+          ctx.fill();
+          
+          // Belső fehér kiemelés (highlight)
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.6;
+          ctx.beginPath();
+          ctx.arc(x - radius * 0.2, y - radius * 0.2, radius * 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+          
           ctx.globalAlpha = 1;
           break;
         }
@@ -3491,18 +3522,41 @@ class ChartRenderer {
           const y1 = toY(h.startPrice);
           const y2 = toY(h.endPrice);
 
-          ctx.strokeStyle = h.color || C.neut;
-          ctx.lineWidth = h.width || 1.5;
-
+          // Anti-aliasing és simítás
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          const color = h.color || C.neut;
+          
+          // Profi vonal dupla effekttel
+          // Külső glow effect
+          ctx.strokeStyle = color;
+          ctx.lineWidth = (h.width || 1.5) + 2;
+          ctx.globalAlpha = 0.2;
+          
           if (h.dashed || h.style === 'dashed') {
-            ctx.setLineDash([5, 5]);
+            ctx.setLineDash([6, 6]);
           }
-
+          
           ctx.beginPath();
           ctx.moveTo(x1, y1);
           ctx.lineTo(x2, y2);
           ctx.stroke();
+
+          // Fő vonal - élesebb
+          ctx.strokeStyle = color;
+          ctx.lineWidth = h.width || 2;
+          ctx.globalAlpha = 1;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          
           ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
           break;
         }
 
@@ -3515,14 +3569,37 @@ class ChartRenderer {
           const yTop = toY(h.priceTop);
           const yBot = toY(h.priceBot);
 
-          ctx.fillStyle = (h.color || C.nAmber) + '10';
+          // Anti-aliasing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          const color = h.color || C.nAmber;
+
+          // Profi fill gradient háttér
+          const gradient = ctx.createLinearGradient(x1, yTop, x1, yBot);
+          gradient.addColorStop(0, color + '18');
+          gradient.addColorStop(0.5, color + '10');
+          gradient.addColorStop(1, color + '18');
+          ctx.fillStyle = gradient;
           ctx.fillRect(x1, yTop, x2 - x1, yBot - yTop);
 
-          ctx.strokeStyle = h.color || C.nAmber;
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([6, 4]);
+          // Külső glow
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.globalAlpha = 0.15;
+          ctx.setLineDash([8, 5]);
           ctx.strokeRect(x1, yTop, x2 - x1, yBot - yTop);
+
+          // Fő körvonal
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 1;
+          ctx.setLineDash([8, 5]);
+          ctx.lineCap = 'round';
+          ctx.strokeRect(x1, yTop, x2 - x1, yBot - yTop);
+          
           ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
           break;
         }
 
@@ -3535,29 +3612,71 @@ class ChartRenderer {
           const color = h.color || (dirUp ? C.bull : C.bear);
           const size = h.size || 18;
 
+          // Anti-aliasing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+
+          // Glow effect a nyíl mögött
           ctx.strokeStyle = color;
           ctx.fillStyle = color;
-          ctx.lineWidth = 2.5;
-
-          // Szár
+          ctx.lineWidth = 4;
+          ctx.globalAlpha = 0.2;
+          
+          // Szár glow
           ctx.beginPath();
           ctx.moveTo(x, yBase);
-          ctx.lineTo(x, dirUp ? yBase - size * 1.2 : yBase + size * 1.2);
+          ctx.lineTo(x, dirUp ? yBase - size * 1.3 : yBase + size * 1.3);
           ctx.stroke();
 
-          // Nyílhegy
+          // Fő nyílszár - vastagabb, élesebb
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.8;
+          ctx.globalAlpha = 1;
+
+          ctx.beginPath();
+          ctx.moveTo(x, yBase);
+          ctx.lineTo(x, dirUp ? yBase - size * 1.3 : yBase + size * 1.3);
+          ctx.stroke();
+
+          // Profi nyílhegy - simább, szebb geometria
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 1;
+          
           ctx.beginPath();
           if (dirUp) {
-            ctx.moveTo(x - size / 2, yBase - size * 0.6);
-            ctx.lineTo(x, yBase - size * 1.2);
-            ctx.lineTo(x + size / 2, yBase - size * 0.6);
+            // Háromszög alakú nyílhegy fent
+            ctx.moveTo(x, yBase - size * 1.3);
+            ctx.lineTo(x - size * 0.55, yBase - size * 0.7);
+            ctx.lineTo(x + size * 0.55, yBase - size * 0.7);
           } else {
-            ctx.moveTo(x - size / 2, yBase + size * 0.6);
-            ctx.lineTo(x, yBase + size * 1.2);
-            ctx.lineTo(x + size / 2, yBase + size * 0.6);
+            // Háromszög alakú nyílhegy lent
+            ctx.moveTo(x, yBase + size * 1.3);
+            ctx.lineTo(x - size * 0.55, yBase + size * 0.7);
+            ctx.lineTo(x + size * 0.55, yBase + size * 0.7);
           }
           ctx.closePath();
           ctx.fill();
+          
+          // Belső kiemelés a nyílhegyen
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.globalAlpha = 0.6;
+          
+          ctx.beginPath();
+          if (dirUp) {
+            ctx.moveTo(x, yBase - size * 1.3);
+            ctx.lineTo(x - size * 0.3, yBase - size * 0.85);
+            ctx.lineTo(x + size * 0.3, yBase - size * 0.85);
+          } else {
+            ctx.moveTo(x, yBase + size * 1.3);
+            ctx.lineTo(x - size * 0.3, yBase + size * 0.85);
+            ctx.lineTo(x + size * 0.3, yBase + size * 0.85);
+          }
+          ctx.closePath();
+          ctx.fill();
+          
+          ctx.globalAlpha = 1;
           break;
         }
 
