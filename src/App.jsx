@@ -60,7 +60,7 @@ const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
 // Single difficulty mode
-const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 46, cleanRatio: 0.4 };
+const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
 
 const C = {
   nGreen: "#00ffaa",
@@ -533,24 +533,35 @@ function generateAnnotation(structure) {
     case 'bull_flag':
       explanation = isBullish ? 'Equal highs + neckline break → bullish continuation' : 'Pattern detected';
       {
-        // Csak a flag alsó és felső vonala - NINCS label
+        // Find actual flag boundaries more precisely
         const flagStart = safeIdx(-10);
         const flagEnd = safeIdx(-1);
         
+        // Calculate actual highs and lows from the flag candles
+        let flagHighest = -Infinity;
+        let flagLowest = Infinity;
+        for (let i = -10; i <= -1; i++) {
+          const idx = safeIdx(i);
+          flagHighest = Math.max(flagHighest, candles[idx]?.high ?? flagHighest);
+          flagLowest = Math.min(flagLowest, candles[idx]?.low ?? flagLowest);
+        }
+        
+        // Upper resistance line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: getHigh(-9), endIdx: flagEnd, endPrice: getHigh(-2), 
-            color: '#ef4444', width: 1.5, dashed: false }
+          { type: 'line', startIdx: flagStart, startPrice: flagHighest, endIdx: flagEnd, endPrice: flagHighest, 
+            color: '#ef4444', width: 2, dashed: false }
         );
         
+        // Lower support line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: getLow(-9), endIdx: flagEnd, endPrice: getLow(-2), 
-            color: '#10b981', width: 1.5, dashed: false }
+          { type: 'line', startIdx: flagStart, startPrice: flagLowest, endIdx: flagEnd, endPrice: flagLowest, 
+            color: '#10b981', width: 2, dashed: false }
         );
 
-        // Egyetlen felfelé nyíl a kitörésnél - NINCS label
+        // Breakout arrow positioned above the high
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 8, direction: 'up', 
-            color: '#10b981', size: 18 }
+          { type: 'arrow', idx: safeIdx(0), price: flagHighest + 8, direction: 'up', 
+            color: '#10b981', size: 20 }
         );
       }
       break;
@@ -561,19 +572,31 @@ function generateAnnotation(structure) {
         const flagStart = safeIdx(-10);
         const flagEnd = safeIdx(-1);
         
+        // Calculate actual highs and lows from the flag candles
+        let flagHighest = -Infinity;
+        let flagLowest = Infinity;
+        for (let i = -10; i <= -1; i++) {
+          const idx = safeIdx(i);
+          flagHighest = Math.max(flagHighest, candles[idx]?.high ?? flagHighest);
+          flagLowest = Math.min(flagLowest, candles[idx]?.low ?? flagLowest);
+        }
+        
+        // Upper resistance line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: getHigh(-9), endIdx: flagEnd, endPrice: getHigh(-2), 
-            color: '#ef4444', width: 1.5, dashed: false }
+          { type: 'line', startIdx: flagStart, startPrice: flagHighest, endIdx: flagEnd, endPrice: flagHighest, 
+            color: '#ef4444', width: 2, dashed: false }
         );
         
+        // Lower support line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: getLow(-9), endIdx: flagEnd, endPrice: getLow(-2), 
-            color: '#10b981', width: 1.5, dashed: false }
+          { type: 'line', startIdx: flagStart, startPrice: flagLowest, endIdx: flagEnd, endPrice: flagLowest, 
+            color: '#10b981', width: 2, dashed: false }
         );
 
+        // Breakdown arrow positioned below the low
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 8, direction: 'down', 
-            color: '#ef4444', size: 18 }
+          { type: 'arrow', idx: safeIdx(0), price: flagLowest - 8, direction: 'down', 
+            color: '#ef4444', size: 20 }
         );
       }
       break;
@@ -634,33 +657,62 @@ function generateAnnotation(structure) {
     case 'double_bottom':
       explanation = isBullish ? 'Equal lows + neckline break → bullish reversal' : 'Pattern detected';
       {
-        // Két pulzáló pont a mélypontokon - NINCS label
-        const leftIdx = safeIdx(-18);
-        const leftPrice = getLow(-18);
+        // Find actual two lowest points in the pattern range
+        let leftBottomIdx = safeIdx(-18);
+        let leftBottomPrice = getLow(-18);
+        
+        // Scan for actual lowest point in left area
+        for (let i = -20; i <= -12; i++) {
+          const idx = safeIdx(i);
+          const low = candles[idx]?.low ?? Infinity;
+          if (low < leftBottomPrice) {
+            leftBottomPrice = low;
+            leftBottomIdx = idx;
+          }
+        }
+        
+        let rightBottomIdx = safeIdx(-6);
+        let rightBottomPrice = getLow(-6);
+        
+        // Scan for actual lowest point in right area
+        for (let i = -10; i <= -2; i++) {
+          const idx = safeIdx(i);
+          const low = candles[idx]?.low ?? Infinity;
+          if (low < rightBottomPrice) {
+            rightBottomPrice = low;
+            rightBottomIdx = idx;
+          }
+        }
+        
+        // Left bottom circle
         highlights.push(
-          { type: 'circle', idx: leftIdx, price: leftPrice, 
-            radius: 6, color: '#10b981', pulse: true }
+          { type: 'circle', idx: leftBottomIdx, price: leftBottomPrice, 
+            radius: 7, color: '#10b981', pulse: true }
         );
         
-        const rightIdx = safeIdx(-6);
-        const rightPrice = getLow(-6);
+        // Right bottom circle
         highlights.push(
-          { type: 'circle', idx: rightIdx, price: rightPrice, 
-            radius: 6, color: '#10b981', pulse: true }
+          { type: 'circle', idx: rightBottomIdx, price: rightBottomPrice, 
+            radius: 7, color: '#10b981', pulse: true }
         );
         
-        // Vékony neckline - NINCS label
-        const necklinePrice = getHigh(-12);
+        // Neckline - find actual peak between the bottoms
+        let necklinePrice = -Infinity;
+        for (let i = -16; i <= -8; i++) {
+          const idx = safeIdx(i);
+          necklinePrice = Math.max(necklinePrice, candles[idx]?.high ?? necklinePrice);
+        }
+        
         highlights.push(
           { type: 'line', startIdx: safeIdx(-20), startPrice: necklinePrice, 
             endIdx: safeIdx(2), endPrice: necklinePrice, 
-            color: '#fbbf24', dashed: false, width: 1.5 }
+            color: '#fbbf24', dashed: false, width: 2 }
         );
 
-        // Egyetlen felfelé nyíl
+        // Breakout arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
-            color: '#10b981', size: 18 }
+          { type: 'arrow', idx: safeIdx(0), price: necklinePrice + 12, direction: 'up', 
+            color: '#10b981', size: 20 }
         );
       }
       break;
@@ -668,33 +720,62 @@ function generateAnnotation(structure) {
     case 'double_top':
       explanation = isBullish ? 'Pattern detected' : 'Equal highs + neckline break → bearish reversal';
       {
-        // Két pulzáló pont a csúcsokon - NINCS label
-        const leftIdx = safeIdx(-18);
-        const leftPrice = getHigh(-18);
+        // Find actual two highest points in the pattern range
+        let leftTopIdx = safeIdx(-18);
+        let leftTopPrice = getHigh(-18);
+        
+        // Scan for actual highest point in left area
+        for (let i = -20; i <= -12; i++) {
+          const idx = safeIdx(i);
+          const high = candles[idx]?.high ?? -Infinity;
+          if (high > leftTopPrice) {
+            leftTopPrice = high;
+            leftTopIdx = idx;
+          }
+        }
+        
+        let rightTopIdx = safeIdx(-6);
+        let rightTopPrice = getHigh(-6);
+        
+        // Scan for actual highest point in right area
+        for (let i = -10; i <= -2; i++) {
+          const idx = safeIdx(i);
+          const high = candles[idx]?.high ?? -Infinity;
+          if (high > rightTopPrice) {
+            rightTopPrice = high;
+            rightTopIdx = idx;
+          }
+        }
+        
+        // Left top circle
         highlights.push(
-          { type: 'circle', idx: leftIdx, price: leftPrice, 
-            radius: 6, color: '#ef4444', pulse: true }
+          { type: 'circle', idx: leftTopIdx, price: leftTopPrice, 
+            radius: 7, color: '#ef4444', pulse: true }
         );
         
-        const rightIdx = safeIdx(-6);
-        const rightPrice = getHigh(-6);
+        // Right top circle
         highlights.push(
-          { type: 'circle', idx: rightIdx, price: rightPrice, 
-            radius: 6, color: '#ef4444', pulse: true }
+          { type: 'circle', idx: rightTopIdx, price: rightTopPrice, 
+            radius: 7, color: '#ef4444', pulse: true }
         );
         
-        // Vékony neckline - NINCS label
-        const necklinePrice = getLow(-12);
+        // Neckline - find actual trough between the tops
+        let necklinePrice = Infinity;
+        for (let i = -16; i <= -8; i++) {
+          const idx = safeIdx(i);
+          necklinePrice = Math.min(necklinePrice, candles[idx]?.low ?? necklinePrice);
+        }
+        
         highlights.push(
           { type: 'line', startIdx: safeIdx(-20), startPrice: necklinePrice, 
             endIdx: safeIdx(2), endPrice: necklinePrice, 
-            color: '#fbbf24', dashed: false, width: 1.5 }
+            color: '#fbbf24', dashed: false, width: 2 }
         );
 
-        // Egyetlen lefelé nyíl
+        // Breakdown arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
-            color: '#ef4444', size: 18 }
+          { type: 'arrow', idx: safeIdx(0), price: necklinePrice - 12, direction: 'down', 
+            color: '#ef4444', size: 20 }
         );
       }
       break;
@@ -2537,18 +2618,27 @@ class MarketStructureGenerator {
   _trendCandles(startPrice, count, drift, volatility, bullRatio) {
     const candles = [];
     let price = startPrice;
+    let momentum = 0;
 
     for (let i = 0; i < count; i++) {
       const isBull = this.rng() < bullRatio;
-      const bodyPercent = 0.4 + this.rng() * 0.4; // 40-80% of range
+      
+      // Add momentum smoothing for more realistic movement
+      momentum = momentum * 0.7 + (isBull ? 1 : -1) * 0.3;
+      
+      // More varied body sizes - from doji to strong candles
+      const bodyPercent = this.rng() < 0.15 ? 0.1 + this.rng() * 0.2 : 0.5 + this.rng() * 0.4;
       const range = price * volatility;
 
       const open = price;
-      price = price * (1 + drift + (this.rng() - 0.5) * volatility * 0.3);
+      // Smoother price progression with momentum
+      price = price * (1 + drift + momentum * volatility * 0.15 + (this.rng() - 0.5) * volatility * 0.2);
       const close = isBull ? open + range * bodyPercent : open - range * bodyPercent;
 
-      const high = Math.max(open, close) + range * (0.2 + this.rng() * 0.3);
-      const low = Math.min(open, close) - range * (0.2 + this.rng() * 0.3);
+      // More realistic wick sizes - proportional to body
+      const wickMultiplier = bodyPercent < 0.3 ? 0.8 + this.rng() * 0.6 : 0.3 + this.rng() * 0.4;
+      const high = Math.max(open, close) + range * wickMultiplier * (isBull ? 0.6 : 1.0);
+      const low = Math.min(open, close) - range * wickMultiplier * (isBull ? 1.0 : 0.6);
 
       candles.push({ open, high, low, close });
       price = close;
@@ -2595,12 +2685,20 @@ class MarketStructureGenerator {
   _compressionCandles(startPrice, count, baseVol) {
     const candles = [];
     let price = startPrice;
+    let tightness = 0;
 
     for (let i = 0; i < count; i++) {
-      const compressionFactor = 1 - (i / count) * 0.5; // Range decreases
+      // Progressive tightening with exponential curve
+      tightness = Math.pow(i / count, 1.5);
+      const compressionFactor = 1 - tightness * 0.7;
+      
       const isBull = this.rng() < 0.5;
-      const bodySize = price * baseVol * compressionFactor * (0.3 + this.rng() * 0.4);
-      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
+      
+      // Smaller bodies as compression increases
+      const bodySize = price * baseVol * compressionFactor * (0.2 + this.rng() * 0.3);
+      
+      // Wicks get proportionally smaller too
+      const wickSize = bodySize * (0.3 + this.rng() * 0.4) * compressionFactor;
 
       const open = price;
       const close = isBull ? open + bodySize : open - bodySize;
@@ -2608,7 +2706,8 @@ class MarketStructureGenerator {
       const low = Math.min(open, close) - wickSize * this.rng();
 
       candles.push({ open, high, low, close });
-      price = close + (this.rng() - 0.5) * bodySize * 0.2;
+      // Tighter price movement as we compress
+      price = close + (this.rng() - 0.5) * bodySize * 0.15 * compressionFactor;
     }
 
     return candles;
@@ -2700,36 +2799,56 @@ class MarketStructureGenerator {
     const setupLength = 8 + Math.floor(this.rng() * 6);
 
     if (setupType.type === "bullish_continuation") {
-      // Bull flag: tight consolidation after context uptrend
+      // Bull flag: tight horizontal consolidation after context uptrend
+      const flagHigh = startPrice * 1.005;
+      const flagLow = startPrice * 0.995;
+      const channelMid = (flagHigh + flagLow) / 2;
+      
       for (let i = 0; i < setupLength; i++) {
-        const drift = -0.0003; // Slight drift down
-        const vol = 0.006 * (1 - i / setupLength * 0.3); // Tightening
-        const price = startPrice * (1 + drift * i);
+        // Create parallel channel with mean reversion
+        let price = channelMid + (this.rng() - 0.5) * (flagHigh - flagLow) * 0.8;
+        
+        // Progressive tightening
+        const tightnessFactor = 1 - (i / setupLength) * 0.4;
+        const vol = 0.005 * tightnessFactor;
+        
         const isBull = this.rng() < 0.48;
-        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+        const bodySize = price * vol * (0.3 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.5);
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        
+        // Constrain to channel
+        const high = Math.min(Math.max(open, close) + wickSize * this.rng(), flagHigh);
+        const low = Math.max(Math.min(open, close) - wickSize * this.rng(), flagLow);
 
         candles.push({ open, high, low, close });
       }
     } else if (setupType.type === "bearish_continuation") {
-      // Bear flag: tight consolidation after context downtrend
+      // Bear flag: tight horizontal consolidation after context downtrend
+      const flagHigh = startPrice * 1.005;
+      const flagLow = startPrice * 0.995;
+      const channelMid = (flagHigh + flagLow) / 2;
+      
       for (let i = 0; i < setupLength; i++) {
-        const drift = 0.0003; // Slight drift up
-        const vol = 0.006 * (1 - i / setupLength * 0.3);
-        const price = startPrice * (1 + drift * i);
+        // Create parallel channel with mean reversion
+        let price = channelMid + (this.rng() - 0.5) * (flagHigh - flagLow) * 0.8;
+        
+        // Progressive tightening
+        const tightnessFactor = 1 - (i / setupLength) * 0.4;
+        const vol = 0.005 * tightnessFactor;
+        
         const isBull = this.rng() < 0.52;
-        const bodySize = price * vol * (0.4 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
+        const bodySize = price * vol * (0.3 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.5);
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        
+        // Constrain to channel
+        const high = Math.min(Math.max(open, close) + wickSize * this.rng(), flagHigh);
+        const low = Math.max(Math.min(open, close) - wickSize * this.rng(), flagLow);
 
         candles.push({ open, high, low, close });
       }
