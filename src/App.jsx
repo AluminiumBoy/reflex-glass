@@ -345,7 +345,7 @@ async function genericShare(stats, roast) {
   
   // Generate share card matching the verdict screen
   const canvas = document.createElement('canvas');
-  canvas.width = 1200;  // Wider to fit all stats comfortably
+  canvas.width = 1400;  // Wider to fit all stats comfortably
   canvas.height = 1920; // Mobile aspect ratio
   const ctx = canvas.getContext('2d');
   
@@ -386,7 +386,7 @@ async function genericShare(stats, roast) {
   const centerX = 700; // Horizontal center (canvas width / 2)
   const appWidth = 450; // App's content width
   const scale = 1400 / 450; // ~3.11x scale factor
-  const contentWidth = 450 * scale; // ~1400px
+  const contentWidth = 350 * scale; // ~1400px
   const contentX = centerX; // Center horizontally
   
   // Score - matching app's fontSize: 56
