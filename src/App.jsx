@@ -405,7 +405,7 @@ async function genericShare(stats, roast) {
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (120 * scale / 3.11)); // Adjust spacing
+  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (150 * scale / 3.11)); // Adjust spacing
   ctx.shadowBlur = 0;
   
   // Roast - matching app's style
@@ -418,7 +418,7 @@ async function genericShare(stats, roast) {
   const maxWidth = contentWidth * 0.85;
   const words = roast.split(' ');
   let line = '';
-  let y = centerY + 190;
+  let y = centerY + 210;
   const lineHeight = 40;
   
   for (let word of words) {
@@ -441,7 +441,7 @@ async function genericShare(stats, roast) {
   const statsY = y + 150;
   const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
   const columnWidth = gridWidth / 6;
-  const gridStartX = contentX - gridWidth / 6;
+  const gridStartX = contentX - gridWidth / 4.5;
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
@@ -449,7 +449,7 @@ async function genericShare(stats, roast) {
     
     // Label - app fontSize: 8
     ctx.textAlign = 'left';
-    ctx.font = `bold ${8 * scale}px sans-serif`; // 8 * 3.11 = ~25px
+    ctx.font = `bold ${20 * scale}px sans-serif`; // 8 * 3.11 = ~25px
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 8;
