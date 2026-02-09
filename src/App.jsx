@@ -54,8 +54,8 @@ try {
     1  CONSTANTS & COLOR TOKENS
    ═══════════════════════════════════════════════════════════════ */
 
-const ROUNDS = 7;
-const DECISION_MS = 5000; // Increased to 5s for context analysis
+const ROUNDS = 5;
+const DECISION_MS = 3000; // 
 const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
@@ -531,7 +531,9 @@ function generateAnnotation(structure) {
 
   switch (p) {
     case 'bull_flag':
-      explanation = isBullish ? 'Parallel channel consolidation → bullish breakout' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Parallel consolidation channel after uptrend → Controlled pullback maintains structure → Breakout above resistance confirms bullish continuation with volume' : 
+        'Bull flag detected but context suggests caution';
       {
         const flagStart = safeIdx(-12);
         const flagEnd = safeIdx(-1);
@@ -571,7 +573,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bear_flag':
-      explanation = isBullish ? 'Pattern detected' : 'Parallel channel consolidation → bearish breakdown';
+      explanation = isBullish ? 
+        'Bear flag detected but bullish context may invalidate' : 
+        'Parallel channel consolidation after downtrend → Brief counter-rally lacks momentum → Breakdown below support confirms bearish continuation';
       {
         const flagStart = safeIdx(-12);
         const flagEnd = safeIdx(-1);
@@ -611,7 +615,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'ascending_triangle':
-      explanation = isBullish ? 'Rising lows + flat resistance → bullish breakout' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Rising lows show increasing demand → Flat resistance level tested multiple times → Breakout above resistance signals strong bullish momentum with price target = triangle height' : 
+        'Ascending triangle detected but context suggests caution';
       {
         const start = safeIdx(-18);
         const end = safeIdx(0);
@@ -638,7 +644,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'descending_triangle':
-      explanation = isBullish ? 'Pattern detected' : 'Falling highs + flat support → bearish breakdown';
+      explanation = isBullish ? 
+        'Descending triangle detected but bullish context may invalidate' : 
+        'Falling highs show weakening supply → Flat support tested multiple times → Breakdown below support triggers bearish continuation with price target = triangle height';
       {
         const start = safeIdx(-18);
         const end = safeIdx(0);
@@ -664,7 +672,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'double_bottom':
-      explanation = isBullish ? 'Two equal lows + neckline break → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Two equal lows test same support level → "W" formation shows strong demand → Neckline breakout confirms reversal → Price target = pattern height projected upward' : 
+        'Double bottom detected but bearish context may invalidate';
       {
         // Find first bottom in left area (-20 to -11)
         let leftLowIdx = safeIdx(-15);
@@ -726,7 +736,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'double_top':
-      explanation = isBullish ? 'Pattern detected' : 'Two equal highs + neckline break → bearish reversal';
+      explanation = isBullish ? 
+        'Double top detected but bullish context may invalidate' : 
+        'Two equal highs test same resistance level → "M" formation shows supply rejection → Neckline breakdown confirms reversal → Price target = pattern height projected downward';
       {
         // Find first top in left area (-20 to -11)
         let leftHighIdx = safeIdx(-15);
@@ -789,7 +801,9 @@ function generateAnnotation(structure) {
 
     case 'head_and_shoulders':
     case 'head_shoulders':
-      explanation = isBullish ? 'Pattern detected' : 'Left shoulder < Head > Right shoulder → neckline break → bearish reversal';
+      explanation = isBullish ? 
+        'Head and shoulders detected but bullish context may invalidate' : 
+        'Left shoulder: Initial peak and pullback → Head: Higher peak shows weakening momentum → Right shoulder: Lower peak confirms distribution → Neckline break triggers reversal → Target = head-to-neckline distance';
       {
         // Három pulzáló pont - NINCS label, csak kis és nagy különbség jelzi a fejet
         const leftShoulderIdx = safeIdx(-20);
@@ -833,7 +847,9 @@ function generateAnnotation(structure) {
     case 'inverse_h_and_s':
     case 'inverse_hands':
     case 'inverse_h&s':
-      explanation = isBullish ? 'Left shoulder > Head < Right shoulder → neckline break → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Left shoulder: Initial low and bounce → Head: Lower low tests support → Right shoulder: Higher low shows accumulation → Neckline break confirms bullish reversal → Target = head-to-neckline distance' : 
+        'Inverse head and shoulders detected but bearish context may invalidate';
       {
         const leftShoulderIdx = safeIdx(-20);
         const leftShoulderPrice = getLow(-20);
@@ -872,7 +888,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bull_pennant':
-      explanation = isBullish ? 'Converging trendlines + breakout → bullish continuation' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Strong upward move (flagpole) → Converging symmetrical trendlines show consolidation → Price coiling for next move → Breakout continues bullish momentum → Target = flagpole height added to breakout' : 
+        'Bull pennant detected but context suggests caution';
       {
         const start = safeIdx(-12);
         const mid = safeIdx(-6);
@@ -900,7 +918,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bear_pennant':
-      explanation = isBullish ? 'Pattern detected' : 'Converging trendlines + breakdown → bearish continuation';
+      explanation = isBullish ? 
+        'Bear pennant detected but bullish context may invalidate' : 
+        'Strong downward move (flagpole) → Converging symmetrical trendlines show pause → Temporary consolidation before continuation → Breakdown extends bearish momentum → Target = flagpole height subtracted from breakdown';
       {
         const start = safeIdx(-12);
         const end = safeIdx(-1);
@@ -926,7 +946,9 @@ function generateAnnotation(structure) {
 
     case 'rising_wedge_(continuation)':
     case 'rising_wedge_continuation':
-      explanation = isBullish ? 'Narrowing upward channel → breakout → bullish continuation' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Narrowing upward channel within uptrend → Higher lows and higher highs converge → Temporary consolidation → Breakout above upper trendline confirms bullish continuation → Volume expansion on breakout validates move' : 
+        'Rising wedge continuation detected but context suggests caution';
       {
         const start = safeIdx(-16);
         const end = safeIdx(-1);
@@ -952,7 +974,9 @@ function generateAnnotation(structure) {
 
     case 'falling_wedge_(continuation)':
     case 'falling_wedge_continuation':
-      explanation = isBullish ? 'Pattern detected' : 'Narrowing downward channel → breakdown → bearish continuation';
+      explanation = isBullish ? 
+        'Falling wedge continuation detected but context suggests caution' : 
+        'Narrowing downward channel within downtrend → Lower highs and lower lows converge → Controlled selling pressure → Breakdown below lower trendline extends bearish move → Declining volume shows weakening conviction';
       {
         const start = safeIdx(-16);
         const end = safeIdx(-1);
@@ -977,7 +1001,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'ascending_channel':
-      explanation = isBullish ? 'Parallel rising trendlines → channel breakout → bullish move' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Parallel rising trendlines create upward channel → Price bounces between support and resistance → Each swing high and low progressively higher → Breakout above resistance accelerates uptrend → Target = channel width added to breakout' : 
+        'Ascending channel detected but context suggests caution';
       {
         const start = safeIdx(-20);
         const end = safeIdx(-1);
@@ -1004,7 +1030,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'descending_channel':
-      explanation = isBullish ? 'Pattern detected' : 'Parallel falling trendlines → channel breakdown → bearish move';
+      explanation = isBullish ? 
+        'Descending channel detected but bullish context may invalidate' : 
+        'Parallel falling trendlines create downward channel → Price oscillates between declining support and resistance → Each bounce weaker than previous → Breakdown below support extends downtrend → Target = channel width subtracted from breakdown';
       {
         const start = safeIdx(-20);
         const end = safeIdx(-1);
@@ -1030,7 +1058,9 @@ function generateAnnotation(structure) {
 
     case 'cup_and_handle':
     case 'cup_&_handle':
-      explanation = isBullish ? 'Rounded bottom + handle consolidation → breakout → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'U-shaped recovery forms "cup" base → Gradual consolidation shows accumulation → Small pullback forms "handle" → Breakout above handle rim confirms bullish reversal → Target = cup depth added to rim' : 
+        'Cup and handle detected but bearish context may invalidate';
       {
         // Mark the cup bottom
         const cupBottomIdx = safeIdx(-15);
@@ -1057,7 +1087,9 @@ function generateAnnotation(structure) {
 
     case 'inverse_cup_and_handle':
     case 'inverse_cup_&_handle':
-      explanation = isBullish ? 'Pattern detected' : 'Rounded top + handle consolidation → breakdown → bearish reversal';
+      explanation = isBullish ? 
+        'Inverse cup and handle detected but bullish context may invalidate' : 
+        'Inverted U-shaped top forms distribution → Gradual topping shows selling pressure → Small rally forms "handle" → Breakdown below handle confirms bearish reversal → Target = cup height subtracted from breakdown';
       {
         const cupTopIdx = safeIdx(-15);
         highlights.push(
@@ -1082,7 +1114,9 @@ function generateAnnotation(structure) {
 
     case 'falling_wedge_(reversal)':
     case 'falling_wedge_reversal':
-      explanation = isBullish ? 'Narrowing downward wedge → bullish breakout → reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Narrowing downward wedge after downtrend → Lower highs and lows converge → Selling pressure exhausting → Breakout above upper trendline confirms bullish reversal → Volume spike validates breakout' : 
+        'Falling wedge reversal detected but bearish context may invalidate';
       {
         const start = safeIdx(-18);
         const end = safeIdx(-1);
@@ -1108,7 +1142,9 @@ function generateAnnotation(structure) {
 
     case 'rising_wedge_(reversal)':
     case 'rising_wedge_reversal':
-      explanation = isBullish ? 'Pattern detected' : 'Narrowing upward wedge → bearish breakdown → reversal';
+      explanation = isBullish ? 
+        'Rising wedge reversal detected but bullish context may invalidate' : 
+        'Narrowing upward wedge after uptrend → Higher lows and highs converge → Buyers losing momentum despite rising prices → Breakdown below lower trendline confirms bearish reversal → Declining volume shows weakness';
       {
         const start = safeIdx(-18);
         const end = safeIdx(-1);
@@ -1133,7 +1169,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'triple_bottom':
-      explanation = isBullish ? 'Three equal lows + neckline break → strong bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Three equal lows test same support level → Strong base formation shows consistent demand → Multiple failed attempts to break lower → Neckline breakout confirms powerful bullish reversal → Higher conviction than double bottom' : 
+        'Triple bottom detected but bearish context may invalidate';
       {
         const leftIdx = safeIdx(-22);
         highlights.push(
@@ -1168,7 +1206,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'triple_top':
-      explanation = isBullish ? 'Pattern detected' : 'Three equal highs + neckline break → strong bearish reversal';
+      explanation = isBullish ? 
+        'Triple top detected but bullish context may invalidate' : 
+        'Three equal highs test same resistance level → Strong ceiling formation shows consistent supply rejection → Multiple failed breakout attempts → Neckline breakdown confirms powerful bearish reversal → More reliable than double top';
       {
         const leftIdx = safeIdx(-22);
         highlights.push(
@@ -1203,7 +1243,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'rounding_bottom':
-      explanation = isBullish ? 'Smooth U-shaped recovery → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Smooth U-shaped recovery pattern → Gradual shift from selling to buying pressure → No sharp angles - organic accumulation phase → Rounded base shows healthy reversal → Volume increases as price rises from bottom' : 
+        'Rounding bottom detected but bearish context may invalidate';
       {
         const bottomIdx = safeIdx(-12);
         highlights.push(
@@ -1219,7 +1261,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'rounding_top':
-      explanation = isBullish ? 'Pattern detected' : 'Smooth inverted U → bearish reversal';
+      explanation = isBullish ? 
+        'Rounding top detected but bullish context may invalidate' : 
+        'Smooth inverted U-shaped distribution → Gradual shift from buying to selling pressure → No sharp angles - organic distribution phase → Rounded peak shows weakness building → Volume decreases during formation then surges on breakdown';
       {
         const topIdx = safeIdx(-12);
         highlights.push(
@@ -1236,7 +1280,9 @@ function generateAnnotation(structure) {
 
     case 'v-bottom':
     case 'v_bottom':
-      explanation = isBullish ? 'Sharp reversal from low → strong bullish momentum' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Sharp V-shaped reversal from bottom → Panic selling exhausts → Rapid reversal with strong volume → No base formation - immediate momentum shift → High-risk pattern but powerful when validated' : 
+        'V-bottom detected but bearish context may invalidate';
       {
         const vBottomIdx = safeIdx(-5);
         highlights.push(
@@ -1253,7 +1299,9 @@ function generateAnnotation(structure) {
 
     case 'v-top':
     case 'v_top':
-      explanation = isBullish ? 'Pattern detected' : 'Sharp reversal from high → strong bearish momentum';
+      explanation = isBullish ? 
+        'V-top detected but bullish context may invalidate' : 
+        'Sharp inverted V-shaped reversal from peak → Buying climax exhausts → Rapid reversal with heavy selling → No distribution phase - immediate momentum shift → High conviction bearish pattern';
       {
         const vTopIdx = safeIdx(-5);
         highlights.push(
@@ -1269,7 +1317,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bullish_engulfing_pattern':
-      explanation = isBullish ? 'Large bullish candle engulfs prior bearish → reversal signal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Large bullish candle completely engulfs prior bearish body → Shift in sentiment from bears to bulls → Strong buying overwhelms sellers → Best at support levels → Confirms reversal when volume increases' : 
+        'Bullish engulfing detected but bearish context may invalidate';
       {
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
@@ -1279,7 +1329,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bearish_engulfing_pattern':
-      explanation = isBullish ? 'Pattern detected' : 'Large bearish candle engulfs prior bullish → reversal signal';
+      explanation = isBullish ? 
+        'Bearish engulfing detected but bullish context may invalidate' : 
+        'Large bearish candle completely engulfs prior bullish body → Shift from bulls to bears → Strong selling overwhelms buyers → Most effective at resistance levels → Confirms reversal when volume spikes';
       {
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
@@ -1289,7 +1341,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bull_flag_tight':
-      explanation = isBullish ? 'Tight consolidation + volume surge → breakout imminent' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Extremely tight consolidation after uptrend → Compressed volatility → Volume drying up before surge → Coiled spring ready to release → Breakout typically explosive with high volume confirmation' : 
+        'Bull flag tight detected but context suggests caution';
       {
         const flagStart = safeIdx(-8);
         const flagEnd = safeIdx(-1);
@@ -1314,7 +1368,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bear_flag_tight':
-      explanation = isBullish ? 'Pattern detected' : 'Tight consolidation + volume surge → breakdown imminent';
+      explanation = isBullish ? 
+        'Bear flag tight detected but bullish context may invalidate' : 
+        'Extremely tight consolidation after downtrend → Compressed range → Volume contraction before breakdown → Energy building for next leg down → Breakdown typically sharp with volume spike';
       {
         const flagStart = safeIdx(-8);
         const flagEnd = safeIdx(-1);
@@ -1339,7 +1395,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'flat_base_breakout':
-      explanation = isBullish ? 'Extended flat consolidation → volume breakout → bullish move' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Extended flat base consolidation → Range-bound accumulation → Volume decreases during base → Breakout on volume surge confirms continuation → Often precedes strong moves' : 
+        'Flat base breakout detected but context suggests caution';
       {
         const baseStart = safeIdx(-16);
         const baseEnd = safeIdx(-1);
@@ -1365,7 +1423,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'distribution_pattern':
-      explanation = isBullish ? 'Pattern detected' : 'Extended topping + volume decrease → bearish breakdown';
+      explanation = isBullish ? 
+        'Distribution pattern detected but bullish context may invalidate' : 
+        'Extended top formation shows distribution → Volume decreases during topping → Sellers gaining control → Breakdown confirms trend reversal → Measured move target applies';
       {
         const distStart = safeIdx(-16);
         const distEnd = safeIdx(-1);
@@ -1392,7 +1452,9 @@ function generateAnnotation(structure) {
 
     // Classic Candlestick Patterns
     case 'three_white_soldiers':
-      explanation = isBullish ? 'Three consecutive strong bullish candles → powerful uptrend' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Three consecutive strong bullish candles → Each closing near high → Progressive higher closes show conviction → Powerful bullish momentum → Best after downtrend or consolidation' : 
+        'Three white soldiers detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-2), price: getClose(-2), radius: 4, color: '#10b981', pulse: true }
@@ -1411,7 +1473,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'three_black_crows':
-      explanation = isBullish ? 'Pattern detected' : 'Three consecutive strong bearish candles → powerful downtrend';
+      explanation = isBullish ? 
+        'Three black crows detected but bullish context may invalidate' : 
+        'Three consecutive strong bearish candles → Each closing near low → Progressive lower closes confirm selling → Powerful bearish pressure → Most effective after uptrend';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-2), price: getClose(-2), radius: 4, color: '#ef4444', pulse: true }
@@ -1430,7 +1494,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bullish_harami':
-      explanation = isBullish ? 'Small candle inside large bearish → potential bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Small candle contained within prior large bearish candle → Indecision after selling → Potential reversal signal → Confirmation needed on next candle → Volume spike validates reversal' : 
+        'Bullish harami detected but context suggests caution';
       {
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
@@ -1440,7 +1506,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bearish_harami':
-      explanation = isBullish ? 'Pattern detected' : 'Small candle inside large bullish → potential bearish reversal';
+      explanation = isBullish ? 
+        'Bearish harami detected but bullish context may invalidate' : 
+        'Small candle contained within prior large bullish candle → Indecision after buying → Potential distribution → Confirmation needed on next candle → Best at resistance';
       {
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
@@ -1450,7 +1518,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'morning_star':
-      explanation = isBullish ? 'Bearish → small doji → bullish → strong reversal signal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Bearish candle → Small indecision doji/candle → Large bullish candle → Three-candle reversal pattern → Gap down then gap up shows shift → Strong bullish reversal signal' : 
+        'Morning star detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 5, color: '#fbbf24', pulse: true }
@@ -1463,7 +1533,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'evening_star':
-      explanation = isBullish ? 'Pattern detected' : 'Bullish → small doji → bearish → strong reversal signal';
+      explanation = isBullish ? 
+        'Evening star detected but bullish context may invalidate' : 
+        'Bullish candle → Small star/doji at top → Large bearish candle → Three-candle reversal at peak → Gaps show momentum shift → Reliable bearish signal';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 5, color: '#fbbf24', pulse: true }
@@ -1476,7 +1548,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'piercing_pattern':
-      explanation = isBullish ? 'Bullish candle pierces midpoint of prior bearish → reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Bullish candle pierces above midpoint of prior bearish candle → Strong buying pressure → Reversal from downtrend → Best at support levels → Volume confirmation important' : 
+        'Piercing pattern detected but context suggests caution';
       {
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
@@ -1486,7 +1560,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'dark_cloud_cover':
-      explanation = isBullish ? 'Pattern detected' : 'Bearish candle covers midpoint of prior bullish → reversal';
+      explanation = isBullish ? 
+        'Dark cloud cover detected but bullish context may invalidate' : 
+        'Bearish candle opens above prior close and closes below midpoint → Selling pressure overtakes → Distribution signal → Most effective at resistance → Volume validates move';
       {
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
@@ -1496,7 +1572,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'shooting_star':
-      explanation = isBullish ? 'Pattern detected' : 'Long upper wick after uptrend → bearish reversal signal';
+      explanation = isBullish ? 
+        'Shooting star detected but bullish context may invalidate' : 
+        'Long upper wick shows rejection at highs → Small body near low → Failed breakout attempt → Bearish reversal signal after uptrend → Confirmation on next candle';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 5, color: '#ef4444', pulse: true }
@@ -1509,7 +1587,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'hanging_man':
-      explanation = isBullish ? 'Pattern detected' : 'Long lower wick after uptrend → potential bearish reversal';
+      explanation = isBullish ? 
+        'Hanging man detected but bullish context may invalidate' : 
+        'Long lower wick after uptrend tests support → Small body near high → Buyers defended but sellers aggressive → Potential bearish reversal → Needs confirmation';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 5, color: '#ef4444', pulse: true }
@@ -1523,7 +1603,9 @@ function generateAnnotation(structure) {
 
     // Modern Technical Patterns
     case 'darvas_box':
-      explanation = isBullish ? 'Consolidation box + volume breakout → bullish continuation' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Consolidation within rectangular box → Price oscillates in defined range → Volume contracts during consolidation → Breakout above resistance on volume surge → Continuation pattern shows strength' : 
+        'Darvas box detected but context suggests caution';
       {
         const boxStart = safeIdx(-12);
         const boxEnd = safeIdx(-1);
@@ -1550,7 +1632,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'high_tight_flag':
-      explanation = isBullish ? 'Steep rally + tight pullback → explosive breakout potential' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Steep powerful rally creates flagpole → Very tight consolidation lasting 5-15 periods → Minimal pullback shows strong hands → Explosive breakout potential → One of strongest continuation patterns' : 
+        'High tight flag detected but context suggests caution';
       {
         const flagStart = safeIdx(-6);
         const flagEnd = safeIdx(-1);
@@ -1575,7 +1659,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'pocket_pivot':
-      explanation = isBullish ? 'Volume surge above avg on up-day → institutional buying' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Volume surge significantly above average on up-day → Institutional buying likely → Price breaks key resistance → Strong momentum signal → Often precedes sustained moves' : 
+        'Pocket pivot detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 7, color: '#10b981', pulse: true }
@@ -1589,7 +1675,9 @@ function generateAnnotation(structure) {
 
     case 'vcp_(volatility_contraction)':
     case 'vcp_volatility_contraction':
-      explanation = isBullish ? 'Multiple tightening bases → coiling spring → breakout imminent' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Multiple increasingly tight consolidation ranges → Volatility contracting with each base → Coiled spring effect building → Breakout typically violent → High probability setup' : 
+        'VCP detected but context suggests caution';
       {
         highlights.push(
           { type: 'line', startIdx: safeIdx(-16), startPrice: getHigh(-16), 
@@ -1611,7 +1699,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bullish_rectangle':
-      explanation = isBullish ? 'Horizontal consolidation + breakout → continuation' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Horizontal consolidation with flat resistance → Repeated tests weaken resistance → Price coiling under key level → Breakout confirms continuation → Target = rectangle height added to breakout' : 
+        'Bullish rectangle detected but context suggests caution';
       {
         const rectStart = safeIdx(-14);
         const rectEnd = safeIdx(-1);
@@ -1638,7 +1728,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bearish_rectangle':
-      explanation = isBullish ? 'Pattern detected' : 'Horizontal consolidation + breakdown → continuation';
+      explanation = isBullish ? 
+        'Bearish rectangle detected but bullish context may invalidate' : 
+        'Horizontal consolidation with flat support → Multiple support tests show weakness → Price coiling above key level → Breakdown confirms continuation → Target = rectangle height subtracted';
       {
         const rectStart = safeIdx(-14);
         const rectEnd = safeIdx(-1);
@@ -1665,7 +1757,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'broadening_formation':
-      explanation = isBullish ? 'Pattern detected' : 'Expanding volatility → megaphone top → bearish breakdown';
+      explanation = isBullish ? 
+        'Broadening formation detected but bullish context may invalidate' : 
+        'Expanding volatility creates widening range → Higher highs and lower lows → Increasing uncertainty and volatility → Breakdown from megaphone confirms bearish → Classic distribution pattern';
       {
         const start = safeIdx(-18);
         const end = safeIdx(-1);
@@ -1690,7 +1784,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'death_cross_setup':
-      explanation = isBullish ? 'Pattern detected' : 'Short MA crosses below long MA → bearish momentum';
+      explanation = isBullish ? 
+        'Death cross detected but bullish context may invalidate' : 
+        'Short-term MA crosses below long-term MA → Momentum shifting bearish → Trend reversal signal → Lagging indicator but confirms weakness → Works best in trending markets';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-3), price: getClose(-3), radius: 6, color: '#ef4444', pulse: true }
@@ -1704,7 +1800,9 @@ function generateAnnotation(structure) {
 
     // Harmonic Patterns - Bullish
     case 'gartley_bullish':
-      explanation = isBullish ? 'Fibonacci ratios align: XA→AB→BC→CD → bullish reversal zone' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Fibonacci ratios align: XA→AB→BC→CD → Harmonic pattern completion → 61.8% XA retracement → 127.2% BC extension → High-probability bullish reversal zone' : 
+        'Gartley bullish detected but context suggests caution';
       {
         const points = [
           { idx: safeIdx(-20), price: getHigh(-20), label: 'X' },
@@ -1728,7 +1826,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bat_pattern_bullish':
-      explanation = isBullish ? 'Bat harmonic: precise Fib retracement → high-probability reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Bat harmonic pattern → Precise Fibonacci retracements → 88.6% XA retracement critical → Tight stop-loss placement → High win-rate reversal setup' : 
+        'Bat pattern bullish detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#9b7618', pulse: true }
@@ -1751,7 +1851,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'crab_pattern_bullish':
-      explanation = isBullish ? 'Crab harmonic: extreme extension → powerful reversal zone' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Crab harmonic with extreme 161.8% XA extension → Deepest retracement pattern → Powerful reversal potential → Tight PRZ (Potential Reversal Zone) → Best risk-reward ratio' : 
+        'Crab pattern bullish detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-20), price: getHigh(-20), radius: 5, color: '#9b7618', pulse: true }
@@ -1774,7 +1876,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'butterfly_pattern_bullish':
-      explanation = isBullish ? 'Butterfly harmonic: 127.2% extension → reversal imminent' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Butterfly harmonic → 127.2% XA extension target → Wider PRZ than other patterns → Strong reversal signal → Best with volume confirmation' : 
+        'Butterfly pattern bullish detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#9b7618', pulse: true }
@@ -1798,7 +1902,9 @@ function generateAnnotation(structure) {
 
     // Harmonic Patterns - Bearish
     case 'gartley_bearish':
-      explanation = isBullish ? 'Pattern detected' : 'Fibonacci ratios align: XA→AB→BC→CD → bearish reversal zone';
+      explanation = isBullish ? 
+        'Gartley bearish detected but bullish context may invalidate' : 
+        'Fibonacci ratios align: XA→AB→BC→CD → Harmonic pattern completion at resistance → 61.8% XA retracement → 127.2% BC extension → High-probability bearish reversal zone';
       {
         const points = [
           { idx: safeIdx(-20), price: getLow(-20) },
@@ -1822,7 +1928,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'bat_pattern_bearish':
-      explanation = isBullish ? 'Pattern detected' : 'Bat harmonic: precise Fib retracement → high-probability reversal';
+      explanation = isBullish ? 
+        'Bat pattern bearish detected but bullish context may invalidate' : 
+        'Bat harmonic pattern bearish → Precise Fibonacci levels → 88.6% XA retracement at resistance → Tight stop above X → High win-rate distribution setup';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#9b7618', pulse: true }
@@ -1845,7 +1953,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'crab_pattern_bearish':
-      explanation = isBullish ? 'Pattern detected' : 'Crab harmonic: extreme extension → powerful reversal zone';
+      explanation = isBullish ? 
+        'Crab pattern bearish detected but bullish context may invalidate' : 
+        'Crab harmonic bearish with extreme extension → 161.8% XA target → Deepest retracement shows exhaustion → Powerful reversal from highs → Excellent risk-reward';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-20), price: getLow(-20), radius: 5, color: '#9b7618', pulse: true }
@@ -1868,7 +1978,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'butterfly_pattern_bearish':
-      explanation = isBullish ? 'Pattern detected' : 'Butterfly harmonic: 127.2% extension → reversal imminent';
+      explanation = isBullish ? 
+        'Butterfly pattern bearish detected but bullish context may invalidate' : 
+        'Butterfly harmonic bearish → 127.2% XA extension complete → Wider PRZ signals distribution → Strong sell signal → Volume spike confirms';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#9b7618', pulse: true }
@@ -1892,7 +2004,9 @@ function generateAnnotation(structure) {
 
     // Wyckoff Patterns
     case 'wyckoff_spring':
-      explanation = isBullish ? 'False breakdown below support → smart money accumulation → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'False breakdown below support → Stop-loss hunters triggered → Smart money accumulation at lows → Rapid reversal with volume → Bullish continuation confirmed' : 
+        'Wyckoff spring detected but context suggests caution';
       {
         const supportLevel = getLow(-8);
         
@@ -1914,7 +2028,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'wyckoff_upthrust':
-      explanation = isBullish ? 'Pattern detected' : 'False breakout above resistance → smart money distribution → bearish reversal';
+      explanation = isBullish ? 
+        'Wyckoff upthrust detected but bullish context may invalidate' : 
+        'False breakout above resistance → Retail trapped at highs → Smart money distribution → Rapid reversal with selling pressure → Bearish continuation confirmed';
       {
         const resistanceLevel = getHigh(-8);
         
@@ -1937,7 +2053,9 @@ function generateAnnotation(structure) {
 
     // Elliott Wave Patterns
     case 'elliott_wave_5_complete':
-      explanation = isBullish ? 'Wave 5 exhaustion → ABC correction begins → bullish opportunity ahead' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Elliott Wave 5 exhaustion → Corrective ABC wave begins → Wave C completion signals opportunity → New impulse wave forming → Bullish trend resumption ahead' : 
+        'Elliott wave 5 complete detected but context suggests caution';
       {
         const waves = [
           { idx: safeIdx(-20), price: getLow(-20) },
@@ -1963,7 +2081,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'elliott_wave_c_complete':
-      explanation = isBullish ? 'Pattern detected' : 'Wave C exhaustion → new trend begins → bearish opportunity ahead';
+      explanation = isBullish ? 
+        'Elliott wave C complete detected but bullish context may invalidate' : 
+        'Elliott Wave C exhaustion at resistance → Impulse wave complete → Five-wave correction finished → New downtrend beginning → Bearish opportunity confirmed';
       {
         const waves = [
           { idx: safeIdx(-20), price: getHigh(-20) },
@@ -1990,7 +2110,9 @@ function generateAnnotation(structure) {
 
     // Advanced Broadening Wedges
     case 'descending_broadening_wedge':
-      explanation = isBullish ? 'Expanding range with downward bias → breakout → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 
+        'Expanding range with downward bias → Increasing volatility → Lower lows and highs widen → Breakout above upper boundary → Bullish reversal pattern' : 
+        'Descending broadening wedge detected but context suggests caution';
       {
         const start = safeIdx(-18);
         const mid = safeIdx(-9);
@@ -2016,7 +2138,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'ascending_broadening_wedge':
-      explanation = isBullish ? 'Pattern detected' : 'Expanding range with upward bias → breakdown → bearish reversal';
+      explanation = isBullish ? 
+        'Ascending broadening wedge detected but bullish context may invalidate' : 
+        'Expanding range with upward bias → Widening price action → Higher highs and lows diverge → Breakdown below support → Bearish reversal confirmed';
       {
         const start = safeIdx(-18);
         const end = safeIdx(-1);
@@ -2042,7 +2166,9 @@ function generateAnnotation(structure) {
 
     // Scallop Patterns
     case 'inverse_scallop':
-      explanation = isBullish ? 'J-shaped recovery → accelerating momentum → bullish continuation' : 'Pattern detected';
+      explanation = isBullish ? 
+        'J-shaped gradual recovery → Accelerating upward momentum → Volume increasing with price → Smooth curved accumulation → Bullish continuation pattern' : 
+        'Inverse scallop detected but context suggests caution';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-10), price: getLow(-10), radius: 6, color: '#10b981', pulse: true }
@@ -2056,7 +2182,9 @@ function generateAnnotation(structure) {
       break;
 
     case 'scallop_top':
-      explanation = isBullish ? 'Pattern detected' : 'Inverted J-shape → decelerating momentum → bearish reversal';
+      explanation = isBullish ? 
+        'Scallop top detected but bullish context may invalidate' : 
+        'Inverted J-shape at top → Decelerating momentum → Volume decreasing into rollover → Smooth curved distribution → Bearish reversal pattern';
       {
         highlights.push(
           { type: 'circle', idx: safeIdx(-10), price: getHigh(-10), radius: 6, color: '#ef4444', pulse: true }
