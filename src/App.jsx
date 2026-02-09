@@ -405,7 +405,7 @@ async function genericShare(stats, roast) {
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (150 * scale / 3.11)); // Adjust spacing
+  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (120 * scale / 3.11)); // Adjust spacing
   ctx.shadowBlur = 0;
   
   // Roast - matching app's style
@@ -448,7 +448,7 @@ async function genericShare(stats, roast) {
     const x = gridStartX + (columnIndex * columnWidth) + (12 * scale); // App's padding
     
     // Label - app fontSize: 8
-    ctx.textAlign = 'left';
+    ctx.textAlign = 'middle';
     ctx.font = `bold ${8 * scale}px sans-serif`; // 8 * 3.11 = ~25px
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
