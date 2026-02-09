@@ -530,143 +530,15 @@ function generateAnnotation(structure) {
   const getClose = (o) => candles[safeIdx(o)]?.close ?? candles[decisionIndex].close;
 
   switch (p) {
-    // ═══════════════════════════════════════════════════════════════
-    // CONTINUATION PATTERNS - TradingView Style
-    // ═══════════════════════════════════════════════════════════════
-
-    case 'pennant':
-    case 'bull_pennant':
-      explanation = isBullish ? 
-        'Strong upward move (flagpole) → Converging symmetrical trendlines → Coiling energy → Bullish breakout expected' : 
-        'Bull pennant in bearish context - mixed signals';
-      {
-        const start = safeIdx(-14);
-        const apex = safeIdx(-2);
-        
-        // Converging trendlines (white)
-        const upperStart = getHigh(-14);
-        const lowerStart = getLow(-14);
-        const upperEnd = getHigh(-6);
-        const lowerEnd = getLow(-6);
-        
-        // Upper descending line
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: upperStart, 
-            endIdx: apex, endPrice: upperEnd - (upperStart - upperEnd) * 0.5,
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Lower ascending line
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: lowerStart, 
-            endIdx: apex, endPrice: lowerEnd + (lowerEnd - lowerStart) * 0.5,
-            color: '#ffffff', width: 2 }
-        );
-
-        // Breakout arrow up (green)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 10, 
-            direction: 'up', color: '#10b981', size: 20 }
-        );
-        
-        // Breakdown arrow down (red)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-1), price: getLow(-1) - 10, 
-            direction: 'down', color: '#ef4444', size: 20 }
-        );
-      }
-      break;
-
-    case 'megaphone':
-    case 'broadening_formation':
-      explanation = 'Expanding price swings → Increasing volatility → Direction uncertain → High risk pattern';
-      {
-        const start = safeIdx(-18);
-        const end = safeIdx(-1);
-        
-        // Ascending upper line (white)
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
-            endIdx: end, endPrice: getHigh(-1) + 20,
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Descending lower line (white)
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getLow(-18), 
-            endIdx: end, endPrice: getLow(-1) - 20,
-            color: '#ffffff', width: 2 }
-        );
-
-        // Both direction arrows - uncertain outcome
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-6), price: getHigh(-6) + 12, 
-            direction: 'up', color: '#10b981', size: 18 }
-        );
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-3), price: getLow(-3) - 12, 
-            direction: 'down', color: '#ef4444', size: 18 }
-        );
-      }
-      break;
-
-    case 'bearish_flag':
-    case 'bear_flag':
-      explanation = !isBullish ? 
-        'Parallel consolidation after downtrend → Brief rally lacks strength → Bearish continuation expected' : 
-        'Bear flag in bullish context - watch for reversal';
-      {
-        const flagStart = safeIdx(-12);
-        const flagEnd = safeIdx(-1);
-        
-        // Find channel boundaries
-        let channelHigh = -Infinity;
-        let channelLow = Infinity;
-        
-        for (let i = -12; i <= -1; i++) {
-          const idx = safeIdx(i);
-          if (candles[idx]) {
-            channelHigh = Math.max(channelHigh, candles[idx].high);
-            channelLow = Math.min(channelLow, candles[idx].low);
-          }
-        }
-        
-        // Parallel channel lines (white)
-        highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: channelHigh, 
-            endIdx: flagEnd, endPrice: channelHigh, 
-            color: '#ffffff', width: 2 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: channelLow, 
-            endIdx: flagEnd, endPrice: channelLow, 
-            color: '#ffffff', width: 2 }
-        );
-
-        // Breakdown arrow (red)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: channelLow - 10, 
-            direction: 'down', color: '#ef4444', size: 22 }
-        );
-        
-        // Potential breakout (green)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-2), price: channelHigh + 10, 
-            direction: 'up', color: '#10b981', size: 22 }
-        );
-      }
-      break;
-
-    case 'bullish_flag':
     case 'bull_flag':
       explanation = isBullish ? 
-        'Parallel consolidation after uptrend → Controlled pullback → Bullish continuation expected' : 
-        'Bull flag in bearish context - watch for failure';
+        'Parallel consolidation channel after uptrend → Controlled pullback maintains structure → Breakout above resistance confirms bullish continuation with volume' : 
+        'Bull flag detected but context suggests caution';
       {
         const flagStart = safeIdx(-12);
         const flagEnd = safeIdx(-1);
         
+        // Find the actual channel boundaries
         let channelHigh = -Infinity;
         let channelLow = Infinity;
         
@@ -678,352 +550,133 @@ function generateAnnotation(structure) {
           }
         }
         
-        // Parallel lines (white)
+        // Top channel line
         highlights.push(
           { type: 'line', startIdx: flagStart, startPrice: channelHigh, 
             endIdx: flagEnd, endPrice: channelHigh, 
-            color: '#ffffff', width: 2 }
+            color: '#ef4444', width: 2, dashed: false }
         );
         
+        // Bottom channel line
         highlights.push(
           { type: 'line', startIdx: flagStart, startPrice: channelLow, 
             endIdx: flagEnd, endPrice: channelLow, 
-            color: '#ffffff', width: 2 }
+            color: '#10b981', width: 2, dashed: false }
         );
 
-        // Breakout arrow (green)
+        // Breakout arrow
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: channelHigh + 10, 
             direction: 'up', color: '#10b981', size: 22 }
         );
+      }
+      break;
+
+    case 'bear_flag':
+      explanation = isBullish ? 
+        'Bear flag detected but bullish context may invalidate' : 
+        'Parallel channel consolidation after downtrend → Brief counter-rally lacks momentum → Breakdown below support confirms bearish continuation';
+      {
+        const flagStart = safeIdx(-12);
+        const flagEnd = safeIdx(-1);
         
-        // Breakdown warning (red)
+        // Find the actual channel boundaries
+        let channelHigh = -Infinity;
+        let channelLow = Infinity;
+        
+        for (let i = -12; i <= -1; i++) {
+          const idx = safeIdx(i);
+          if (candles[idx]) {
+            channelHigh = Math.max(channelHigh, candles[idx].high);
+            channelLow = Math.min(channelLow, candles[idx].low);
+          }
+        }
+        
+        // Top channel line
         highlights.push(
-          { type: 'arrow', idx: safeIdx(-2), price: channelLow - 10, 
+          { type: 'line', startIdx: flagStart, startPrice: channelHigh, 
+            endIdx: flagEnd, endPrice: channelHigh, 
+            color: '#ef4444', width: 2, dashed: false }
+        );
+        
+        // Bottom channel line
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: channelLow, 
+            endIdx: flagEnd, endPrice: channelLow, 
+            color: '#10b981', width: 2, dashed: false }
+        );
+
+        // Breakdown arrow
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: channelLow - 10, 
             direction: 'down', color: '#ef4444', size: 22 }
-        );
-      }
-      break;
-
-    case 'channel':
-    case 'ascending_channel':
-    case 'bullish_channel':
-      explanation = isBullish ?
-        'Parallel rising trendlines → Higher highs and lows → Trade within channel or breakout' :
-        'Channel in bearish context - breakdown likely';
-      {
-        const start = safeIdx(-20);
-        const end = safeIdx(0);
-        
-        // Parallel ascending lines (white)
-        const slope = (getLow(0) - getLow(-20)) / 20;
-        const channelWidth = getHigh(-10) - getLow(-10);
-        
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getLow(-20), 
-            endIdx: end, endPrice: getLow(0) + slope * 2,
-            color: '#ffffff', width: 2.5 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getLow(-20) + channelWidth, 
-            endIdx: end, endPrice: getLow(0) + channelWidth + slope * 2,
-            color: '#ffffff', width: 2.5 }
-        );
-
-        // Breakout up (green)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 12, 
-            direction: 'up', color: '#10b981', size: 20 }
-        );
-        
-        // Breakdown down (red)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-4), price: getLow(-4) - 12, 
-            direction: 'down', color: '#ef4444', size: 20 }
-        );
-      }
-      break;
-
-    // ═══════════════════════════════════════════════════════════════
-    // NEUTRAL / TRIANGLE PATTERNS
-    // ═══════════════════════════════════════════════════════════════
-
-    case 'symmetrical_triangle':
-      explanation = 'Converging trendlines → Coiling energy → Breakout can go either direction → Volume key';
-      {
-        const start = safeIdx(-18);
-        const apex = safeIdx(-1);
-        
-        // Upper descending line (white)
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
-            endIdx: apex, endPrice: getHigh(-6),
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Lower ascending line (white)
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getLow(-18), 
-            endIdx: apex, endPrice: getLow(-6),
-            color: '#ffffff', width: 2 }
-        );
-
-        // Both direction arrows
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 10, 
-            direction: 'up', color: '#10b981', size: 18 }
-        );
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-1), price: getLow(-1) - 10, 
-            direction: 'down', color: '#ef4444', size: 18 }
-        );
-        
-        // Yellow neutral arrows
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-8), price: getHigh(-8) + 8, 
-            direction: 'up', color: '#fbbf24', size: 16 }
-        );
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-8), price: getLow(-8) - 8, 
-            direction: 'down', color: '#fbbf24', size: 16 }
-        );
-      }
-      break;
-
-    case 'descending_triangle':
-      explanation = !isBullish ? 
-        'Falling highs + flat support → Selling pressure building → Breakdown likely' : 
-        'Descending triangle in bullish context - watch support';
-      {
-        const start = safeIdx(-18);
-        const end = safeIdx(0);
-        
-        // Descending upper line (white)
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
-            endIdx: safeIdx(-2), endPrice: getHigh(-2),
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Flat support line (white)
-        const supportPrice = Math.min(getLow(-15), getLow(-10), getLow(-5));
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: supportPrice, 
-            endIdx: end, endPrice: supportPrice,
-            color: '#ffffff', width: 2 }
-        );
-
-        // Breakdown arrow (red)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: supportPrice - 10, 
-            direction: 'down', color: '#ef4444', size: 18 }
-        );
-        
-        // Breakout arrow (yellow - less likely)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-2), price: getHigh(-2) + 10, 
-            direction: 'up', color: '#fbbf24', size: 16 }
         );
       }
       break;
 
     case 'ascending_triangle':
       explanation = isBullish ? 
-        'Rising lows + flat resistance → Buying pressure building → Breakout likely' : 
-        'Ascending triangle in bearish context - watch resistance';
+        'Rising lows show increasing demand → Flat resistance level tested multiple times → Breakout above resistance signals strong bullish momentum with price target = triangle height' : 
+        'Ascending triangle detected but context suggests caution';
       {
         const start = safeIdx(-18);
         const end = safeIdx(0);
         
-        // Ascending lower line (white)
+        // Emelkedő alsó vonal
         highlights.push(
-          { type: 'line', startIdx: start, startPrice: getLow(-18), 
-            endIdx: safeIdx(-2), endPrice: getLow(-2),
-            color: '#ffffff', width: 2 }
+          { type: 'line', startIdx: start, startPrice: getLow(-18), endIdx: safeIdx(-2), endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5 }
         );
         
-        // Flat resistance line (white)
+        // Lapos felső ellenállás
         const resistancePrice = Math.max(getHigh(-15), getHigh(-10), getHigh(-5));
         highlights.push(
-          { type: 'line', startIdx: start, startPrice: resistancePrice, 
-            endIdx: end, endPrice: resistancePrice,
-            color: '#ffffff', width: 2 }
+          { type: 'line', startIdx: start, startPrice: resistancePrice, endIdx: end, endPrice: resistancePrice, 
+            color: '#ef4444', dashed: true, width: 1.5 }
         );
 
-        // Breakout arrow (green)
+        // Felfelé nyíl
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: resistancePrice + 10, 
-            direction: 'up', color: '#10b981', size: 18 }
-        );
-        
-        // Breakdown arrow (yellow - less likely)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-2), price: getLow(-2) - 10, 
-            direction: 'down', color: '#fbbf24', size: 16 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
         );
       }
       break;
 
-    // ═══════════════════════════════════════════════════════════════
-    // REVERSAL PATTERNS
-    // ═══════════════════════════════════════════════════════════════
-
-    case 'diamond':
-      explanation = 'Expanding then contracting range → Reversal pattern → Volatile breakout expected';
+    case 'descending_triangle':
+      explanation = isBullish ? 
+        'Descending triangle detected but bullish context may invalidate' : 
+        'Falling highs show weakening supply → Flat support tested multiple times → Breakdown below support triggers bearish continuation with price target = triangle height';
       {
-        const start = safeIdx(-20);
-        const mid = safeIdx(-10);
-        const end = safeIdx(-1);
+        const start = safeIdx(-18);
+        const end = safeIdx(0);
         
-        // Left ascending line (white)
+        // Csökkenő felső vonal
         highlights.push(
-          { type: 'line', startIdx: start, startPrice: getLow(-20), 
-            endIdx: mid, endPrice: getLow(-10),
-            color: '#ffffff', width: 2 }
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), endIdx: safeIdx(-2), endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5 }
         );
         
-        // Left descending line (white)
+        // Lapos alsó támasz
+        const supportPrice = Math.min(getLow(-15), getLow(-10), getLow(-5));
         highlights.push(
-          { type: 'line', startIdx: start, startPrice: getHigh(-20), 
-            endIdx: mid, endPrice: getHigh(-10),
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Right descending line (white)
-        highlights.push(
-          { type: 'line', startIdx: mid, startPrice: getHigh(-10), 
-            endIdx: end, endPrice: getHigh(-1),
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Right ascending line (white)
-        highlights.push(
-          { type: 'line', startIdx: mid, startPrice: getLow(-10), 
-            endIdx: end, endPrice: getLow(-1),
-            color: '#ffffff', width: 2 }
+          { type: 'line', startIdx: start, startPrice: supportPrice, endIdx: end, endPrice: supportPrice, 
+            color: '#10b981', dashed: true, width: 1.5 }
         );
 
-        // Both direction arrows
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 10, 
-            direction: 'up', color: '#10b981', size: 18 }
-        );
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(-1), price: getLow(-1) - 10, 
-            direction: 'down', color: '#ef4444', size: 18 }
-        );
-      }
-      break;
-
-    case 'livermore_cylinder':
-    case 'cylinder':
-      explanation = 'Extended consolidation range → Building energy → Strong breakout/breakdown expected';
-      {
-        const start = safeIdx(-20);
-        const end = safeIdx(-1);
-        
-        // Find range boundaries
-        let rangeHigh = -Infinity;
-        let rangeLow = Infinity;
-        
-        for (let i = -20; i <= -1; i++) {
-          const idx = safeIdx(i);
-          if (candles[idx]) {
-            rangeHigh = Math.max(rangeHigh, candles[idx].high);
-            rangeLow = Math.min(rangeLow, candles[idx].low);
-          }
-        }
-        
-        // Horizontal range lines (white)
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: rangeHigh, 
-            endIdx: end, endPrice: rangeHigh,
-            color: '#ffffff', width: 2.5 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: start, startPrice: rangeLow, 
-            endIdx: end, endPrice: rangeLow,
-            color: '#ffffff', width: 2.5 }
-        );
-
-        // Breakout arrow up (green)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: rangeHigh + 12, 
-            direction: 'up', color: '#10b981', size: 22 }
-        );
-      }
-      break;
-
-    case 'double_top':
-      explanation = !isBullish ? 
-        'Two equal highs test resistance → M-pattern → Neckline breakdown triggers reversal' : 
-        'Double top in bullish context - watch for failure';
-      {
-        // Find two tops
-        let leftHighIdx = safeIdx(-15);
-        let leftHighPrice = -Infinity;
-        
-        for (let i = -20; i <= -11; i++) {
-          const idx = safeIdx(i);
-          if (candles[idx] && candles[idx].high > leftHighPrice) {
-            leftHighPrice = candles[idx].high;
-            leftHighIdx = idx;
-          }
-        }
-        
-        let rightHighIdx = safeIdx(-5);
-        let rightHighPrice = -Infinity;
-        
-        for (let i = -10; i <= -1; i++) {
-          const idx = safeIdx(i);
-          if (candles[idx] && candles[idx].high > rightHighPrice) {
-            rightHighPrice = candles[idx].high;
-            rightHighIdx = idx;
-          }
-        }
-        
-        // Mark peaks with circles (white)
-        highlights.push(
-          { type: 'circle', idx: leftHighIdx, price: leftHighPrice, 
-            radius: 8, color: '#ffffff', pulse: true }
-        );
-        
-        highlights.push(
-          { type: 'circle', idx: rightHighIdx, price: rightHighPrice, 
-            radius: 8, color: '#ffffff', pulse: true }
-        );
-        
-        // Neckline
-        let necklinePrice = Infinity;
-        for (let i = -18; i <= -8; i++) {
-          const idx = safeIdx(i);
-          if (candles[idx]) {
-            necklinePrice = Math.min(necklinePrice, candles[idx].low);
-          }
-        }
-        
-        highlights.push(
-          { type: 'line', startIdx: safeIdx(-22), startPrice: necklinePrice, 
-            endIdx: safeIdx(2), endPrice: necklinePrice, 
-            color: '#ffffff', width: 2 }
-        );
-
-        // Breakdown arrow (red)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: necklinePrice - 14, 
-            direction: 'down', color: '#ef4444', size: 22 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
         );
       }
       break;
 
     case 'double_bottom':
       explanation = isBullish ? 
-        'Two equal lows test support → W-pattern → Neckline breakout confirms reversal' : 
-        'Double bottom in bearish context - watch for failure';
+        'Two equal lows test same support level → "W" formation shows strong demand → Neckline breakout confirms reversal → Price target = pattern height projected upward' : 
+        'Double bottom detected but bearish context may invalidate';
       {
-        // Find two bottoms
+        // Find first bottom in left area (-20 to -11)
         let leftLowIdx = safeIdx(-15);
         let leftLowPrice = Infinity;
         
@@ -1035,6 +688,7 @@ function generateAnnotation(structure) {
           }
         }
         
+        // Find second bottom in right area (-10 to -1)
         let rightLowIdx = safeIdx(-5);
         let rightLowPrice = Infinity;
         
@@ -1046,18 +700,18 @@ function generateAnnotation(structure) {
           }
         }
         
-        // Mark bottoms with circles (white)
+        // Mark both bottoms with circles
         highlights.push(
           { type: 'circle', idx: leftLowIdx, price: leftLowPrice, 
-            radius: 8, color: '#ffffff', pulse: true }
+            radius: 8, color: '#10b981', pulse: true }
         );
         
         highlights.push(
           { type: 'circle', idx: rightLowIdx, price: rightLowPrice, 
-            radius: 8, color: '#ffffff', pulse: true }
+            radius: 8, color: '#10b981', pulse: true }
         );
         
-        // Neckline
+        // Find neckline - highest point between the two bottoms
         let necklinePrice = -Infinity;
         for (let i = -18; i <= -8; i++) {
           const idx = safeIdx(i);
@@ -1066,13 +720,14 @@ function generateAnnotation(structure) {
           }
         }
         
+        // Neckline horizontal line
         highlights.push(
           { type: 'line', startIdx: safeIdx(-22), startPrice: necklinePrice, 
             endIdx: safeIdx(2), endPrice: necklinePrice, 
-            color: '#ffffff', width: 2 }
+            color: '#fbbf24', dashed: false, width: 2.5 }
         );
 
-        // Breakout arrow (green)
+        // Breakout arrow
         highlights.push(
           { type: 'arrow', idx: safeIdx(0), price: necklinePrice + 14, 
             direction: 'up', color: '#10b981', size: 22 }
@@ -1080,48 +735,110 @@ function generateAnnotation(structure) {
       }
       break;
 
+    case 'double_top':
+      explanation = isBullish ? 
+        'Double top detected but bullish context may invalidate' : 
+        'Two equal highs test same resistance level → "M" formation shows supply rejection → Neckline breakdown confirms reversal → Price target = pattern height projected downward';
+      {
+        // Find first top in left area (-20 to -11)
+        let leftHighIdx = safeIdx(-15);
+        let leftHighPrice = -Infinity;
+        
+        for (let i = -20; i <= -11; i++) {
+          const idx = safeIdx(i);
+          if (candles[idx] && candles[idx].high > leftHighPrice) {
+            leftHighPrice = candles[idx].high;
+            leftHighIdx = idx;
+          }
+        }
+        
+        // Find second top in right area (-10 to -1)
+        let rightHighIdx = safeIdx(-5);
+        let rightHighPrice = -Infinity;
+        
+        for (let i = -10; i <= -1; i++) {
+          const idx = safeIdx(i);
+          if (candles[idx] && candles[idx].high > rightHighPrice) {
+            rightHighPrice = candles[idx].high;
+            rightHighIdx = idx;
+          }
+        }
+        
+        // Mark both tops with circles
+        highlights.push(
+          { type: 'circle', idx: leftHighIdx, price: leftHighPrice, 
+            radius: 8, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'circle', idx: rightHighIdx, price: rightHighPrice, 
+            radius: 8, color: '#ef4444', pulse: true }
+        );
+        
+        // Find neckline - lowest point between the two tops
+        let necklinePrice = Infinity;
+        for (let i = -18; i <= -8; i++) {
+          const idx = safeIdx(i);
+          if (candles[idx]) {
+            necklinePrice = Math.min(necklinePrice, candles[idx].low);
+          }
+        }
+        
+        // Neckline horizontal line
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-22), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            color: '#fbbf24', dashed: false, width: 2.5 }
+        );
+
+        // Breakdown arrow
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: necklinePrice - 14, 
+            direction: 'down', color: '#ef4444', size: 22 }
+        );
+      }
+      break;
+
     case 'head_and_shoulders':
     case 'head_shoulders':
-    case 'head_and_shoulder':
-      explanation = !isBullish ? 
-        'Left shoulder → Higher head → Lower right shoulder → Neckline break confirms reversal' : 
-        'Head and shoulders in bullish context - pattern may fail';
+      explanation = isBullish ? 
+        'Head and shoulders detected but bullish context may invalidate' : 
+        'Left shoulder: Initial peak and pullback → Head: Higher peak shows weakening momentum → Right shoulder: Lower peak confirms distribution → Neckline break triggers reversal → Target = head-to-neckline distance';
       {
-        // Three peaks with circles (white)
+        // Három pulzáló pont - NINCS label, csak kis és nagy különbség jelzi a fejet
         const leftShoulderIdx = safeIdx(-20);
         const leftShoulderPrice = getHigh(-20);
         highlights.push(
           { type: 'circle', idx: leftShoulderIdx, price: leftShoulderPrice, 
-            radius: 6, color: '#ffffff', pulse: true }
+            radius: 5, color: '#ef4444', pulse: true }
         );
         
         const headIdx = safeIdx(-12);
         const headPrice = getHigh(-12);
         highlights.push(
           { type: 'circle', idx: headIdx, price: headPrice, 
-            radius: 8, color: '#ffffff', pulse: true }
+            radius: 7, color: '#ef4444', pulse: true }
         );
         
         const rightShoulderIdx = safeIdx(-4);
         const rightShoulderPrice = getHigh(-4);
         highlights.push(
           { type: 'circle', idx: rightShoulderIdx, price: rightShoulderPrice, 
-            radius: 6, color: '#ffffff', pulse: true }
+            radius: 5, color: '#ef4444', pulse: true }
         );
         
-        // Neckline (white)
+        // Vékony neckline
         const leftValleyPrice = getLow(-16);
         const rightValleyPrice = getLow(-8);
         highlights.push(
           { type: 'line', startIdx: safeIdx(-24), startPrice: leftValleyPrice, 
             endIdx: safeIdx(2), endPrice: rightValleyPrice, 
-            color: '#ffffff', width: 2 }
+            color: '#fbbf24', dashed: false, width: 1.5 }
         );
 
-        // Breakdown arrow (red)
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, 
-            direction: 'down', color: '#ef4444', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
         );
       }
       break;
@@ -1131,295 +848,1366 @@ function generateAnnotation(structure) {
     case 'inverse_hands':
     case 'inverse_h&s':
       explanation = isBullish ? 
-        'Left shoulder → Lower head → Higher right shoulder → Neckline break confirms reversal' : 
-        'Inverse H&S in bearish context - pattern may fail';
+        'Left shoulder: Initial low and bounce → Head: Lower low tests support → Right shoulder: Higher low shows accumulation → Neckline break confirms bullish reversal → Target = head-to-neckline distance' : 
+        'Inverse head and shoulders detected but bearish context may invalidate';
       {
-        // Three valleys with circles (white)
         const leftShoulderIdx = safeIdx(-20);
         const leftShoulderPrice = getLow(-20);
         highlights.push(
           { type: 'circle', idx: leftShoulderIdx, price: leftShoulderPrice, 
-            radius: 6, color: '#ffffff', pulse: true }
+            radius: 5, color: '#10b981', pulse: true }
         );
         
         const headIdx = safeIdx(-12);
         const headPrice = getLow(-12);
         highlights.push(
           { type: 'circle', idx: headIdx, price: headPrice, 
-            radius: 8, color: '#ffffff', pulse: true }
+            radius: 7, color: '#10b981', pulse: true }
         );
         
         const rightShoulderIdx = safeIdx(-4);
         const rightShoulderPrice = getLow(-4);
         highlights.push(
           { type: 'circle', idx: rightShoulderIdx, price: rightShoulderPrice, 
-            radius: 6, color: '#ffffff', pulse: true }
+            radius: 5, color: '#10b981', pulse: true }
         );
         
-        // Neckline (white)
         const leftPeakPrice = getHigh(-16);
         const rightPeakPrice = getHigh(-8);
         highlights.push(
           { type: 'line', startIdx: safeIdx(-24), startPrice: leftPeakPrice, 
             endIdx: safeIdx(2), endPrice: rightPeakPrice, 
-            color: '#ffffff', width: 2 }
+            color: '#fbbf24', dashed: false, width: 1.5 }
         );
 
-        // Breakout arrow (green)
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, 
-            direction: 'up', color: '#10b981', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bull_pennant':
+      explanation = isBullish ? 
+        'Strong upward move (flagpole) → Converging symmetrical trendlines show consolidation → Price coiling for next move → Breakout continues bullish momentum → Target = flagpole height added to breakout' : 
+        'Bull pennant detected but context suggests caution';
+      {
+        const start = safeIdx(-12);
+        const mid = safeIdx(-6);
+        const end = safeIdx(-1);
+        
+        // Upper converging line
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-12), 
+            endIdx: end, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5, dashed: false }
+        );
+        
+        // Lower converging line
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-12), 
+            endIdx: end, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5, dashed: false }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bear_pennant':
+      explanation = isBullish ? 
+        'Bear pennant detected but bullish context may invalidate' : 
+        'Strong downward move (flagpole) → Converging symmetrical trendlines show pause → Temporary consolidation before continuation → Breakdown extends bearish momentum → Target = flagpole height subtracted from breakdown';
+      {
+        const start = safeIdx(-12);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-12), 
+            endIdx: end, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5, dashed: false }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-12), 
+            endIdx: end, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5, dashed: false }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'rising_wedge_(continuation)':
+    case 'rising_wedge_continuation':
+      explanation = isBullish ? 
+        'Narrowing upward channel within uptrend → Higher lows and higher highs converge → Temporary consolidation → Breakout above upper trendline confirms bullish continuation → Volume expansion on breakout validates move' : 
+        'Rising wedge continuation detected but context suggests caution';
+      {
+        const start = safeIdx(-16);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-16), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-16), 
+            endIdx: end, endPrice: getLow(-1) + (getHigh(-1) - getLow(-1)) * 0.3, 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'falling_wedge_(continuation)':
+    case 'falling_wedge_continuation':
+      explanation = isBullish ? 
+        'Falling wedge continuation detected but context suggests caution' : 
+        'Narrowing downward channel within downtrend → Lower highs and lower lows converge → Controlled selling pressure → Breakdown below lower trendline extends bearish move → Declining volume shows weakening conviction';
+      {
+        const start = safeIdx(-16);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-16), 
+            endIdx: end, endPrice: getHigh(-1) - (getHigh(-1) - getLow(-1)) * 0.3, 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-16), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'ascending_channel':
+      explanation = isBullish ? 
+        'Parallel rising trendlines create upward channel → Price bounces between support and resistance → Each swing high and low progressively higher → Breakout above resistance accelerates uptrend → Target = channel width added to breakout' : 
+        'Ascending channel detected but context suggests caution';
+      {
+        const start = safeIdx(-20);
+        const end = safeIdx(-1);
+        
+        const slope = (getHigh(-1) - getHigh(-20)) / 19;
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-20), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-20), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'descending_channel':
+      explanation = isBullish ? 
+        'Descending channel detected but bullish context may invalidate' : 
+        'Parallel falling trendlines create downward channel → Price oscillates between declining support and resistance → Each bounce weaker than previous → Breakdown below support extends downtrend → Target = channel width subtracted from breakdown';
+      {
+        const start = safeIdx(-20);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-20), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-20), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
         );
       }
       break;
 
     case 'cup_and_handle':
-    case 'cup_handle':
-      explanation = isBullish ?
-        'Rounded bottom (cup) → Brief pullback (handle) → Bullish breakout expected' :
-        'Cup and handle in bearish context';
+    case 'cup_&_handle':
+      explanation = isBullish ? 
+        'U-shaped recovery forms "cup" base → Gradual consolidation shows accumulation → Small pullback forms "handle" → Breakout above handle rim confirms bullish reversal → Target = cup depth added to rim' : 
+        'Cup and handle detected but bearish context may invalidate';
       {
-        const cupStart = safeIdx(-25);
-        const cupBottom = safeIdx(-15);
-        const cupMid = safeIdx(-7);
-        const handleStart = safeIdx(-5);
+        // Mark the cup bottom
+        const cupBottomIdx = safeIdx(-15);
+        highlights.push(
+          { type: 'circle', idx: cupBottomIdx, price: getLow(-15), 
+            radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        // Handle range
+        const handleStart = safeIdx(-8);
         const handleEnd = safeIdx(-1);
-        
-        // Cup curve approximation with line segments (white)
         highlights.push(
-          { type: 'line', startIdx: cupStart, startPrice: getHigh(-25), 
-            endIdx: cupBottom, endPrice: getLow(-15),
-            color: '#ffffff', width: 2 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: cupBottom, startPrice: getLow(-15), 
-            endIdx: cupMid, endPrice: getHigh(-7),
-            color: '#ffffff', width: 2 }
-        );
-        
-        // Handle lines (white)
-        highlights.push(
-          { type: 'line', startIdx: cupMid, startPrice: getHigh(-7), 
-            endIdx: handleStart, endPrice: getLow(-5),
-            color: '#ffffff', width: 2 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: handleStart, startPrice: getLow(-5), 
-            endIdx: handleEnd, endPrice: getHigh(-1),
-            color: '#ffffff', width: 2 }
+          { type: 'line', startIdx: handleStart, startPrice: getHigh(-8), 
+            endIdx: handleEnd, endPrice: getHigh(-2), 
+            color: '#fbbf24', width: 1.5, dashed: true }
         );
 
-        // Mark cup bottom with circle
         highlights.push(
-          { type: 'circle', idx: cupBottom, price: getLow(-15), 
-            radius: 6, color: '#ffffff', pulse: false }
-        );
-
-        // Breakout arrow (green)
-        highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 14, 
-            direction: 'up', color: '#10b981', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
         );
       }
       break;
 
-    // ═══════════════════════════════════════════════════════════════
-    // SPECIAL / HARMONIC PATTERNS
-    // ═══════════════════════════════════════════════════════════════
+    case 'inverse_cup_and_handle':
+    case 'inverse_cup_&_handle':
+      explanation = isBullish ? 
+        'Inverse cup and handle detected but bullish context may invalidate' : 
+        'Inverted U-shaped top forms distribution → Gradual topping shows selling pressure → Small rally forms "handle" → Breakdown below handle confirms bearish reversal → Target = cup height subtracted from breakdown';
+      {
+        const cupTopIdx = safeIdx(-15);
+        highlights.push(
+          { type: 'circle', idx: cupTopIdx, price: getHigh(-15), 
+            radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        const handleStart = safeIdx(-8);
+        const handleEnd = safeIdx(-1);
+        highlights.push(
+          { type: 'line', startIdx: handleStart, startPrice: getLow(-8), 
+            endIdx: handleEnd, endPrice: getLow(-2), 
+            color: '#fbbf24', width: 1.5, dashed: true }
+        );
 
-    case 'falling_wedge':
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
     case 'falling_wedge_(reversal)':
     case 'falling_wedge_reversal':
-      explanation = isBullish ?
-        'Converging descending lines → Selling exhaustion → Bullish breakout expected' :
-        'Falling wedge in bearish context';
+      explanation = isBullish ? 
+        'Narrowing downward wedge after downtrend → Lower highs and lows converge → Selling pressure exhausting → Breakout above upper trendline confirms bullish reversal → Volume spike validates breakout' : 
+        'Falling wedge reversal detected but bearish context may invalidate';
       {
         const start = safeIdx(-18);
         const end = safeIdx(-1);
         
-        // Both lines descending but converging (white)
         highlights.push(
           { type: 'line', startIdx: start, startPrice: getHigh(-18), 
-            endIdx: end, endPrice: getHigh(-1),
-            color: '#ffffff', width: 2 }
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
         );
         
         highlights.push(
           { type: 'line', startIdx: start, startPrice: getLow(-18), 
-            endIdx: end, endPrice: getLow(-1),
-            color: '#ffffff', width: 2 }
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
         );
 
-        // Breakout arrow (green)
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 12, 
-            direction: 'up', color: '#10b981', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
         );
       }
       break;
 
-    case 'rising_wedge':
     case 'rising_wedge_(reversal)':
     case 'rising_wedge_reversal':
-      explanation = !isBullish ?
-        'Converging ascending lines → Buying exhaustion → Bearish breakdown expected' :
-        'Rising wedge in bullish context';
+      explanation = isBullish ? 
+        'Rising wedge reversal detected but bullish context may invalidate' : 
+        'Narrowing upward wedge after uptrend → Higher lows and highs converge → Buyers losing momentum despite rising prices → Breakdown below lower trendline confirms bearish reversal → Declining volume shows weakness';
       {
         const start = safeIdx(-18);
         const end = safeIdx(-1);
         
-        // Both lines ascending but converging (white)
         highlights.push(
           { type: 'line', startIdx: start, startPrice: getHigh(-18), 
-            endIdx: end, endPrice: getHigh(-1),
-            color: '#ffffff', width: 2 }
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
         );
         
         highlights.push(
           { type: 'line', startIdx: start, startPrice: getLow(-18), 
-            endIdx: end, endPrice: getLow(-1),
-            color: '#ffffff', width: 2 }
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
         );
 
-        // Breakdown arrow (red)
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getLow(0) - 12, 
-            direction: 'down', color: '#ef4444', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
         );
       }
       break;
 
-    case 'gartley':
-    case 'gartley_bullish':
-    case 'gartley_bearish':
-      explanation = 'Harmonic pattern → Fibonacci retracements → Reversal zone identified';
+    case 'triple_bottom':
+      explanation = isBullish ? 
+        'Three equal lows test same support level → Strong base formation shows consistent demand → Multiple failed attempts to break lower → Neckline breakout confirms powerful bullish reversal → Higher conviction than double bottom' : 
+        'Triple bottom detected but bearish context may invalidate';
       {
-        // XABCD points
-        const X = safeIdx(-24);
-        const A = safeIdx(-18);
-        const B = safeIdx(-12);
-        const C = safeIdx(-6);
-        const D = safeIdx(-1);
-        
-        // Connect the zigzag pattern (white lines)
+        const leftIdx = safeIdx(-22);
         highlights.push(
-          { type: 'line', startIdx: X, startPrice: getLow(-24), 
-            endIdx: A, endPrice: getHigh(-18),
-            color: '#ffffff', width: 2 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: A, startPrice: getHigh(-18), 
-            endIdx: B, endPrice: getLow(-12),
-            color: '#ffffff', width: 2 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: B, startPrice: getLow(-12), 
-            endIdx: C, endPrice: getHigh(-6),
-            color: '#ffffff', width: 2 }
-        );
-        
-        highlights.push(
-          { type: 'line', startIdx: C, startPrice: getHigh(-6), 
-            endIdx: D, endPrice: getLow(-1),
-            color: '#ffffff', width: 2 }
-        );
-
-        // Mark key points
-        highlights.push(
-          { type: 'circle', idx: X, price: getLow(-24), 
-            radius: 5, color: '#fbbf24', pulse: false }
-        );
-        highlights.push(
-          { type: 'circle', idx: D, price: getLow(-1), 
+          { type: 'circle', idx: leftIdx, price: getLow(-22), 
             radius: 5, color: '#10b981', pulse: true }
         );
-
-        // Expected move arrow
+        
+        const midIdx = safeIdx(-14);
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getLow(0) + 15, 
-            direction: isBullish ? 'up' : 'down', 
-            color: isBullish ? '#10b981' : '#ef4444', size: 18 }
+          { type: 'circle', idx: midIdx, price: getLow(-14), 
+            radius: 5, color: '#10b981', pulse: true }
+        );
+        
+        const rightIdx = safeIdx(-6);
+        highlights.push(
+          { type: 'circle', idx: rightIdx, price: getLow(-6), 
+            radius: 5, color: '#10b981', pulse: true }
+        );
+        
+        const necklinePrice = Math.max(getHigh(-18), getHigh(-10));
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-24), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            color: '#fbbf24', dashed: false, width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
         );
       }
       break;
 
-    case 'cypher':
-    case 'cypher_bullish':
-    case 'cypher_bearish':
-      explanation = 'Advanced harmonic pattern → Precise Fibonacci levels → High probability reversal';
+    case 'triple_top':
+      explanation = isBullish ? 
+        'Triple top detected but bullish context may invalidate' : 
+        'Three equal highs test same resistance level → Strong ceiling formation shows consistent supply rejection → Multiple failed breakout attempts → Neckline breakdown confirms powerful bearish reversal → More reliable than double top';
       {
-        // XABCD cypher pattern
-        const X = safeIdx(-24);
-        const A = safeIdx(-18);
-        const B = safeIdx(-12);
-        const C = safeIdx(-6);
-        const D = safeIdx(-1);
-        
-        // Zigzag connections (white)
+        const leftIdx = safeIdx(-22);
         highlights.push(
-          { type: 'line', startIdx: X, startPrice: getHigh(-24), 
-            endIdx: A, endPrice: getLow(-18),
-            color: '#ffffff', width: 2 }
+          { type: 'circle', idx: leftIdx, price: getHigh(-22), 
+            radius: 5, color: '#ef4444', pulse: true }
         );
         
+        const midIdx = safeIdx(-14);
         highlights.push(
-          { type: 'line', startIdx: A, startPrice: getLow(-18), 
-            endIdx: B, endPrice: getHigh(-12),
-            color: '#ffffff', width: 2 }
+          { type: 'circle', idx: midIdx, price: getHigh(-14), 
+            radius: 5, color: '#ef4444', pulse: true }
         );
         
+        const rightIdx = safeIdx(-6);
         highlights.push(
-          { type: 'line', startIdx: B, startPrice: getHigh(-12), 
-            endIdx: C, endPrice: getLow(-6),
-            color: '#ffffff', width: 2 }
+          { type: 'circle', idx: rightIdx, price: getHigh(-6), 
+            radius: 5, color: '#ef4444', pulse: true }
         );
         
+        const necklinePrice = Math.min(getLow(-18), getLow(-10));
         highlights.push(
-          { type: 'line', startIdx: C, startPrice: getLow(-6), 
-            endIdx: D, endPrice: getHigh(-1),
-            color: '#ffffff', width: 2 }
+          { type: 'line', startIdx: safeIdx(-24), startPrice: necklinePrice, 
+            endIdx: safeIdx(2), endPrice: necklinePrice, 
+            color: '#fbbf24', dashed: false, width: 1.5 }
         );
 
-        // Key points marked
         highlights.push(
-          { type: 'circle', idx: X, price: getHigh(-24), 
-            radius: 5, color: '#fbbf24', pulse: false }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
         );
+      }
+      break;
+
+    case 'rounding_bottom':
+      explanation = isBullish ? 
+        'Smooth U-shaped recovery pattern → Gradual shift from selling to buying pressure → No sharp angles - organic accumulation phase → Rounded base shows healthy reversal → Volume increases as price rises from bottom' : 
+        'Rounding bottom detected but bearish context may invalidate';
+      {
+        const bottomIdx = safeIdx(-12);
         highlights.push(
-          { type: 'circle', idx: D, price: getHigh(-1), 
+          { type: 'circle', idx: bottomIdx, price: getLow(-12), 
+            radius: 7, color: '#10b981', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'rounding_top':
+      explanation = isBullish ? 
+        'Rounding top detected but bullish context may invalidate' : 
+        'Smooth inverted U-shaped distribution → Gradual shift from buying to selling pressure → No sharp angles - organic distribution phase → Rounded peak shows weakness building → Volume decreases during formation then surges on breakdown';
+      {
+        const topIdx = safeIdx(-12);
+        highlights.push(
+          { type: 'circle', idx: topIdx, price: getHigh(-12), 
+            radius: 7, color: '#ef4444', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'v-bottom':
+    case 'v_bottom':
+      explanation = isBullish ? 
+        'Sharp V-shaped reversal from bottom → Panic selling exhausts → Rapid reversal with strong volume → No base formation - immediate momentum shift → High-risk pattern but powerful when validated' : 
+        'V-bottom detected but bearish context may invalidate';
+      {
+        const vBottomIdx = safeIdx(-5);
+        highlights.push(
+          { type: 'circle', idx: vBottomIdx, price: getLow(-5), 
+            radius: 6, color: '#10b981', pulse: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'v-top':
+    case 'v_top':
+      explanation = isBullish ? 
+        'V-top detected but bullish context may invalidate' : 
+        'Sharp inverted V-shaped reversal from peak → Buying climax exhausts → Rapid reversal with heavy selling → No distribution phase - immediate momentum shift → High conviction bearish pattern';
+      {
+        const vTopIdx = safeIdx(-5);
+        highlights.push(
+          { type: 'circle', idx: vTopIdx, price: getHigh(-5), 
             radius: 6, color: '#ef4444', pulse: true }
         );
 
-        // Reversal arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: getHigh(0) + 12, 
-            direction: isBullish ? 'up' : 'down',
-            color: isBullish ? '#10b981' : '#ef4444', size: 18 }
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
         );
       }
       break;
 
-    // ═══════════════════════════════════════════════════════════════
-    // DEFAULT / FALLBACK
-    // ═══════════════════════════════════════════════════════════════
+    case 'bullish_engulfing_pattern':
+      explanation = isBullish ? 
+        'Large bullish candle completely engulfs prior bearish body → Shift in sentiment from bears to bulls → Strong buying overwhelms sellers → Best at support levels → Confirms reversal when volume increases' : 
+        'Bullish engulfing detected but bearish context may invalidate';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bearish_engulfing_pattern':
+      explanation = isBullish ? 
+        'Bearish engulfing detected but bullish context may invalidate' : 
+        'Large bearish candle completely engulfs prior bullish body → Shift from bulls to bears → Strong selling overwhelms buyers → Most effective at resistance levels → Confirms reversal when volume spikes';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bull_flag_tight':
+      explanation = isBullish ? 
+        'Extremely tight consolidation after uptrend → Compressed volatility → Volume drying up before surge → Coiled spring ready to release → Breakout typically explosive with high volume confirmation' : 
+        'Bull flag tight detected but context suggests caution';
+      {
+        const flagStart = safeIdx(-8);
+        const flagEnd = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-7), 
+            endIdx: flagEnd, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-7), 
+            endIdx: flagEnd, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 8, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bear_flag_tight':
+      explanation = isBullish ? 
+        'Bear flag tight detected but bullish context may invalidate' : 
+        'Extremely tight consolidation after downtrend → Compressed range → Volume contraction before breakdown → Energy building for next leg down → Breakdown typically sharp with volume spike';
+      {
+        const flagStart = safeIdx(-8);
+        const flagEnd = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-7), 
+            endIdx: flagEnd, endPrice: getHigh(-2), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-7), 
+            endIdx: flagEnd, endPrice: getLow(-2), 
+            color: '#10b981', width: 1.5 }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 8, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'flat_base_breakout':
+      explanation = isBullish ? 
+        'Extended flat base consolidation → Range-bound accumulation → Volume decreases during base → Breakout on volume surge confirms continuation → Often precedes strong moves' : 
+        'Flat base breakout detected but context suggests caution';
+      {
+        const baseStart = safeIdx(-16);
+        const baseEnd = safeIdx(-1);
+        const basePrice = (getHigh(-8) + getLow(-8)) / 2;
+        
+        highlights.push(
+          { type: 'line', startIdx: baseStart, startPrice: basePrice + basePrice * 0.01, 
+            endIdx: baseEnd, endPrice: basePrice + basePrice * 0.01, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: baseStart, startPrice: basePrice - basePrice * 0.01, 
+            endIdx: baseEnd, endPrice: basePrice - basePrice * 0.01, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'distribution_pattern':
+      explanation = isBullish ? 
+        'Distribution pattern detected but bullish context may invalidate' : 
+        'Extended top formation shows distribution → Volume decreases during topping → Sellers gaining control → Breakdown confirms trend reversal → Measured move target applies';
+      {
+        const distStart = safeIdx(-16);
+        const distEnd = safeIdx(-1);
+        const distPrice = (getHigh(-8) + getLow(-8)) / 2;
+        
+        highlights.push(
+          { type: 'line', startIdx: distStart, startPrice: distPrice + distPrice * 0.015, 
+            endIdx: distEnd, endPrice: distPrice + distPrice * 0.01, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: distStart, startPrice: distPrice - distPrice * 0.01, 
+            endIdx: distEnd, endPrice: distPrice - distPrice * 0.015, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Classic Candlestick Patterns
+    case 'three_white_soldiers':
+      explanation = isBullish ? 
+        'Three consecutive strong bullish candles → Each closing near high → Progressive higher closes show conviction → Powerful bullish momentum → Best after downtrend or consolidation' : 
+        'Three white soldiers detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getClose(-2), radius: 4, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 4, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 4, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'three_black_crows':
+      explanation = isBullish ? 
+        'Three black crows detected but bullish context may invalidate' : 
+        'Three consecutive strong bearish candles → Each closing near low → Progressive lower closes confirm selling → Powerful bearish pressure → Most effective after uptrend';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getClose(-2), radius: 4, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 4, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 4, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bullish_harami':
+      explanation = isBullish ? 
+        'Small candle contained within prior large bearish candle → Indecision after selling → Potential reversal signal → Confirmation needed on next candle → Volume spike validates reversal' : 
+        'Bullish harami detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bearish_harami':
+      explanation = isBullish ? 
+        'Bearish harami detected but bullish context may invalidate' : 
+        'Small candle contained within prior large bullish candle → Indecision after buying → Potential distribution → Confirmation needed on next candle → Best at resistance';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'morning_star':
+      explanation = isBullish ? 
+        'Bearish candle → Small indecision doji/candle → Large bullish candle → Three-candle reversal pattern → Gap down then gap up shows shift → Strong bullish reversal signal' : 
+        'Morning star detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 5, color: '#fbbf24', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'evening_star':
+      explanation = isBullish ? 
+        'Evening star detected but bullish context may invalidate' : 
+        'Bullish candle → Small star/doji at top → Large bearish candle → Three-candle reversal at peak → Gaps show momentum shift → Reliable bearish signal';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-1), price: getClose(-1), radius: 5, color: '#fbbf24', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'piercing_pattern':
+      explanation = isBullish ? 
+        'Bullish candle pierces above midpoint of prior bearish candle → Strong buying pressure → Reversal from downtrend → Best at support levels → Volume confirmation important' : 
+        'Piercing pattern detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'dark_cloud_cover':
+      explanation = isBullish ? 
+        'Dark cloud cover detected but bullish context may invalidate' : 
+        'Bearish candle opens above prior close and closes below midpoint → Selling pressure overtakes → Distribution signal → Most effective at resistance → Volume validates move';
+      {
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'shooting_star':
+      explanation = isBullish ? 
+        'Shooting star detected but bullish context may invalidate' : 
+        'Long upper wick shows rejection at highs → Small body near low → Failed breakout attempt → Bearish reversal signal after uptrend → Confirmation on next candle';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 5, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'hanging_man':
+      explanation = isBullish ? 
+        'Hanging man detected but bullish context may invalidate' : 
+        'Long lower wick after uptrend tests support → Small body near high → Buyers defended but sellers aggressive → Potential bearish reversal → Needs confirmation';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 5, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Modern Technical Patterns
+    case 'darvas_box':
+      explanation = isBullish ? 
+        'Consolidation within rectangular box → Price oscillates in defined range → Volume contracts during consolidation → Breakout above resistance on volume surge → Continuation pattern shows strength' : 
+        'Darvas box detected but context suggests caution';
+      {
+        const boxStart = safeIdx(-12);
+        const boxEnd = safeIdx(-1);
+        const boxHigh = Math.max(...candles.slice(Math.max(0, decisionIndex - 12), decisionIndex).map(c => c.high));
+        const boxLow = Math.min(...candles.slice(Math.max(0, decisionIndex - 12), decisionIndex).map(c => c.low));
+        
+        highlights.push(
+          { type: 'line', startIdx: boxStart, startPrice: boxHigh, 
+            endIdx: boxEnd, endPrice: boxHigh, 
+            color: '#ef4444', width: 2, dashed: false }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: boxStart, startPrice: boxLow, 
+            endIdx: boxEnd, endPrice: boxLow, 
+            color: '#10b981', width: 2, dashed: false }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'high_tight_flag':
+      explanation = isBullish ? 
+        'Steep powerful rally creates flagpole → Very tight consolidation lasting 5-15 periods → Minimal pullback shows strong hands → Explosive breakout potential → One of strongest continuation patterns' : 
+        'High tight flag detected but context suggests caution';
+      {
+        const flagStart = safeIdx(-6);
+        const flagEnd = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getHigh(-5), 
+            endIdx: flagEnd, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: flagStart, startPrice: getLow(-5), 
+            endIdx: flagEnd, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 20 }
+        );
+      }
+      break;
+
+    case 'pocket_pivot':
+      explanation = isBullish ? 
+        'Volume surge significantly above average on up-day → Institutional buying likely → Price breaks key resistance → Strong momentum signal → Often precedes sustained moves' : 
+        'Pocket pivot detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getClose(0), radius: 7, color: '#10b981', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'vcp_(volatility_contraction)':
+    case 'vcp_volatility_contraction':
+      explanation = isBullish ? 
+        'Multiple increasingly tight consolidation ranges → Volatility contracting with each base → Coiled spring effect building → Breakout typically violent → High probability setup' : 
+        'VCP detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: getHigh(-16), 
+            endIdx: safeIdx(-1), endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: getLow(-16), 
+            endIdx: safeIdx(-1), endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bullish_rectangle':
+      explanation = isBullish ? 
+        'Horizontal consolidation with flat resistance → Repeated tests weaken resistance → Price coiling under key level → Breakout confirms continuation → Target = rectangle height added to breakout' : 
+        'Bullish rectangle detected but context suggests caution';
+      {
+        const rectStart = safeIdx(-14);
+        const rectEnd = safeIdx(-1);
+        const rectHigh = Math.max(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.high));
+        const rectLow = Math.min(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.low));
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectHigh, 
+            endIdx: rectEnd, endPrice: rectHigh, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectLow, 
+            endIdx: rectEnd, endPrice: rectLow, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 10, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bearish_rectangle':
+      explanation = isBullish ? 
+        'Bearish rectangle detected but bullish context may invalidate' : 
+        'Horizontal consolidation with flat support → Multiple support tests show weakness → Price coiling above key level → Breakdown confirms continuation → Target = rectangle height subtracted';
+      {
+        const rectStart = safeIdx(-14);
+        const rectEnd = safeIdx(-1);
+        const rectHigh = Math.max(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.high));
+        const rectLow = Math.min(...candles.slice(Math.max(0, decisionIndex - 14), decisionIndex).map(c => c.low));
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectHigh, 
+            endIdx: rectEnd, endPrice: rectHigh, 
+            color: '#ef4444', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: rectStart, startPrice: rectLow, 
+            endIdx: rectEnd, endPrice: rectLow, 
+            color: '#10b981', width: 1.5, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 10, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'broadening_formation':
+      explanation = isBullish ? 
+        'Broadening formation detected but bullish context may invalidate' : 
+        'Expanding volatility creates widening range → Higher highs and lower lows → Increasing uncertainty and volatility → Breakdown from megaphone confirms bearish → Classic distribution pattern';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1), 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1), 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'death_cross_setup':
+      explanation = isBullish ? 
+        'Death cross detected but bullish context may invalidate' : 
+        'Short-term MA crosses below long-term MA → Momentum shifting bearish → Trend reversal signal → Lagging indicator but confirms weakness → Works best in trending markets';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-3), price: getClose(-3), radius: 6, color: '#ef4444', pulse: true }
+        );
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Harmonic Patterns - Bullish
+    case 'gartley_bullish':
+      explanation = isBullish ? 
+        'Fibonacci ratios align: XA→AB→BC→CD → Harmonic pattern completion → 61.8% XA retracement → 127.2% BC extension → High-probability bullish reversal zone' : 
+        'Gartley bullish detected but context suggests caution';
+      {
+        const points = [
+          { idx: safeIdx(-20), price: getHigh(-20), label: 'X' },
+          { idx: safeIdx(-15), price: getLow(-15), label: 'A' },
+          { idx: safeIdx(-10), price: getHigh(-10), label: 'B' },
+          { idx: safeIdx(-5), price: getLow(-5), label: 'C' },
+          { idx: safeIdx(0), price: getLow(0), label: 'D' }
+        ];
+        
+        points.forEach(p => {
+          highlights.push(
+            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#fbbf24', pulse: true }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'bat_pattern_bullish':
+      explanation = isBullish ? 
+        'Bat harmonic pattern → Precise Fibonacci retracements → 88.6% XA retracement critical → Tight stop-loss placement → High win-rate reversal setup' : 
+        'Bat pattern bullish detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'crab_pattern_bullish':
+      explanation = isBullish ? 
+        'Crab harmonic with extreme 161.8% XA extension → Deepest retracement pattern → Powerful reversal potential → Tight PRZ (Potential Reversal Zone) → Best risk-reward ratio' : 
+        'Crab pattern bullish detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-20), price: getHigh(-20), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-14), price: getLow(-14), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-7), price: getHigh(-7), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 16, direction: 'up', 
+            color: '#10b981', size: 20 }
+        );
+      }
+      break;
+
+    case 'butterfly_pattern_bullish':
+      explanation = isBullish ? 
+        'Butterfly harmonic → 127.2% XA extension target → Wider PRZ than other patterns → Strong reversal signal → Best with volume confirmation' : 
+        'Butterfly pattern bullish detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getHigh(-18), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getLow(-12), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getHigh(-6), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getLow(0), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    // Harmonic Patterns - Bearish
+    case 'gartley_bearish':
+      explanation = isBullish ? 
+        'Gartley bearish detected but bullish context may invalidate' : 
+        'Fibonacci ratios align: XA→AB→BC→CD → Harmonic pattern completion at resistance → 61.8% XA retracement → 127.2% BC extension → High-probability bearish reversal zone';
+      {
+        const points = [
+          { idx: safeIdx(-20), price: getLow(-20) },
+          { idx: safeIdx(-15), price: getHigh(-15) },
+          { idx: safeIdx(-10), price: getLow(-10) },
+          { idx: safeIdx(-5), price: getHigh(-5) },
+          { idx: safeIdx(0), price: getHigh(0) }
+        ];
+        
+        points.forEach(p => {
+          highlights.push(
+            { type: 'circle', idx: p.idx, price: p.price, radius: 5, color: '#9b7618', pulse: true }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'bat_pattern_bearish':
+      explanation = isBullish ? 
+        'Bat pattern bearish detected but bullish context may invalidate' : 
+        'Bat harmonic pattern bearish → Precise Fibonacci levels → 88.6% XA retracement at resistance → Tight stop above X → High win-rate distribution setup';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    case 'crab_pattern_bearish':
+      explanation = isBullish ? 
+        'Crab pattern bearish detected but bullish context may invalidate' : 
+        'Crab harmonic bearish with extreme extension → 161.8% XA target → Deepest retracement shows exhaustion → Powerful reversal from highs → Excellent risk-reward';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-20), price: getLow(-20), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-14), price: getHigh(-14), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-7), price: getLow(-7), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 16, direction: 'down', 
+            color: '#ef4444', size: 20 }
+        );
+      }
+      break;
+
+    case 'butterfly_pattern_bearish':
+      explanation = isBullish ? 
+        'Butterfly pattern bearish detected but bullish context may invalidate' : 
+        'Butterfly harmonic bearish → 127.2% XA extension complete → Wider PRZ signals distribution → Strong sell signal → Volume spike confirms';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-18), price: getLow(-18), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-12), price: getHigh(-12), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-6), price: getLow(-6), radius: 5, color: '#9b7618', pulse: true }
+        );
+        highlights.push(
+          { type: 'circle', idx: safeIdx(0), price: getHigh(0), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Wyckoff Patterns
+    case 'wyckoff_spring':
+      explanation = isBullish ? 
+        'False breakdown below support → Stop-loss hunters triggered → Smart money accumulation at lows → Rapid reversal with volume → Bullish continuation confirmed' : 
+        'Wyckoff spring detected but context suggests caution';
+      {
+        const supportLevel = getLow(-8);
+        
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: supportLevel, 
+            endIdx: safeIdx(2), endPrice: supportLevel, 
+            color: '#10b981', width: 2, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getLow(-2), radius: 7, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 20 }
+        );
+      }
+      break;
+
+    case 'wyckoff_upthrust':
+      explanation = isBullish ? 
+        'Wyckoff upthrust detected but bullish context may invalidate' : 
+        'False breakout above resistance → Retail trapped at highs → Smart money distribution → Rapid reversal with selling pressure → Bearish continuation confirmed';
+      {
+        const resistanceLevel = getHigh(-8);
+        
+        highlights.push(
+          { type: 'line', startIdx: safeIdx(-16), startPrice: resistanceLevel, 
+            endIdx: safeIdx(2), endPrice: resistanceLevel, 
+            color: '#ef4444', width: 2, dashed: true }
+        );
+        
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-2), price: getHigh(-2), radius: 7, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 20 }
+        );
+      }
+      break;
+
+    // Elliott Wave Patterns
+    case 'elliott_wave_5_complete':
+      explanation = isBullish ? 
+        'Elliott Wave 5 exhaustion → Corrective ABC wave begins → Wave C completion signals opportunity → New impulse wave forming → Bullish trend resumption ahead' : 
+        'Elliott wave 5 complete detected but context suggests caution';
+      {
+        const waves = [
+          { idx: safeIdx(-20), price: getLow(-20) },
+          { idx: safeIdx(-16), price: getHigh(-16) },
+          { idx: safeIdx(-12), price: getLow(-12) },
+          { idx: safeIdx(-6), price: getHigh(-6) },
+          { idx: safeIdx(0), price: getLow(0) }
+        ];
+        
+        waves.forEach((w, i) => {
+          highlights.push(
+            { type: 'circle', idx: w.idx, price: w.price, 
+              radius: i === waves.length - 1 ? 7 : 4, 
+              color: '#38bdf8', pulse: i === waves.length - 1 }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'elliott_wave_c_complete':
+      explanation = isBullish ? 
+        'Elliott wave C complete detected but bullish context may invalidate' : 
+        'Elliott Wave C exhaustion at resistance → Impulse wave complete → Five-wave correction finished → New downtrend beginning → Bearish opportunity confirmed';
+      {
+        const waves = [
+          { idx: safeIdx(-20), price: getHigh(-20) },
+          { idx: safeIdx(-16), price: getLow(-16) },
+          { idx: safeIdx(-12), price: getHigh(-12) },
+          { idx: safeIdx(-6), price: getLow(-6) },
+          { idx: safeIdx(0), price: getHigh(0) }
+        ];
+        
+        waves.forEach((w, i) => {
+          highlights.push(
+            { type: 'circle', idx: w.idx, price: w.price, 
+              radius: i === waves.length - 1 ? 7 : 4, 
+              color: '#38bdf8', pulse: i === waves.length - 1 }
+          );
+        });
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Advanced Broadening Wedges
+    case 'descending_broadening_wedge':
+      explanation = isBullish ? 
+        'Expanding range with downward bias → Increasing volatility → Lower lows and highs widen → Breakout above upper boundary → Bullish reversal pattern' : 
+        'Descending broadening wedge detected but context suggests caution';
+      {
+        const start = safeIdx(-18);
+        const mid = safeIdx(-9);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1) + (getHigh(-1) - getHigh(-18)) * 0.3, 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1) - (getLow(-18) - getLow(-1)) * 0.3, 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 14, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'ascending_broadening_wedge':
+      explanation = isBullish ? 
+        'Ascending broadening wedge detected but bullish context may invalidate' : 
+        'Expanding range with upward bias → Widening price action → Higher highs and lows diverge → Breakdown below support → Bearish reversal confirmed';
+      {
+        const start = safeIdx(-18);
+        const end = safeIdx(-1);
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getHigh(-18), 
+            endIdx: end, endPrice: getHigh(-1) + (getHigh(-1) - getHigh(-18)) * 0.3, 
+            color: '#ef4444', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'line', startIdx: start, startPrice: getLow(-18), 
+            endIdx: end, endPrice: getLow(-1) - (getLow(-18) - getLow(-1)) * 0.3, 
+            color: '#10b981', width: 1.5 }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 14, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
+
+    // Scallop Patterns
+    case 'inverse_scallop':
+      explanation = isBullish ? 
+        'J-shaped gradual recovery → Accelerating upward momentum → Volume increasing with price → Smooth curved accumulation → Bullish continuation pattern' : 
+        'Inverse scallop detected but context suggests caution';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-10), price: getLow(-10), radius: 6, color: '#10b981', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) + 12, direction: 'up', 
+            color: '#10b981', size: 18 }
+        );
+      }
+      break;
+
+    case 'scallop_top':
+      explanation = isBullish ? 
+        'Scallop top detected but bullish context may invalidate' : 
+        'Inverted J-shape at top → Decelerating momentum → Volume decreasing into rollover → Smooth curved distribution → Bearish reversal pattern';
+      {
+        highlights.push(
+          { type: 'circle', idx: safeIdx(-10), price: getHigh(-10), radius: 6, color: '#ef4444', pulse: true }
+        );
+        
+        highlights.push(
+          { type: 'arrow', idx: safeIdx(0), price: getClose(0) - 12, direction: 'down', 
+            color: '#ef4444', size: 18 }
+        );
+      }
+      break;
 
     default:
-      explanation = `Pattern: ${pattern} → Direction: ${signal}`;
-      // Generic annotation - decision point arrow
+      explanation = isBullish ? 'Bullish pattern detected' : 'Bearish pattern detected';
       highlights.push(
-        { type: 'arrow', idx: safeIdx(0), price: isBullish ? getHigh(0) + 10 : getLow(0) - 10, 
-          direction: isBullish ? 'up' : 'down', 
+        { type: 'arrow', idx: safeIdx(0), price: getClose(0) + (isBullish ? 12 : -12), 
+          direction: isBullish ? 'up' : 'down',
           color: isBullish ? '#10b981' : '#ef4444', size: 18 }
       );
   }
 
   return { pattern, explanation, highlights };
 }
-
 /* ═══════════════════════════════════════════════════════════════
     5  MARKET STRUCTURE GENERATOR
     
