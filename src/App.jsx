@@ -430,14 +430,18 @@ async function genericShare(stats, roast) {
   }
   ctx.shadowBlur = 0;
   
-  // Stats grid - 3 columns with more spacing
+  // Stats grid - 3 columns matching verdict screen layout exactly
   const statsY = y + 100;
-  const columnWidth = 420; // Wider columns
-  const startX = centerX - columnWidth * 1.5 + columnWidth / 2;
+  const totalWidth = 1100; // Total width for stats area
+  const columnWidth = totalWidth / 3; // Equal columns like in verdict screen
+  const startX = centerX - totalWidth / 2; // Start from left edge
   
-  // Helper to draw stat (text already center-aligned from ctx.textAlign = 'center' on line 386)
-  const drawStat = (label, value, color, x, y) => {
+  // Helper to draw stat - LEFT aligned to match verdict screen
+  const drawStat = (label, value, color, columnIndex, y) => {
+    const x = startX + (columnIndex * columnWidth) + 40; // 40px padding from left edge of column
+    
     // Label
+    ctx.textAlign = 'left'; // LEFT aligned like verdict screen
     ctx.font = 'bold 20px sans-serif';
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
@@ -453,9 +457,9 @@ async function genericShare(stats, roast) {
     ctx.shadowBlur = 0;
   };
   
-  drawStat('ACCURACY', `${accuracy}%`, 'rgba(100, 280, 180, 0.9)', centerX - columnWidth, statsY);
-  drawStat('CORRECT', `${correct}/${total}`, 'rgba(100, 200, 255, 0.9)', centerX, statsY);
-  drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', centerX + columnWidth, statsY);
+  drawStat('ACCURACY', `${accuracy}%`, 'rgba(100, 230, 180, 0.9)', 0, statsY);
+  drawStat('CORRECT', `${correct}/${total}`, 'rgba(100, 200, 255, 0.9)', 1, statsY);
+  drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', 2, statsY);
   
   // Try Web Share API with image, fallback to clipboard
   const shareText = 
