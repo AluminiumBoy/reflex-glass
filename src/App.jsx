@@ -5434,7 +5434,7 @@ export default function App() {
         </div>
       </div>
 
-      <GlassPanel style={{ padding: "20px 16px", maxWidth: 380, width: "80%" }}>
+      <GlassPanel style={{ padding: "20px 16px", maxWidth: 380, width: "90%" }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: 16 }}>
         Master pattern recognition in realistic market conditions.  
         Learn when to trade and when to wait.  
