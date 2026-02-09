@@ -432,13 +432,13 @@ async function genericShare(stats, roast) {
   
   // Stats grid - 3 columns matching verdict screen layout exactly
   const statsY = y + 100;
-  const totalWidth = 1100; // Total width for stats area
+  const totalWidth = 1000; // Slightly narrower to fit all stats comfortably
   const columnWidth = totalWidth / 3; // Equal columns like in verdict screen
   const startX = centerX - totalWidth / 2; // Start from left edge
   
   // Helper to draw stat - LEFT aligned to match verdict screen
   const drawStat = (label, value, color, columnIndex, y) => {
-    const x = startX + (columnIndex * columnWidth) + 40; // 40px padding from left edge of column
+    const x = startX + (columnIndex * columnWidth) + 60; // More padding to keep stats visible
     
     // Label
     ctx.textAlign = 'left'; // LEFT aligned like verdict screen
