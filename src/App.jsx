@@ -345,7 +345,7 @@ async function genericShare(stats, roast) {
   
   // Generate share card matching the verdict screen
   const canvas = document.createElement('canvas');
-  canvas.width = 1080;  // Higher resolution for better quality
+  canvas.width = 1400;  // Wider to fit all stats comfortably
   canvas.height = 1920; // Mobile aspect ratio
   const ctx = canvas.getContext('2d');
   
@@ -361,25 +361,26 @@ async function genericShare(stats, roast) {
     });
     
     // Draw background
-    ctx.drawImage(bgImage, 0, 0, 1080, 1920);
+    ctx.drawImage(bgImage, 0, 0, 1400, 1920);
     
     // Add semi-transparent overlay for better text readability
     ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.fillRect(0, 0, 1080, 1920);
+    ctx.fillRect(0, 0, 1400, 1920);
     
   } catch (err) {
     console.log('Background image failed to load, using gradient fallback');
     // Fallback gradient if background.png fails
-    const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
+    const gradient = ctx.createLinearGradient(0, 0, 1400, 1920);
     gradient.addColorStop(0, '#0f1a2e');
     gradient.addColorStop(0.5, '#06060c');
     gradient.addColorStop(1, '#0f0f1a');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 1080, 1920);
+    ctx.fillRect(0, 0, 1400, 1920);
   }
   
   // Center everything at Y: 600 (matching the verdict screen position)
   const centerY = 600;
+  const centerX = 700; // Canvas center
   
   // Score - large blue glowing number
   ctx.textAlign = 'center';
@@ -388,7 +389,7 @@ async function genericShare(stats, roast) {
   ctx.shadowColor = 'rgba(100, 180, 255, 0.7)';
   ctx.shadowBlur = 60;
   ctx.fillStyle = 'rgba(150, 200, 255, 0.95)';
-  ctx.fillText(totalScore.toLocaleString(), 540, centerY);
+  ctx.fillText(totalScore.toLocaleString(), centerX, centerY);
   ctx.shadowBlur = 0;
   
   // Player name (if available from window context) - small blue text
@@ -397,7 +398,7 @@ async function genericShare(stats, roast) {
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), 540, centerY + 100);
+  ctx.fillText(playerName.toUpperCase(), centerX, centerY + 100);
   ctx.shadowBlur = 0;
   
   // Roast - italic, smaller, dimmer
@@ -407,7 +408,7 @@ async function genericShare(stats, roast) {
   ctx.shadowBlur = 15;
   
   // Word wrap roast
-  const maxWidth = 900;
+  const maxWidth = 1100;
   const words = roast.split(' ');
   let line = '';
   let y = centerY + 180;
@@ -417,7 +418,7 @@ async function genericShare(stats, roast) {
     const testLine = line + word + ' ';
     const metrics = ctx.measureText(testLine);
     if (metrics.width > maxWidth && line !== '') {
-      ctx.fillText(`"${line.trim()}"`, 540, y);
+      ctx.fillText(`"${line.trim()}"`, centerX, y);
       line = word + ' ';
       y += lineHeight;
     } else {
@@ -425,14 +426,14 @@ async function genericShare(stats, roast) {
     }
   }
   if (line.trim()) {
-    ctx.fillText(`"${line.trim()}"`, 540, y);
+    ctx.fillText(`"${line.trim()}"`, centerX, y);
   }
   ctx.shadowBlur = 0;
   
-  // Stats grid - 3 columns
+  // Stats grid - 3 columns with more spacing
   const statsY = y + 100;
-  const columnWidth = 360;
-  const startX = 540 - columnWidth * 1.5 + columnWidth / 2;
+  const columnWidth = 420; // Wider columns
+  const startX = centerX - columnWidth * 1.5 + columnWidth / 2;
   
   // Helper to draw stat
   const drawStat = (label, value, color, x, y) => {
