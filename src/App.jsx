@@ -3542,12 +3542,13 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 
   useEffect(() => {
     const saveScore = async () => {
-      if (!playerName || saved) return;
+      // Validate playerName properly - check for empty string and whitespace
+      if (!playerName || !playerName.trim() || saved) return;
       
       try {
         const timestamp = Date.now();
         const scoreData = {
-          name: playerName,
+          name: playerName.trim(), // Ensure trimmed name is saved
           score: stats.totalScore,
           streak: stats.bestStreak,
           accuracy: stats.accuracy,
@@ -3573,7 +3574,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         // Try localStorage as fallback
         try {
           const scoreData = {
-            name: playerName,
+            name: playerName.trim(), // Ensure trimmed name in fallback too
             score: stats.totalScore,
             streak: stats.bestStreak,
             accuracy: stats.accuracy,
@@ -4472,19 +4473,24 @@ const Leaderboard = ({ onBack }) => {
       const aggregated = {};
       
       scores.forEach(score => {
-        if (!aggregated[score.name]) {
-          aggregated[score.name] = {
-            name: score.name,
+        // Skip entries with invalid names (null, undefined, empty, or whitespace-only)
+        if (!score.name || !score.name.trim()) return;
+        
+        const playerName = score.name.trim();
+        
+        if (!aggregated[playerName]) {
+          aggregated[playerName] = {
+            name: playerName,
             totalScore: 0,
             games: 0,
             bestScore: 0,
             bestStreak: 0
           };
         }
-        aggregated[score.name].totalScore += score.score;
-        aggregated[score.name].games += 1;
-        aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
-        aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
+        aggregated[playerName].totalScore += score.score || 0;
+        aggregated[playerName].games += 1;
+        aggregated[playerName].bestScore = Math.max(aggregated[playerName].bestScore, score.score || 0);
+        aggregated[playerName].bestStreak = Math.max(aggregated[playerName].bestStreak, score.streak || 0);
       });
       
       // Convert to array and sort by total score
@@ -4501,19 +4507,24 @@ const Leaderboard = ({ onBack }) => {
         if (scores.length > 0) {
           const aggregated = {};
           scores.forEach(score => {
-            if (!aggregated[score.name]) {
-              aggregated[score.name] = {
-                name: score.name,
+            // Skip entries with invalid names
+            if (!score.name || !score.name.trim()) return;
+            
+            const playerName = score.name.trim();
+            
+            if (!aggregated[playerName]) {
+              aggregated[playerName] = {
+                name: playerName,
                 totalScore: 0,
                 games: 0,
                 bestScore: 0,
                 bestStreak: 0
               };
             }
-            aggregated[score.name].totalScore += score.score;
-            aggregated[score.name].games += 1;
-            aggregated[score.name].bestScore = Math.max(aggregated[score.name].bestScore, score.score);
-            aggregated[score.name].bestStreak = Math.max(aggregated[score.name].bestStreak, score.streak);
+            aggregated[playerName].totalScore += score.score || 0;
+            aggregated[playerName].games += 1;
+            aggregated[playerName].bestScore = Math.max(aggregated[playerName].bestScore, score.score || 0);
+            aggregated[playerName].bestStreak = Math.max(aggregated[playerName].bestStreak, score.streak || 0);
           });
           const leaderboard = Object.values(aggregated)
             .sort((a, b) => b.totalScore - a.totalScore)
@@ -5110,7 +5121,11 @@ export default function App() {
         const q = query(scoresRef);
         const snapshot = await getDocs(q);
         
-        const existingNames = snapshot.docs.map(doc => doc.data().name.toLowerCase());
+        const existingNames = snapshot.docs
+          .map(doc => doc.data().name)
+          .filter(name => name && name.trim()) // Filter out invalid names
+          .map(name => name.trim().toLowerCase());
+        
         if (existingNames.includes(tempName.trim().toLowerCase())) {
           alert("This name is already in use! Choose a different name.");
           return;
