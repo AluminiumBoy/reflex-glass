@@ -4725,11 +4725,9 @@ export default function App() {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(1, elapsed / duration);
         
-        // Improved easing - ease-in-out cubic for smoother acceleration at the end
-        // This makes the last candles build faster, avoiding the "slow finish" feeling
-        const eased = progress < 0.5
-          ? 4 * progress * progress * progress // Ease in cubic (first half)
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Ease out cubic (second half - accelerates!)
+        // Linear easing - egyenletes gyors tempó az elejétől a végéig
+        // Nincs lassítás sem az elején, sem a végén
+        const eased = progress;
         
         buildAnimationProgress.current = Math.min(1, eased);
 
