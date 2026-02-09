@@ -5418,16 +5418,28 @@ export default function App() {
         gap: 20,
       }}
     >
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
-        <img 
-          src="title.png" 
-          alt="REFLEX GLASS" 
-          style={{ 
-            maxWidth: 800,
-            width: "100%",
-            height: "auto",
-            marginBottom: 8
-          }} 
+
+          <div style={{
+          textAlign: "center",
+          marginBottom: 10,
+          perspective: "1000px",           // 3D-szerű mélység a görbülethez
+          overflow: "hidden",
+        }}>
+          <img
+            src="title.png"
+            alt="REFLEX GLASS"
+            style={{
+              maxWidth: 800,
+              width: "100%",
+              height: "auto",
+              display: "block",
+              margin: "0 auto",
+              transform: "rotateX(15deg) scaleY(0.9)",  // enyhe felfelé ív + enyhe összenyomás
+              filter: "drop-shadow(0 20px 30px rgba(0, 100, 255, 0.4)) brightness(1.1)", // extra üveges fény
+              transformOrigin: "center bottom",         // alulról görbüljön
+              transition: "transform 0.5s ease",        // ha animálni akarod később
+            }}
+  
         />
         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em" }}>
           Context-Aware Pattern Trainer
