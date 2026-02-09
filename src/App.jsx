@@ -4775,57 +4775,73 @@ export default function App() {
         let detectedName = null;
         
         // Method 1: Check for Farcaster context (window.farcaster)
-        if (window.farcaster && window.farcaster.user) {
-          detectedName = window.farcaster.user.username || window.farcaster.user.displayName;
+        try {
+          if (typeof window !== 'undefined' && window.farcaster) {
+            if (window.farcaster.user && window.farcaster.user.username) {
+              detectedName = window.farcaster.user.username;
+            } else if (window.farcaster.user && window.farcaster.user.displayName) {
+              detectedName = window.farcaster.user.displayName;
+            }
+          }
+        } catch (farcasterError) {
+          console.log("Could not detect Farcaster name:", farcasterError);
         }
         
         // Method 2: Check for Base app context
-        if (!detectedName && window.ethereum) {
+        if (!detectedName && typeof window !== 'undefined' && window.ethereum) {
           try {
-            // Try to get ENS name or Base name
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            // Try to get accounts from wallet
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => null);
             if (accounts && accounts.length > 0) {
               const address = accounts[0];
               
               // Try to get Base name (basename)
-              // This is a simplified check - in production you'd query the Base name resolver
-              if (window.baseName) {
+              if (window.baseName && typeof window.baseName === 'string') {
                 detectedName = window.baseName;
-              } else {
+              } else if (address && typeof address === 'string') {
                 // Fallback: use shortened address as name
                 detectedName = `${address.slice(0, 6)}...${address.slice(-4)}`;
               }
             }
-          } catch (error) {
-            console.log("Could not detect Base name:", error);
+          } catch (baseError) {
+            console.log("Could not detect Base name:", baseError);
           }
         }
         
         // Method 3: Check URL parameters (if app passes username via URL)
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlUsername = urlParams.get('username') || urlParams.get('name');
-        if (!detectedName && urlUsername) {
-          detectedName = urlUsername;
+        try {
+          if (typeof window !== 'undefined' && window.location) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlUsername = urlParams.get('username') || urlParams.get('name');
+            if (!detectedName && urlUsername && urlUsername.trim()) {
+              detectedName = urlUsername.trim();
+            }
+          }
+        } catch (urlError) {
+          console.log("Could not check URL parameters:", urlError);
         }
         
-        // If we detected a name, set it but don't save yet (user can edit)
-        if (detectedName) {
-          setTempName(detectedName);
-          setPlayerName(detectedName);
+        // If we detected a name, set it and save automatically
+        if (detectedName && detectedName.trim()) {
+          const trimmedName = detectedName.trim();
+          setTempName(trimmedName);
+          setPlayerName(trimmedName);
           setIsEditingName(false);
           // Save automatically
-          localStorage.setItem("reflexGlassPlayerName", detectedName);
-          console.log(`Auto-detected username: ${detectedName}`);
+          localStorage.setItem("reflexGlassPlayerName", trimmedName);
+          console.log(`Auto-detected username: ${trimmedName}`);
         } else {
           // No name detected, user needs to enter manually
           setIsEditingName(true);
         }
       } catch (err) {
-        console.log("No saved or detected name, user will enter manually");
+        console.log("Error loading player name:", err);
         setIsEditingName(true);
       }
     };
+    
     loadPlayerName();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Initialize round ──
