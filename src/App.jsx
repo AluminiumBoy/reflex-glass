@@ -6348,7 +6348,7 @@ export default function App() {
               <div
                 style={{
                   position: "absolute",
-                  bottom: 10,
+                  top: 10,
                   left: "50%",
                   transform: "translateX(-50%)",
                   fontSize: 10,
