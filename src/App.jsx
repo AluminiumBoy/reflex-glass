@@ -382,7 +382,7 @@ async function genericShare(stats, roast) {
   // App uses width: min(85%, 450px), we'll use 450px as base and scale everything
   // Canvas is 1400px wide, so content area should be: 450 * (1400/450) = proportional
   
-  const centerY = 600; // Vertical center position
+  const centerY = 550; // Vertical center position
   const centerX = 700; // Horizontal center (canvas width / 2)
   const appWidth = 450; // App's content width
   const scale = 1400 / 450; // ~3.11x scale factor
@@ -441,7 +441,7 @@ async function genericShare(stats, roast) {
   const statsY = y + 110;
   const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
   const columnWidth = gridWidth / 5.2;
-  const gridStartX = contentX - gridWidth / 4.5;
+  const gridStartX = contentX - gridWidth / 5;
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
