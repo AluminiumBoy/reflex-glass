@@ -531,72 +531,81 @@ function generateAnnotation(structure) {
 
   switch (p) {
     case 'bull_flag':
-      explanation = isBullish ? 'Equal highs + neckline break → bullish continuation' : 'Pattern detected';
+      explanation = isBullish ? 'Parallel channel consolidation → bullish breakout' : 'Pattern detected';
       {
-        // Find actual flag boundaries more precisely
-        const flagStart = safeIdx(-10);
+        const flagStart = safeIdx(-12);
         const flagEnd = safeIdx(-1);
         
-        // Calculate actual highs and lows from the flag candles
-        let flagHighest = -Infinity;
-        let flagLowest = Infinity;
-        for (let i = -10; i <= -1; i++) {
+        // Find the actual channel boundaries
+        let channelHigh = -Infinity;
+        let channelLow = Infinity;
+        
+        for (let i = -12; i <= -1; i++) {
           const idx = safeIdx(i);
-          flagHighest = Math.max(flagHighest, candles[idx]?.high ?? flagHighest);
-          flagLowest = Math.min(flagLowest, candles[idx]?.low ?? flagLowest);
+          if (candles[idx]) {
+            channelHigh = Math.max(channelHigh, candles[idx].high);
+            channelLow = Math.min(channelLow, candles[idx].low);
+          }
         }
         
-        // Upper resistance line
+        // Top channel line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: flagHighest, endIdx: flagEnd, endPrice: flagHighest, 
+          { type: 'line', startIdx: flagStart, startPrice: channelHigh, 
+            endIdx: flagEnd, endPrice: channelHigh, 
             color: '#ef4444', width: 2, dashed: false }
         );
         
-        // Lower support line
+        // Bottom channel line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: flagLowest, endIdx: flagEnd, endPrice: flagLowest, 
+          { type: 'line', startIdx: flagStart, startPrice: channelLow, 
+            endIdx: flagEnd, endPrice: channelLow, 
             color: '#10b981', width: 2, dashed: false }
         );
 
-        // Breakout arrow positioned above the high
+        // Breakout arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: flagHighest + 8, direction: 'up', 
-            color: '#10b981', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: channelHigh + 10, 
+            direction: 'up', color: '#10b981', size: 22 }
         );
       }
       break;
 
     case 'bear_flag':
-      explanation = isBullish ? 'Pattern detected' : 'Equal lows + neckline break → bearish continuation';
+      explanation = isBullish ? 'Pattern detected' : 'Parallel channel consolidation → bearish breakdown';
       {
-        const flagStart = safeIdx(-10);
+        const flagStart = safeIdx(-12);
         const flagEnd = safeIdx(-1);
         
-        // Calculate actual highs and lows from the flag candles
-        let flagHighest = -Infinity;
-        let flagLowest = Infinity;
-        for (let i = -10; i <= -1; i++) {
+        // Find the actual channel boundaries
+        let channelHigh = -Infinity;
+        let channelLow = Infinity;
+        
+        for (let i = -12; i <= -1; i++) {
           const idx = safeIdx(i);
-          flagHighest = Math.max(flagHighest, candles[idx]?.high ?? flagHighest);
-          flagLowest = Math.min(flagLowest, candles[idx]?.low ?? flagLowest);
+          if (candles[idx]) {
+            channelHigh = Math.max(channelHigh, candles[idx].high);
+            channelLow = Math.min(channelLow, candles[idx].low);
+          }
         }
         
-        // Upper resistance line
+        // Top channel line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: flagHighest, endIdx: flagEnd, endPrice: flagHighest, 
+          { type: 'line', startIdx: flagStart, startPrice: channelHigh, 
+            endIdx: flagEnd, endPrice: channelHigh, 
             color: '#ef4444', width: 2, dashed: false }
         );
         
-        // Lower support line
+        // Bottom channel line
         highlights.push(
-          { type: 'line', startIdx: flagStart, startPrice: flagLowest, endIdx: flagEnd, endPrice: flagLowest, 
+          { type: 'line', startIdx: flagStart, startPrice: channelLow, 
+            endIdx: flagEnd, endPrice: channelLow, 
             color: '#10b981', width: 2, dashed: false }
         );
 
-        // Breakdown arrow positioned below the low
+        // Breakdown arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: flagLowest - 8, direction: 'down', 
-            color: '#ef4444', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: channelLow - 10, 
+            direction: 'down', color: '#ef4444', size: 22 }
         );
       }
       break;
@@ -655,127 +664,125 @@ function generateAnnotation(structure) {
       break;
 
     case 'double_bottom':
-      explanation = isBullish ? 'Equal lows + neckline break → bullish reversal' : 'Pattern detected';
+      explanation = isBullish ? 'Two equal lows + neckline break → bullish reversal' : 'Pattern detected';
       {
-        // Find actual two lowest points in the pattern range
-        let leftBottomIdx = safeIdx(-18);
-        let leftBottomPrice = getLow(-18);
+        // Find first bottom in left area (-20 to -11)
+        let leftLowIdx = safeIdx(-15);
+        let leftLowPrice = Infinity;
         
-        // Scan for actual lowest point in left area
-        for (let i = -20; i <= -12; i++) {
+        for (let i = -20; i <= -11; i++) {
           const idx = safeIdx(i);
-          const low = candles[idx]?.low ?? Infinity;
-          if (low < leftBottomPrice) {
-            leftBottomPrice = low;
-            leftBottomIdx = idx;
+          if (candles[idx] && candles[idx].low < leftLowPrice) {
+            leftLowPrice = candles[idx].low;
+            leftLowIdx = idx;
           }
         }
         
-        let rightBottomIdx = safeIdx(-6);
-        let rightBottomPrice = getLow(-6);
+        // Find second bottom in right area (-10 to -1)
+        let rightLowIdx = safeIdx(-5);
+        let rightLowPrice = Infinity;
         
-        // Scan for actual lowest point in right area
-        for (let i = -10; i <= -2; i++) {
+        for (let i = -10; i <= -1; i++) {
           const idx = safeIdx(i);
-          const low = candles[idx]?.low ?? Infinity;
-          if (low < rightBottomPrice) {
-            rightBottomPrice = low;
-            rightBottomIdx = idx;
+          if (candles[idx] && candles[idx].low < rightLowPrice) {
+            rightLowPrice = candles[idx].low;
+            rightLowIdx = idx;
           }
         }
         
-        // Left bottom circle
+        // Mark both bottoms with circles
         highlights.push(
-          { type: 'circle', idx: leftBottomIdx, price: leftBottomPrice, 
-            radius: 7, color: '#10b981', pulse: true }
+          { type: 'circle', idx: leftLowIdx, price: leftLowPrice, 
+            radius: 8, color: '#10b981', pulse: true }
         );
         
-        // Right bottom circle
         highlights.push(
-          { type: 'circle', idx: rightBottomIdx, price: rightBottomPrice, 
-            radius: 7, color: '#10b981', pulse: true }
+          { type: 'circle', idx: rightLowIdx, price: rightLowPrice, 
+            radius: 8, color: '#10b981', pulse: true }
         );
         
-        // Neckline - find actual peak between the bottoms
+        // Find neckline - highest point between the two bottoms
         let necklinePrice = -Infinity;
-        for (let i = -16; i <= -8; i++) {
+        for (let i = -18; i <= -8; i++) {
           const idx = safeIdx(i);
-          necklinePrice = Math.max(necklinePrice, candles[idx]?.high ?? necklinePrice);
+          if (candles[idx]) {
+            necklinePrice = Math.max(necklinePrice, candles[idx].high);
+          }
         }
         
+        // Neckline horizontal line
         highlights.push(
-          { type: 'line', startIdx: safeIdx(-20), startPrice: necklinePrice, 
+          { type: 'line', startIdx: safeIdx(-22), startPrice: necklinePrice, 
             endIdx: safeIdx(2), endPrice: necklinePrice, 
-            color: '#fbbf24', dashed: false, width: 2 }
+            color: '#fbbf24', dashed: false, width: 2.5 }
         );
 
         // Breakout arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: necklinePrice + 12, direction: 'up', 
-            color: '#10b981', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: necklinePrice + 14, 
+            direction: 'up', color: '#10b981', size: 22 }
         );
       }
       break;
 
     case 'double_top':
-      explanation = isBullish ? 'Pattern detected' : 'Equal highs + neckline break → bearish reversal';
+      explanation = isBullish ? 'Pattern detected' : 'Two equal highs + neckline break → bearish reversal';
       {
-        // Find actual two highest points in the pattern range
-        let leftTopIdx = safeIdx(-18);
-        let leftTopPrice = getHigh(-18);
+        // Find first top in left area (-20 to -11)
+        let leftHighIdx = safeIdx(-15);
+        let leftHighPrice = -Infinity;
         
-        // Scan for actual highest point in left area
-        for (let i = -20; i <= -12; i++) {
+        for (let i = -20; i <= -11; i++) {
           const idx = safeIdx(i);
-          const high = candles[idx]?.high ?? -Infinity;
-          if (high > leftTopPrice) {
-            leftTopPrice = high;
-            leftTopIdx = idx;
+          if (candles[idx] && candles[idx].high > leftHighPrice) {
+            leftHighPrice = candles[idx].high;
+            leftHighIdx = idx;
           }
         }
         
-        let rightTopIdx = safeIdx(-6);
-        let rightTopPrice = getHigh(-6);
+        // Find second top in right area (-10 to -1)
+        let rightHighIdx = safeIdx(-5);
+        let rightHighPrice = -Infinity;
         
-        // Scan for actual highest point in right area
-        for (let i = -10; i <= -2; i++) {
+        for (let i = -10; i <= -1; i++) {
           const idx = safeIdx(i);
-          const high = candles[idx]?.high ?? -Infinity;
-          if (high > rightTopPrice) {
-            rightTopPrice = high;
-            rightTopIdx = idx;
+          if (candles[idx] && candles[idx].high > rightHighPrice) {
+            rightHighPrice = candles[idx].high;
+            rightHighIdx = idx;
           }
         }
         
-        // Left top circle
+        // Mark both tops with circles
         highlights.push(
-          { type: 'circle', idx: leftTopIdx, price: leftTopPrice, 
-            radius: 7, color: '#ef4444', pulse: true }
+          { type: 'circle', idx: leftHighIdx, price: leftHighPrice, 
+            radius: 8, color: '#ef4444', pulse: true }
         );
         
-        // Right top circle
         highlights.push(
-          { type: 'circle', idx: rightTopIdx, price: rightTopPrice, 
-            radius: 7, color: '#ef4444', pulse: true }
+          { type: 'circle', idx: rightHighIdx, price: rightHighPrice, 
+            radius: 8, color: '#ef4444', pulse: true }
         );
         
-        // Neckline - find actual trough between the tops
+        // Find neckline - lowest point between the two tops
         let necklinePrice = Infinity;
-        for (let i = -16; i <= -8; i++) {
+        for (let i = -18; i <= -8; i++) {
           const idx = safeIdx(i);
-          necklinePrice = Math.min(necklinePrice, candles[idx]?.low ?? necklinePrice);
+          if (candles[idx]) {
+            necklinePrice = Math.min(necklinePrice, candles[idx].low);
+          }
         }
         
+        // Neckline horizontal line
         highlights.push(
-          { type: 'line', startIdx: safeIdx(-20), startPrice: necklinePrice, 
+          { type: 'line', startIdx: safeIdx(-22), startPrice: necklinePrice, 
             endIdx: safeIdx(2), endPrice: necklinePrice, 
-            color: '#fbbf24', dashed: false, width: 2 }
+            color: '#fbbf24', dashed: false, width: 2.5 }
         );
 
         // Breakdown arrow
         highlights.push(
-          { type: 'arrow', idx: safeIdx(0), price: necklinePrice - 12, direction: 'down', 
-            color: '#ef4444', size: 20 }
+          { type: 'arrow', idx: safeIdx(0), price: necklinePrice - 14, 
+            direction: 'down', color: '#ef4444', size: 22 }
         );
       }
       break;
@@ -2618,27 +2625,18 @@ class MarketStructureGenerator {
   _trendCandles(startPrice, count, drift, volatility, bullRatio) {
     const candles = [];
     let price = startPrice;
-    let momentum = 0;
 
     for (let i = 0; i < count; i++) {
       const isBull = this.rng() < bullRatio;
-      
-      // Add momentum smoothing for more realistic movement
-      momentum = momentum * 0.7 + (isBull ? 1 : -1) * 0.3;
-      
-      // More varied body sizes - from doji to strong candles
-      const bodyPercent = this.rng() < 0.15 ? 0.1 + this.rng() * 0.2 : 0.5 + this.rng() * 0.4;
+      const bodyPercent = 0.4 + this.rng() * 0.4; // 40-80% of range
       const range = price * volatility;
 
       const open = price;
-      // Smoother price progression with momentum
-      price = price * (1 + drift + momentum * volatility * 0.15 + (this.rng() - 0.5) * volatility * 0.2);
+      price = price * (1 + drift + (this.rng() - 0.5) * volatility * 0.3);
       const close = isBull ? open + range * bodyPercent : open - range * bodyPercent;
 
-      // More realistic wick sizes - proportional to body
-      const wickMultiplier = bodyPercent < 0.3 ? 0.8 + this.rng() * 0.6 : 0.3 + this.rng() * 0.4;
-      const high = Math.max(open, close) + range * wickMultiplier * (isBull ? 0.6 : 1.0);
-      const low = Math.min(open, close) - range * wickMultiplier * (isBull ? 1.0 : 0.6);
+      const high = Math.max(open, close) + range * (0.2 + this.rng() * 0.3);
+      const low = Math.min(open, close) - range * (0.2 + this.rng() * 0.3);
 
       candles.push({ open, high, low, close });
       price = close;
@@ -2685,20 +2683,12 @@ class MarketStructureGenerator {
   _compressionCandles(startPrice, count, baseVol) {
     const candles = [];
     let price = startPrice;
-    let tightness = 0;
 
     for (let i = 0; i < count; i++) {
-      // Progressive tightening with exponential curve
-      tightness = Math.pow(i / count, 1.5);
-      const compressionFactor = 1 - tightness * 0.7;
-      
+      const compressionFactor = 1 - (i / count) * 0.5; // Range decreases
       const isBull = this.rng() < 0.5;
-      
-      // Smaller bodies as compression increases
-      const bodySize = price * baseVol * compressionFactor * (0.2 + this.rng() * 0.3);
-      
-      // Wicks get proportionally smaller too
-      const wickSize = bodySize * (0.3 + this.rng() * 0.4) * compressionFactor;
+      const bodySize = price * baseVol * compressionFactor * (0.3 + this.rng() * 0.4);
+      const wickSize = bodySize * (0.4 + this.rng() * 0.6);
 
       const open = price;
       const close = isBull ? open + bodySize : open - bodySize;
@@ -2706,8 +2696,7 @@ class MarketStructureGenerator {
       const low = Math.min(open, close) - wickSize * this.rng();
 
       candles.push({ open, high, low, close });
-      // Tighter price movement as we compress
-      price = close + (this.rng() - 0.5) * bodySize * 0.15 * compressionFactor;
+      price = close + (this.rng() - 0.5) * bodySize * 0.2;
     }
 
     return candles;
@@ -2799,140 +2788,192 @@ class MarketStructureGenerator {
     const setupLength = 8 + Math.floor(this.rng() * 6);
 
     if (setupType.type === "bullish_continuation") {
-      // Bull flag: tight horizontal consolidation after context uptrend
-      const flagHigh = startPrice * 1.005;
-      const flagLow = startPrice * 0.995;
-      const channelMid = (flagHigh + flagLow) / 2;
+      // Bull Flag: Clear horizontal/slightly down-sloping channel
+      const channelTop = startPrice * 1.008;
+      const channelBottom = startPrice * 0.992;
+      const channelMid = (channelTop + channelBottom) / 2;
+      const channelHeight = channelTop - channelBottom;
       
       for (let i = 0; i < setupLength; i++) {
-        // Create parallel channel with mean reversion
-        let price = channelMid + (this.rng() - 0.5) * (flagHigh - flagLow) * 0.8;
+        const progress = i / setupLength;
         
-        // Progressive tightening
-        const tightnessFactor = 1 - (i / setupLength) * 0.4;
-        const vol = 0.005 * tightnessFactor;
+        // Slight downward bias (against the trend) but stays in channel
+        const priceTarget = channelMid - (channelHeight * 0.15 * progress);
         
+        // Oscillate around the target with mean reversion
+        const oscillation = Math.sin(i * 0.8) * channelHeight * 0.25;
+        let price = priceTarget + oscillation;
+        
+        // Tight bodies - consolidation characteristic
+        const vol = 0.004 * (1 - progress * 0.3); // Gets tighter
         const isBull = this.rng() < 0.48;
-        const bodySize = price * vol * (0.3 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.5);
+        const bodySize = price * vol * (0.3 + this.rng() * 0.2);
+        const wickSize = bodySize * (0.5 + this.rng() * 0.4);
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
         
-        // Constrain to channel
-        const high = Math.min(Math.max(open, close) + wickSize * this.rng(), flagHigh);
-        const low = Math.max(Math.min(open, close) - wickSize * this.rng(), flagLow);
+        // Constrain to channel boundaries
+        const high = Math.min(Math.max(open, close) + wickSize, channelTop);
+        const low = Math.max(Math.min(open, close) - wickSize, channelBottom);
 
         candles.push({ open, high, low, close });
       }
     } else if (setupType.type === "bearish_continuation") {
-      // Bear flag: tight horizontal consolidation after context downtrend
-      const flagHigh = startPrice * 1.005;
-      const flagLow = startPrice * 0.995;
-      const channelMid = (flagHigh + flagLow) / 2;
+      // Bear Flag: Clear horizontal/slightly up-sloping channel
+      const channelTop = startPrice * 1.008;
+      const channelBottom = startPrice * 0.992;
+      const channelMid = (channelTop + channelBottom) / 2;
+      const channelHeight = channelTop - channelBottom;
       
       for (let i = 0; i < setupLength; i++) {
-        // Create parallel channel with mean reversion
-        let price = channelMid + (this.rng() - 0.5) * (flagHigh - flagLow) * 0.8;
+        const progress = i / setupLength;
         
-        // Progressive tightening
-        const tightnessFactor = 1 - (i / setupLength) * 0.4;
-        const vol = 0.005 * tightnessFactor;
+        // Slight upward bias (against the trend) but stays in channel
+        const priceTarget = channelMid + (channelHeight * 0.15 * progress);
         
+        // Oscillate around the target with mean reversion
+        const oscillation = Math.sin(i * 0.8) * channelHeight * 0.25;
+        let price = priceTarget + oscillation;
+        
+        // Tight bodies - consolidation characteristic
+        const vol = 0.004 * (1 - progress * 0.3); // Gets tighter
         const isBull = this.rng() < 0.52;
-        const bodySize = price * vol * (0.3 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.5);
+        const bodySize = price * vol * (0.3 + this.rng() * 0.2);
+        const wickSize = bodySize * (0.5 + this.rng() * 0.4);
 
         const open = price;
         const close = isBull ? open + bodySize : open - bodySize;
         
-        // Constrain to channel
-        const high = Math.min(Math.max(open, close) + wickSize * this.rng(), flagHigh);
-        const low = Math.max(Math.min(open, close) - wickSize * this.rng(), flagLow);
+        // Constrain to channel boundaries
+        const high = Math.min(Math.max(open, close) + wickSize, channelTop);
+        const low = Math.max(Math.min(open, close) - wickSize, channelBottom);
 
         candles.push({ open, high, low, close });
       }
     } else if (setupType.type === "bullish_reversal") {
-      // Double bottom or inverted H&S
+      // Double Bottom: Two clear equal lows with bounce between
       let price = startPrice;
-      // First bottom
-      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
-        const isBull = this.rng() < 0.35;
-        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
-        const open = price;
-        price *= 0.998;
-        const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-        candles.push({ open, high, low, close });
-        price = close;
-      }
-      // Bounce
-      for (let i = 0; i < Math.floor(setupLength * 0.3); i++) {
-        const isBull = this.rng() < 0.65;
-        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
-        const open = price;
-        price *= 1.002;
-        const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-        candles.push({ open, high, low, close });
-        price = close;
-      }
-      // Second test
-      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
-        const isBull = this.rng() < 0.5;
+      const bottomPrice = startPrice * 0.985; // Target low
+      const peakPrice = startPrice * 1.005; // Neckline level
+      
+      // First bottom - decline to low
+      const firstBottomLength = Math.floor(setupLength * 0.3);
+      for (let i = 0; i < firstBottomLength; i++) {
+        const progress = i / firstBottomLength;
+        const targetPrice = startPrice - (startPrice - bottomPrice) * progress;
+        
+        const isBull = this.rng() < 0.3;
         const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
-        const open = price;
+        const wickSize = bodySize * (0.6 + this.rng() * 0.6);
+        
+        const open = targetPrice;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        const high = Math.max(open, close) + wickSize;
+        const low = Math.min(open, close) - wickSize;
+        
         candles.push({ open, high, low, close });
-        price = close + (this.rng() - 0.5) * bodySize * 0.2;
+        price = close;
+      }
+      
+      // Rally back to neckline
+      const rallyLength = Math.floor(setupLength * 0.35);
+      for (let i = 0; i < rallyLength; i++) {
+        const progress = i / rallyLength;
+        const targetPrice = bottomPrice + (peakPrice - bottomPrice) * progress;
+        
+        const isBull = this.rng() < 0.7;
+        const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.4);
+        
+        const open = targetPrice;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize;
+        const low = Math.min(open, close) - wickSize;
+        
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+      
+      // Second bottom - decline to same low level
+      const secondBottomLength = Math.floor(setupLength * 0.35);
+      for (let i = 0; i < secondBottomLength; i++) {
+        const progress = i / secondBottomLength;
+        const targetPrice = peakPrice - (peakPrice - bottomPrice) * progress;
+        
+        const isBull = this.rng() < 0.45;
+        const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.5 + this.rng() * 0.5);
+        
+        const open = targetPrice;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize;
+        const low = Math.min(open, close) - wickSize;
+        
+        candles.push({ open, high, low, close });
+        price = close;
       }
     } else if (setupType.type === "bearish_reversal") {
-      // Double top or H&S
+      // Double Top: Two clear equal highs with dip between
       let price = startPrice;
-      // First top
-      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
-        const isBull = this.rng() < 0.65;
-        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
-        const open = price;
-        price *= 1.002;
-        const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-        candles.push({ open, high, low, close });
-        price = close;
-      }
-      // Dip
-      for (let i = 0; i < Math.floor(setupLength * 0.3); i++) {
-        const isBull = this.rng() < 0.35;
-        const bodySize = price * 0.01 * (0.4 + this.rng() * 0.4);
-        const wickSize = bodySize * (0.3 + this.rng() * 0.5);
-        const open = price;
-        price *= 0.998;
-        const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
-        candles.push({ open, high, low, close });
-        price = close;
-      }
-      // Second top
-      for (let i = 0; i < Math.floor(setupLength * 0.35); i++) {
-        const isBull = this.rng() < 0.5;
+      const topPrice = startPrice * 1.015; // Target high
+      const troughPrice = startPrice * 0.995; // Neckline level
+      
+      // First top - rally to high
+      const firstTopLength = Math.floor(setupLength * 0.3);
+      for (let i = 0; i < firstTopLength; i++) {
+        const progress = i / firstTopLength;
+        const targetPrice = startPrice + (topPrice - startPrice) * progress;
+        
+        const isBull = this.rng() < 0.7;
         const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
-        const wickSize = bodySize * (0.4 + this.rng() * 0.6);
-        const open = price;
+        const wickSize = bodySize * (0.6 + this.rng() * 0.6);
+        
+        const open = targetPrice;
         const close = isBull ? open + bodySize : open - bodySize;
-        const high = Math.max(open, close) + wickSize * this.rng();
-        const low = Math.min(open, close) - wickSize * this.rng();
+        const high = Math.max(open, close) + wickSize;
+        const low = Math.min(open, close) - wickSize;
+        
         candles.push({ open, high, low, close });
-        price = close + (this.rng() - 0.5) * bodySize * 0.2;
+        price = close;
+      }
+      
+      // Decline back to neckline
+      const dipLength = Math.floor(setupLength * 0.35);
+      for (let i = 0; i < dipLength; i++) {
+        const progress = i / dipLength;
+        const targetPrice = topPrice - (topPrice - troughPrice) * progress;
+        
+        const isBull = this.rng() < 0.3;
+        const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.4 + this.rng() * 0.4);
+        
+        const open = targetPrice;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize;
+        const low = Math.min(open, close) - wickSize;
+        
+        candles.push({ open, high, low, close });
+        price = close;
+      }
+      
+      // Second top - rally to same high level
+      const secondTopLength = Math.floor(setupLength * 0.35);
+      for (let i = 0; i < secondTopLength; i++) {
+        const progress = i / secondTopLength;
+        const targetPrice = troughPrice + (topPrice - troughPrice) * progress;
+        
+        const isBull = this.rng() < 0.55;
+        const bodySize = price * 0.008 * (0.4 + this.rng() * 0.3);
+        const wickSize = bodySize * (0.5 + this.rng() * 0.5);
+        
+        const open = targetPrice;
+        const close = isBull ? open + bodySize : open - bodySize;
+        const high = Math.max(open, close) + wickSize;
+        const low = Math.min(open, close) - wickSize;
+        
+        candles.push({ open, high, low, close });
+        price = close;
       }
     } else if (setupType.type.includes("trap") || setupType.type === "consolidation") {
       // Looks like a pattern but lacks conviction
