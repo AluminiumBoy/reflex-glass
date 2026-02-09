@@ -400,12 +400,12 @@ async function genericShare(stats, roast) {
   ctx.shadowBlur = 0;
   
   // Player name - matching app's fontSize: 13
-  ctx.font = `bold ${13 * scale}px sans-serif`; // 13 * 3.11 = ~40px
+  ctx.font = `bold ${16 * scale}px sans-serif`; // 13 * 3.11 = ~40px
   ctx.fillStyle = 'rgba(100, 200, 230, 0.9)';
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (80 * scale / 3.11)); // Adjust spacing
+  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (100 * scale / 3.11)); // Adjust spacing
   ctx.shadowBlur = 0;
   
   // Roast - matching app's style
