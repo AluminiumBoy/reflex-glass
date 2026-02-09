@@ -445,7 +445,7 @@ async function genericShare(stats, roast) {
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
-    const x = gridStartX + (columnIndex * columnWidth) + (12 * scale); // App's padding
+    const x = gridStartX + (columnIndex * columnWidth) + (15 * scale); // App's padding
     
     // Label - app fontSize: 8
     ctx.textAlign = 'left';
