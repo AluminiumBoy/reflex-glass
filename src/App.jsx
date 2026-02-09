@@ -60,7 +60,7 @@ const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
 
 // Single difficulty mode
-const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 65, cleanRatio: 0.4 };
+const DIFFICULTY_CONFIG = { windowSize: 28, contextSize: 46, cleanRatio: 0.4 };
 
 const C = {
   nGreen: "#00ffaa",
