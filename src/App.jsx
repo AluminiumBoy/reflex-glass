@@ -6369,7 +6369,7 @@ export default function App() {
       </div>
 
       {/* Decision / Outcome - compact */}
-      <div style={{ paddingBottom: 6, flexShrink: 0, padding: isMobile ? "0 10px 6px 10px" : "0 0 6px 0", minHeight: 64 }}>
+      <div style={{ paddingTop: 12, paddingBottom: 6, flexShrink: 0, padding: isMobile ? "12px 10px 6px 10px" : "12px 0 6px 0", minHeight: 64 }}>
         <div style={{ 
           display: screen === "outcome" ? "none" : "block",
           opacity: screen === "home" ? 0 : 1,
