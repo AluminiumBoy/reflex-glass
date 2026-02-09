@@ -4758,18 +4758,71 @@ export default function App() {
     }
   }, []);
 
-  // ── Load saved player name ──
+  // ── Load saved player name or detect from Base/Farcaster ──
   useEffect(() => {
     const loadPlayerName = async () => {
       try {
+        // First check if user already has a saved name
         const savedName = localStorage.getItem("reflexGlassPlayerName");
         if (savedName) {
           setPlayerName(savedName);
           setTempName(savedName);
           setIsEditingName(false);
+          return;
+        }
+        
+        // Try to get name from Base app or Farcaster
+        let detectedName = null;
+        
+        // Method 1: Check for Farcaster context (window.farcaster)
+        if (window.farcaster && window.farcaster.user) {
+          detectedName = window.farcaster.user.username || window.farcaster.user.displayName;
+        }
+        
+        // Method 2: Check for Base app context
+        if (!detectedName && window.ethereum) {
+          try {
+            // Try to get ENS name or Base name
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts && accounts.length > 0) {
+              const address = accounts[0];
+              
+              // Try to get Base name (basename)
+              // This is a simplified check - in production you'd query the Base name resolver
+              if (window.baseName) {
+                detectedName = window.baseName;
+              } else {
+                // Fallback: use shortened address as name
+                detectedName = `${address.slice(0, 6)}...${address.slice(-4)}`;
+              }
+            }
+          } catch (error) {
+            console.log("Could not detect Base name:", error);
+          }
+        }
+        
+        // Method 3: Check URL parameters (if app passes username via URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlUsername = urlParams.get('username') || urlParams.get('name');
+        if (!detectedName && urlUsername) {
+          detectedName = urlUsername;
+        }
+        
+        // If we detected a name, set it but don't save yet (user can edit)
+        if (detectedName) {
+          setTempName(detectedName);
+          setPlayerName(detectedName);
+          setIsEditingName(false);
+          // Save automatically
+          localStorage.setItem("reflexGlassPlayerName", detectedName);
+          console.log(`Auto-detected username: ${detectedName}`);
+        } else {
+          // No name detected, user needs to enter manually
+          setIsEditingName(true);
         }
       } catch (err) {
-        console.log("No saved name");
+        console.log("No saved or detected name, user will enter manually");
+        setIsEditingName(true);
       }
     };
     loadPlayerName();
@@ -5113,6 +5166,42 @@ export default function App() {
   const handleSaveName = async () => {
     if (!tempName.trim()) return;
     
+    // Check if user is changing their name (has previous saved name)
+    const previousName = localStorage.getItem("reflexGlassPlayerName");
+    
+    if (previousName && previousName !== tempName.trim()) {
+      // User is changing their name - warn about stats deletion
+      const confirmChange = window.confirm(
+        `⚠️ WARNING!\n\nYou are currently saved as "${previousName}".\n\nIf you change your name to "${tempName.trim()}", all your previous statistics will be deleted!\n\nAre you sure you want to continue?`
+      );
+      
+      if (!confirmChange) {
+        setTempName(previousName);
+        return;
+      }
+      
+      // User confirmed - delete all previous scores from this device
+      try {
+        if (db) {
+          // Delete from Firebase - all scores with the old name from this device
+          // Note: We can't delete from Firestore client-side without proper setup
+          // But we can clear localStorage
+          localStorage.removeItem("reflexGlassScores");
+          console.log(`Cleared local scores for previous name: ${previousName}`);
+        } else {
+          // Delete from localStorage
+          localStorage.removeItem("reflexGlassScores");
+          console.log(`Cleared all scores for previous name: ${previousName}`);
+        }
+      } catch (error) {
+        console.error("Error clearing previous scores:", error);
+      }
+    } else if (previousName && previousName === tempName.trim()) {
+      // Same name, just confirming - no deletion needed
+      setIsEditingName(false);
+      return;
+    }
+    
     try {
       localStorage.setItem("reflexGlassPlayerName", tempName.trim());
       setPlayerName(tempName.trim());
@@ -5255,8 +5344,14 @@ export default function App() {
             playerName && (
               <button
                 onClick={() => {
-                  setTempName(playerName);
-                  setIsEditingName(true);
+                  const confirmEdit = window.confirm(
+                    `⚠️ WARNING!\n\nIf you change your name, all your previous statistics will be deleted!\n\nAre you sure you want to edit your name?`
+                  );
+                  
+                  if (confirmEdit) {
+                    setTempName(playerName);
+                    setIsEditingName(true);
+                  }
                 }}
                 style={{
                   position: "absolute",
