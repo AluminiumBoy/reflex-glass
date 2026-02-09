@@ -392,7 +392,7 @@ async function genericShare(stats, roast) {
   // Score - matching app's fontSize: 56
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `bold ${56 * scale}px monospace`; // 56 * 3.11 = ~174px
+  ctx.font = `bold ${65 * scale}px monospace`; // 56 * 3.11 = ~174px
   ctx.shadowColor = 'rgba(100, 180, 255, 0.7)';
   ctx.shadowBlur = 60;
   ctx.fillStyle = 'rgba(150, 200, 255, 0.95)';
@@ -400,12 +400,12 @@ async function genericShare(stats, roast) {
   ctx.shadowBlur = 0;
   
   // Player name - matching app's fontSize: 13
-  ctx.font = `bold ${16 * scale}px sans-serif`; // 13 * 3.11 = ~40px
+  ctx.font = `bold ${17 * scale}px sans-serif`; // 13 * 3.11 = ~40px
   ctx.fillStyle = 'rgba(100, 200, 230, 0.9)';
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (100 * scale / 3.11)); // Adjust spacing
+  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (120 * scale / 3.11)); // Adjust spacing
   ctx.shadowBlur = 0;
   
   // Roast - matching app's style
@@ -418,7 +418,7 @@ async function genericShare(stats, roast) {
   const maxWidth = contentWidth * 0.85;
   const words = roast.split(' ');
   let line = '';
-  let y = centerY + 170;
+  let y = centerY + 190;
   const lineHeight = 40;
   
   for (let word of words) {
@@ -441,7 +441,7 @@ async function genericShare(stats, roast) {
   const statsY = y + 150;
   const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
   const columnWidth = gridWidth / 6;
-  const gridStartX = contentX - gridWidth / 5;
+  const gridStartX = contentX - gridWidth / 6;
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
