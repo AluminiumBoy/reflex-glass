@@ -5281,8 +5281,9 @@ export default function App() {
             placeholder="Enter your name"
             value={isEditingName ? tempName : playerName}
             onChange={(e) => isEditingName && setTempName(e.target.value)}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter") {
+                e.preventDefault();
                 if (isEditingName) {
                   handleSaveName();
                 } else {
@@ -5292,6 +5293,8 @@ export default function App() {
             }}
             maxLength={20}
             disabled={!isEditingName}
+            inputMode="text"
+            autoComplete="username"
             style={{
               width: "100%",
               padding: "12px 48px 12px 16px",
@@ -5306,7 +5309,8 @@ export default function App() {
               backdropFilter: "blur(20px)",
               cursor: isEditingName ? "text" : "default",
               opacity: isEditingName ? 1 : 0.9,
-              boxSizing: "border-box"
+              boxSizing: "border-box",
+              WebkitAppearance: "none"
             }}
           />
           {isEditingName ? (
