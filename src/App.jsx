@@ -4436,13 +4436,15 @@ const SupportDevButton = () => {
     6.5  LEADERBOARD COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 
-const Leaderboard = ({ onBack }) => {
+const Leaderboard = ({ onBack, currentPlayerName }) => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [playerStats, setPlayerStats] = useState(null);
+  const [playerRank, setPlayerRank] = useState(null);
 
   useEffect(() => {
     loadLeaderboard();
-  }, []);
+  }, [currentPlayerName]);
 
   const loadLeaderboard = async () => {
     try {
@@ -4468,6 +4470,8 @@ const Leaderboard = ({ onBack }) => {
       
       if (scores.length === 0) {
         setEntries([]);
+        setPlayerStats(null);
+        setPlayerRank(null);
         setLoading(false);
         return;
       }
@@ -4497,11 +4501,23 @@ const Leaderboard = ({ onBack }) => {
       });
       
       // Convert to array and sort by total score
-      const leaderboard = Object.values(aggregated)
-        .sort((a, b) => b.totalScore - a.totalScore)
-        .slice(0, 10); // Top 10
+      const allEntries = Object.values(aggregated)
+        .sort((a, b) => b.totalScore - a.totalScore);
       
-      setEntries(leaderboard);
+      // Find current player's stats and rank
+      if (currentPlayerName && currentPlayerName.trim()) {
+        const playerIndex = allEntries.findIndex(e => e.name === currentPlayerName.trim());
+        if (playerIndex !== -1) {
+          setPlayerStats(allEntries[playerIndex]);
+          setPlayerRank(playerIndex + 1);
+        } else {
+          setPlayerStats(null);
+          setPlayerRank(null);
+        }
+      }
+      
+      // Get top 10
+      setEntries(allEntries.slice(0, 10));
     } catch (err) {
       console.error("Error loading leaderboard:", err);
       // Try localStorage as fallback
@@ -4529,16 +4545,29 @@ const Leaderboard = ({ onBack }) => {
             aggregated[playerName].bestScore = Math.max(aggregated[playerName].bestScore, score.score || 0);
             aggregated[playerName].bestStreak = Math.max(aggregated[playerName].bestStreak, score.streak || 0);
           });
-          const leaderboard = Object.values(aggregated)
-            .sort((a, b) => b.totalScore - a.totalScore)
-            .slice(0, 10);
-          setEntries(leaderboard);
+          const allEntries = Object.values(aggregated)
+            .sort((a, b) => b.totalScore - a.totalScore);
+          
+          // Find current player's stats and rank
+          if (currentPlayerName && currentPlayerName.trim()) {
+            const playerIndex = allEntries.findIndex(e => e.name === currentPlayerName.trim());
+            if (playerIndex !== -1) {
+              setPlayerStats(allEntries[playerIndex]);
+              setPlayerRank(playerIndex + 1);
+            }
+          }
+          
+          setEntries(allEntries.slice(0, 10));
         } else {
           setEntries([]);
+          setPlayerStats(null);
+          setPlayerRank(null);
         }
       } catch (fallbackErr) {
         console.error("Fallback load also failed:", fallbackErr);
         setEntries([]);
+        setPlayerStats(null);
+        setPlayerRank(null);
       }
     } finally {
       setLoading(false);
@@ -4570,81 +4599,177 @@ const Leaderboard = ({ onBack }) => {
         <div style={{ textAlign: "center", color: C.neut, padding: 40 }}>
           Loading...
         </div>
-      ) : entries.length === 0 ? (
-        <div style={{ 
-          textAlign: "center", 
-          color: "rgba(255,255,255,0.5)", 
-          padding: 40,
-          fontSize: 14
-        }}>
-          No scores yet. Be the first!
-        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {entries.map((entry, idx) => (
-            <div
-              key={entry.name + idx}
-              style={{
-                background: C.glass,
-                border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
-                borderRadius: 12,
-                padding: "12px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                backdropFilter: "blur(20px)",
-                boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none"
-              }}
-            >
-              <div style={{ 
-                fontSize: 20, 
+        <>
+          {/* Current Player Stats - Show at top if player exists */}
+          {playerStats && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{
+                fontSize: 13,
                 fontWeight: 700,
-                minWidth: 32,
-                color: idx === 0 ? C.nGreen : idx === 1 ? C.nPurple : idx === 2 ? C.nBlue : "rgba(255,255,255,0.6)"
+                color: C.nPurple,
+                marginBottom: 8,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                textAlign: "center"
               }}>
-                {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
+                Your Stats
               </div>
-              <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  background: `linear-gradient(135deg, ${C.nPurple}20 0%, ${C.nPurple}08 100%)`,
+                  border: `2px solid ${C.nPurple}`,
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  backdropFilter: "blur(20px)",
+                  boxShadow: `0 0 25px ${C.nPurple}30`,
+                }}
+              >
                 <div style={{ 
-                  fontSize: 16, 
-                  fontWeight: 600,
-                  color: "#fff",
-                  marginBottom: 2
-                }}>
-                  {entry.name}
-                </div>
-                <div style={{ 
-                  fontSize: 11, 
-                  color: "rgba(255,255,255,0.5)",
-                  fontFamily: "monospace"
-                }}>
-                  {entry.games} game{entry.games !== 1 ? "s" : ""} • Best: {entry.bestScore.toLocaleString()}
-                </div>
-              </div>
-              <div style={{ 
-                textAlign: "right",
-                display: "flex",
-                flexDirection: "column",
-                gap: 2
-              }}>
-                <div style={{ 
-                  fontSize: 18, 
+                  fontSize: 22, 
                   fontWeight: 700,
-                  color: C.nGreen
+                  minWidth: 40,
+                  color: C.nPurple,
+                  textAlign: "center"
                 }}>
-                  {entry.totalScore.toLocaleString()}
+                  #{playerRank}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    fontSize: 17, 
+                    fontWeight: 700,
+                    color: "#fff",
+                    marginBottom: 3
+                  }}>
+                    {playerStats.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: 11, 
+                    color: "rgba(255,255,255,0.5)",
+                    fontFamily: "monospace"
+                  }}>
+                    {playerStats.games} game{playerStats.games !== 1 ? "s" : ""} • Best: {playerStats.bestScore.toLocaleString()}
+                  </div>
                 </div>
                 <div style={{ 
-                  fontSize: 10, 
-                  color: "rgba(255,255,255,0.4)",
-                  fontFamily: "monospace"
+                  textAlign: "right",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2
                 }}>
-                  🔥 {entry.bestStreak}
+                  <div style={{ 
+                    fontSize: 20, 
+                    fontWeight: 700,
+                    color: C.nGreen
+                  }}>
+                    {playerStats.totalScore.toLocaleString()}
+                  </div>
+                  <div style={{ 
+                    fontSize: 10, 
+                    color: "rgba(255,255,255,0.4)",
+                    fontFamily: "monospace"
+                  }}>
+                    🔥 {playerStats.bestStreak}
+                  </div>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* Top 10 Section */}
+          <div style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: C.nGreen,
+            marginBottom: 8,
+            marginTop: playerStats ? 12 : 0,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            textAlign: "center"
+          }}>
+            Top 10
+          </div>
+
+          {entries.length === 0 ? (
+            <div style={{ 
+              textAlign: "center", 
+              color: "rgba(255,255,255,0.5)", 
+              padding: 40,
+              fontSize: 14
+            }}>
+              No scores yet. Be the first!
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {entries.map((entry, idx) => (
+                <div
+                  key={entry.name + idx}
+                  style={{
+                    background: C.glass,
+                    border: `1px solid ${idx === 0 ? C.nGreen : C.glassBr}`,
+                    borderRadius: 12,
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    backdropFilter: "blur(20px)",
+                    boxShadow: idx === 0 ? `0 0 20px ${C.nGreen}40` : "none"
+                  }}
+                >
+                  <div style={{ 
+                    fontSize: 20, 
+                    fontWeight: 700,
+                    minWidth: 32,
+                    color: idx === 0 ? C.nGreen : idx === 1 ? C.nPurple : idx === 2 ? C.nBlue : "rgba(255,255,255,0.6)"
+                  }}>
+                    {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: 16, 
+                      fontWeight: 600,
+                      color: "#fff",
+                      marginBottom: 2
+                    }}>
+                      {entry.name}
+                    </div>
+                    <div style={{ 
+                      fontSize: 11, 
+                      color: "rgba(255,255,255,0.5)",
+                      fontFamily: "monospace"
+                    }}>
+                      {entry.games} game{entry.games !== 1 ? "s" : ""} • Best: {entry.bestScore.toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ 
+                    textAlign: "right",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2
+                  }}>
+                    <div style={{ 
+                      fontSize: 18, 
+                      fontWeight: 700,
+                      color: C.nGreen
+                    }}>
+                      {entry.totalScore.toLocaleString()}
+                    </div>
+                    <div style={{ 
+                      fontSize: 10, 
+                      color: "rgba(255,255,255,0.4)",
+                      fontFamily: "monospace"
+                    }}>
+                      🔥 {entry.bestStreak}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <GlassButton 
@@ -5923,7 +6048,7 @@ export default function App() {
             overflowX: "hidden",
             padding: 16 
           }}>
-            <Leaderboard onBack={() => setScreen("verdict")} />
+            <Leaderboard onBack={() => setScreen("verdict")} currentPlayerName={playerName} />
           </div>
         )}
       </div>
