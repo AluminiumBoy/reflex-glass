@@ -378,47 +378,52 @@ async function genericShare(stats, roast) {
     ctx.fillRect(0, 0, 1400, 1920);
   }
   
-  // Center everything at Y: 600 (matching the verdict screen position)
-  const centerY = 600;
-  const centerX = 700; // Canvas center
+  // EXACT MATCH TO APP VERDICT SCREEN
+  // App uses width: min(85%, 450px), we'll use 450px as base and scale everything
+  // Canvas is 1400px wide, so content area should be: 450 * (1400/450) = proportional
   
-  // Score - large blue glowing number
+  const appWidth = 450; // App's content width
+  const scale = 1400 / 450; // ~3.11x scale factor
+  const contentWidth = 450 * scale; // ~1400px
+  const contentX = centerX; // Center horizontally
+  
+  // Score - matching app's fontSize: 56
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 140px monospace';
+  ctx.font = `bold ${56 * scale}px monospace`; // 56 * 3.11 = ~174px
   ctx.shadowColor = 'rgba(100, 180, 255, 0.7)';
   ctx.shadowBlur = 60;
   ctx.fillStyle = 'rgba(150, 200, 255, 0.95)';
-  ctx.fillText(totalScore.toLocaleString(), centerX, centerY);
+  ctx.fillText(totalScore.toLocaleString(), contentX, centerY);
   ctx.shadowBlur = 0;
   
-  // Player name (if available from window context) - small blue text
-  ctx.font = 'bold 32px sans-serif';
+  // Player name - matching app's fontSize: 13
+  ctx.font = `bold ${13 * scale}px sans-serif`; // 13 * 3.11 = ~40px
   ctx.fillStyle = 'rgba(100, 200, 230, 0.9)';
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), centerX, centerY + 100);
+  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (80 * scale / 3.11)); // Adjust spacing
   ctx.shadowBlur = 0;
   
-  // Roast - italic, smaller, dimmer
-  ctx.font = 'italic 28px sans-serif';
+  // Roast - matching app's style
+  ctx.font = `italic ${11 * scale}px sans-serif`;
   ctx.fillStyle = 'rgba(200, 220, 240, 0.65)';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
   ctx.shadowBlur = 15;
   
   // Word wrap roast
-  const maxWidth = 1100;
+  const maxWidth = contentWidth * 0.85;
   const words = roast.split(' ');
   let line = '';
-  let y = centerY + 180;
+  let y = centerY + 140;
   const lineHeight = 40;
   
   for (let word of words) {
     const testLine = line + word + ' ';
     const metrics = ctx.measureText(testLine);
     if (metrics.width > maxWidth && line !== '') {
-      ctx.fillText(`"${line.trim()}"`, centerX, y);
+      ctx.fillText(`"${line.trim()}"`, contentX, y);
       line = word + ' ';
       y += lineHeight;
     } else {
@@ -426,37 +431,34 @@ async function genericShare(stats, roast) {
     }
   }
   if (line.trim()) {
-    ctx.fillText(`"${line.trim()}"`, centerX, y);
+    ctx.fillText(`"${line.trim()}"`, contentX, y);
   }
   ctx.shadowBlur = 0;
   
-  // Stats grid - 3 columns matching verdict screen EXACTLY
-  const statsY = y + 100;
+  // Stats grid - EXACT match to app's grid layout
+  const statsY = y + 80;
+  const gridWidth = contentWidth * 0.85; // Match app's padding: "0 12px" relative to 450px
+  const columnWidth = gridWidth / 3;
+  const gridStartX = contentX - gridWidth / 2;
   
-  // Match the app's layout: equal columns, left-aligned
-  const totalWidth = 1050;
-  const columnWidth = totalWidth / 3; // ~350px per column
-  const startX = centerX - totalWidth / 2;
-  
-  // Helper to draw stat - matching app's exact sizes with 3x scale
+  // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
-    // Position in column (with padding from left)
-    const x = startX + (columnIndex * columnWidth) + 50;
+    const x = gridStartX + (columnIndex * columnWidth) + (12 * scale); // App's padding
     
-    // Label - app has fontSize: 8, scale 3x = 24px
+    // Label - app fontSize: 8
     ctx.textAlign = 'left';
-    ctx.font = 'bold 24px sans-serif';
+    ctx.font = `bold ${8 * scale}px sans-serif`; // 8 * 3.11 = ~25px
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 8;
     ctx.fillText(label, x, y);
     
-    // Value - app has fontSize: 18, scale 3x = 54px
-    ctx.font = 'bold 54px monospace';
+    // Value - app fontSize: 18
+    ctx.font = `bold ${18 * scale}px monospace`; // 18 * 3.11 = ~56px
     ctx.fillStyle = color;
     ctx.shadowColor = color.replace('0.9)', '0.5)');
     ctx.shadowBlur = 30;
-    ctx.fillText(value, x, y + 62); // spacing: marginBottom 4 * 3 = 12, plus font height
+    ctx.fillText(value, x, y + (22 * scale)); // Match app's marginBottom: 4 + fontSize: 18
     ctx.shadowBlur = 0;
   };
   
