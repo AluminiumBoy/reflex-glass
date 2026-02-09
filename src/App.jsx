@@ -345,7 +345,7 @@ async function genericShare(stats, roast) {
   
   // Generate share card matching the verdict screen
   const canvas = document.createElement('canvas');
-  canvas.width = 1400;  // Wider to fit all stats comfortably
+  canvas.width = 1200;  // Wider to fit all stats comfortably
   canvas.height = 1920; // Mobile aspect ratio
   const ctx = canvas.getContext('2d');
   
