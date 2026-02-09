@@ -275,7 +275,7 @@ const roasts = {
     "Clean pump, you sexy bastard",
     "Rizz on point, damn son",
     "Wagmi you glorious fuck",
-    "Brrr motherfucker, respect",
+    "Brrr mf, respect",
     "Cooking harder than my ex's tears",
   ],
 
