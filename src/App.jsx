@@ -438,10 +438,10 @@ async function genericShare(stats, roast) {
   ctx.shadowBlur = 0;
   
   // Stats grid - EXACT match to app's grid layout
-  const statsY = y + 140;
+  const statsY = y + 125;
   const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
   const columnWidth = gridWidth / 5;
-  const gridStartX = contentX - gridWidth / 4;
+  const gridStartX = contentX - gridWidth / 5;
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
@@ -449,7 +449,7 @@ async function genericShare(stats, roast) {
     
     // Label - app fontSize: 8
     ctx.textAlign = 'left';
-    ctx.font = `bold ${10 * scale}px sans-serif`; // 8 * 3.11 = ~25px
+    ctx.font = `bold ${8 * scale}px sans-serif`; // 8 * 3.11 = ~25px
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 8;
