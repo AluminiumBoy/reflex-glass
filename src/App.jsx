@@ -386,7 +386,7 @@ async function genericShare(stats, roast) {
   const centerX = 700; // Horizontal center (canvas width / 2)
   const appWidth = 450; // App's content width
   const scale = 1400 / 450; // ~3.11x scale factor
-  const contentWidth = 350 * scale; // ~1400px
+  const contentWidth = 450 * scale; // ~1400px
   const contentX = centerX; // Center horizontally
   
   // Score - matching app's fontSize: 56
@@ -439,7 +439,7 @@ async function genericShare(stats, roast) {
   
   // Stats grid - EXACT match to app's grid layout
   const statsY = y + 80;
-  const gridWidth = contentWidth * 0.85; // Match app's padding: "0 12px" relative to 450px
+  const gridWidth = contentWidth * 0.65; // Match app's padding: "0 12px" relative to 450px
   const columnWidth = gridWidth / 3;
   const gridStartX = contentX - gridWidth / 2;
   
