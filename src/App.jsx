@@ -449,18 +449,18 @@ async function genericShare(stats, roast) {
     
     // Label - app fontSize: 8
     ctx.textAlign = 'left';
-    ctx.font = `bold ${20 * scale}px sans-serif`; // 8 * 3.11 = ~25px
+    ctx.font = `bold ${12 * scale}px sans-serif`; // 8 * 3.11 = ~25px
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 8;
     ctx.fillText(label, x, y);
     
     // Value - app fontSize: 18
-    ctx.font = `bold ${18 * scale}px monospace`; // 18 * 3.11 = ~56px
+    ctx.font = `bold ${30 * scale}px monospace`; // 18 * 3.11 = ~56px
     ctx.fillStyle = color;
     ctx.shadowColor = color.replace('0.9)', '0.5)');
     ctx.shadowBlur = 30;
-    ctx.fillText(value, x, y + (22 * scale)); // Match app's marginBottom: 4 + fontSize: 18
+    ctx.fillText(value, x, y + (25 * scale)); // Match app's marginBottom: 4 + fontSize: 18
     ctx.shadowBlur = 0;
   };
   
