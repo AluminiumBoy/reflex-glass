@@ -340,110 +340,156 @@ function shareToTwitter(stats, roast) {
 }
 
 async function genericShare(stats, roast) {
-  const { accuracy, correct, total, totalScore } = stats;
+  const { accuracy, correct, total, totalScore, bestStreak } = stats;
   const meme = getMemeForScore(accuracy);
   
-  // Generate share card
+  // Generate share card matching the verdict screen
   const canvas = document.createElement('canvas');
-  canvas.width = 800;
-  canvas.height = 418; // Twitter card ratio
+  canvas.width = 1080;  // Higher resolution for better quality
+  canvas.height = 1920; // Mobile aspect ratio
   const ctx = canvas.getContext('2d');
   
-  // Background gradient
-  const gradient = ctx.createLinearGradient(0, 0, 800, 418);
-  gradient.addColorStop(0, '#0f1a2e');
-  gradient.addColorStop(0.5, '#06060c');
-  gradient.addColorStop(1, '#0f0f1a');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 800, 418);
+  try {
+    // Load and draw background image
+    const bgImage = new Image();
+    bgImage.crossOrigin = 'anonymous';
+    
+    await new Promise((resolve, reject) => {
+      bgImage.onload = resolve;
+      bgImage.onerror = reject;
+      bgImage.src = './background.png';
+    });
+    
+    // Draw background
+    ctx.drawImage(bgImage, 0, 0, 1080, 1920);
+    
+    // Add semi-transparent overlay for better text readability
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, 1080, 1920);
+    
+  } catch (err) {
+    console.log('Background image failed to load, using gradient fallback');
+    // Fallback gradient if background.png fails
+    const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
+    gradient.addColorStop(0, '#0f1a2e');
+    gradient.addColorStop(0.5, '#06060c');
+    gradient.addColorStop(1, '#0f0f1a');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1080, 1920);
+  }
   
-  // Add glow orbs
-  const glowGradient1 = ctx.createRadialGradient(150, 100, 0, 150, 100, 200);
-  glowGradient1.addColorStop(0, 'rgba(0, 255, 170, 0.1)');
-  glowGradient1.addColorStop(1, 'transparent');
-  ctx.fillStyle = glowGradient1;
-  ctx.fillRect(0, 0, 800, 418);
+  // Center everything at Y: 600 (matching the verdict screen position)
+  const centerY = 600;
   
-  const glowGradient2 = ctx.createRadialGradient(650, 318, 0, 650, 318, 180);
-  glowGradient2.addColorStop(0, 'rgba(168, 85, 247, 0.15)');
-  glowGradient2.addColorStop(1, 'transparent');
-  ctx.fillStyle = glowGradient2;
-  ctx.fillRect(0, 0, 800, 418);
-  
-  // Title
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  // Score - large blue glowing number
   ctx.textAlign = 'center';
-  ctx.fillText('REFLEX GLASS', 400, 80);
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 140px monospace';
+  ctx.shadowColor = 'rgba(100, 180, 255, 0.7)';
+  ctx.shadowBlur = 60;
+  ctx.fillStyle = 'rgba(150, 200, 255, 0.95)';
+  ctx.fillText(totalScore.toLocaleString(), 540, centerY);
+  ctx.shadowBlur = 0;
   
-  // Meme emoji
-  ctx.font = '72px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(meme, 400, 170);
+  // Player name (if available from window context) - small blue text
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillStyle = 'rgba(100, 200, 230, 0.9)';
+  ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
+  ctx.shadowBlur = 30;
+  const playerName = window.currentPlayerName || 'PLAYER';
+  ctx.fillText(playerName.toUpperCase(), 540, centerY + 100);
+  ctx.shadowBlur = 0;
   
-  // Score
-  const scoreGradient = ctx.createLinearGradient(250, 200, 550, 200);
-  scoreGradient.addColorStop(0, '#00ffaa');
-  scoreGradient.addColorStop(1, '#a855f7');
-  ctx.fillStyle = scoreGradient;
-  ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
-  ctx.fillText(`${accuracy.toFixed(1)}%`, 400, 250);
-  
-  // Stats
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.font = '20px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(`${correct}/${total} correct • ${totalScore.toLocaleString()} pts`, 400, 290);
-  
-  // Roast (wrapped)
-  ctx.font = 'italic 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  // Roast - italic, smaller, dimmer
+  ctx.font = 'italic 28px sans-serif';
+  ctx.fillStyle = 'rgba(200, 220, 240, 0.65)';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+  ctx.shadowBlur = 15;
   
   // Word wrap roast
-  const maxWidth = 700;
+  const maxWidth = 900;
   const words = roast.split(' ');
   let line = '';
-  let y = 340;
+  let y = centerY + 180;
+  const lineHeight = 40;
   
   for (let word of words) {
     const testLine = line + word + ' ';
     const metrics = ctx.measureText(testLine);
     if (metrics.width > maxWidth && line !== '') {
-      ctx.fillText(line, 400, y);
+      ctx.fillText(`"${line.trim()}"`, 540, y);
       line = word + ' ';
-      y += 25;
+      y += lineHeight;
     } else {
       line = testLine;
     }
   }
-  ctx.fillText(line, 400, y);
+  if (line.trim()) {
+    ctx.fillText(`"${line.trim()}"`, 540, y);
+  }
+  ctx.shadowBlur = 0;
+  
+  // Stats grid - 3 columns
+  const statsY = y + 100;
+  const columnWidth = 360;
+  const startX = 540 - columnWidth * 1.5 + columnWidth / 2;
+  
+  // Helper to draw stat
+  const drawStat = (label, value, color, x, y) => {
+    // Label
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(label, x, y);
+    
+    // Value
+    ctx.font = 'bold 45px monospace';
+    ctx.fillStyle = color;
+    ctx.shadowColor = color.replace('0.9)', '0.5)');
+    ctx.shadowBlur = 30;
+    ctx.fillText(value, x, y + 50);
+    ctx.shadowBlur = 0;
+  };
+  
+  drawStat('ACCURACY', `${accuracy}%`, 'rgba(100, 230, 180, 0.9)', startX, statsY);
+  drawStat('CORRECT', `${correct}/${total}`, 'rgba(100, 200, 255, 0.9)', startX + columnWidth, statsY);
+  drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', startX + columnWidth * 2, statsY);
   
   // Try Web Share API with image, fallback to clipboard
-  try {
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  const shareText = 
+    `Just scored ${totalScore.toLocaleString()} on Reflex Glass! ${meme}\n\n` +
+    `${accuracy}% accuracy • ${correct}/${total} correct\n\n` +
+    `${roast}`;
+  
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  
+  // Try native Web Share API with image
+  if (navigator.share && navigator.canShare) {
+    const shareData = {
+      text: shareText,
+      url: window.location.href,
+      files: [new File([blob], 'reflex-glass-score.png', { type: 'image/png' })]
+    };
     
-    const shareText = 
-      `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
-      `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
-      `${roast}`;
-    
-    // Try native Web Share API with image
-    if (navigator.share && navigator.canShare) {
-      const shareData = {
-        text: shareText,
-        url: window.location.href,
-        files: [new File([blob], 'reflex-glass-score.png', { type: 'image/png' })]
-      };
-      
-      if (navigator.canShare(shareData)) {
+    if (navigator.canShare(shareData)) {
+      try {
         await navigator.share(shareData);
         return true;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
       }
     }
-    
-    // Fallback: copy text to clipboard
+  }
+  
+  // Fallback: copy text to clipboard
+  try {
     await navigator.clipboard.writeText(shareText + `\n\n${window.location.href}`);
     return false; // Indicates clipboard copy, not native share
   } catch (err) {
-    console.error('Share failed:', err);
+    console.error('Clipboard copy failed:', err);
     return false;
   }
 }
@@ -3472,13 +3518,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   const handleGenericShare = useCallback(async () => {
     sound.click();
     haptic([20]);
+    // Store player name for share card generation
+    window.currentPlayerName = playerName;
     const shared = await genericShare(stats, roast);
     if (!shared) {
       // Clipboard copy happened
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [stats, roast]);
+  }, [stats, roast, playerName]);
 
   useEffect(() => {
     const saveScore = async () => {
