@@ -321,7 +321,7 @@ function getMemeForScore(accuracy) {
 
 
 /* ═══════════════════════════════════════════════════════════════
-    SHARE FUNCTIONS - Base + Twitter with Logos & Card Generation
+    SHARE FUNCTIONS - Generic Web Share + Twitter with Logos & Card Generation
    ═══════════════════════════════════════════════════════════════ */
 
 function shareToTwitter(stats, roast) {
@@ -339,7 +339,7 @@ function shareToTwitter(stats, roast) {
   window.open(tweetUrl, '_blank');
 }
 
-async function shareToBase(stats, roast) {
+async function genericShare(stats, roast) {
   const { accuracy, correct, total, totalScore } = stats;
   const meme = getMemeForScore(accuracy);
   
@@ -416,31 +416,30 @@ async function shareToBase(stats, roast) {
   }
   ctx.fillText(line, 400, y);
   
-  // Try to use Base mini app share if available, otherwise copy to clipboard
+  // Try Web Share API with image, fallback to clipboard
   try {
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     
-    // Check if we're in Base mini app
-    if (window.ethereum && window.ethereum.isBase) {
-      // Use Base mini app share
-      const shareData = {
-        text: `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n${roast}`,
-        url: window.location.href,
-        files: [new File([blob], 'reflex-glass-score.png', { type: 'image/png' })]
-      };
-      
-      if (navigator.share && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        return true;
-      }
-    }
-    
-    // Fallback: copy link to clipboard
     const shareText = 
       `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
       `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
       `${roast}`;
     
+    // Try native Web Share API with image
+    if (navigator.share && navigator.canShare) {
+      const shareData = {
+        text: shareText,
+        url: window.location.href,
+        files: [new File([blob], 'reflex-glass-score.png', { type: 'image/png' })]
+      };
+      
+      if (navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        return true;
+      }
+    }
+    
+    // Fallback: copy text to clipboard
     await navigator.clipboard.writeText(shareText + `\n\n${window.location.href}`);
     return false; // Indicates clipboard copy, not native share
   } catch (err) {
@@ -3470,10 +3469,10 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     haptic([20]);
   }, [stats, roast]);
 
-  const handleBaseShare = useCallback(async () => {
+  const handleGenericShare = useCallback(async () => {
     sound.click();
     haptic([20]);
-    const shared = await shareToBase(stats, roast);
+    const shared = await genericShare(stats, roast);
     if (!shared) {
       // Clipboard copy happened
       setCopied(true);
@@ -3743,15 +3742,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           </button>
           
           <button
-            onClick={handleBaseShare}
+            onClick={handleGenericShare}
             style={{
               flex: 1,
               padding: "10px 8px",
               fontSize: 11,
               fontWeight: 600,
               color: "rgba(255,255,255,0.9)",
-              background: copied ? "rgba(0, 230, 118, 0.3)" : "linear-gradient(135deg, rgba(30, 100, 255, 0.25) 0%, rgba(50, 180, 255, 0.25) 100%)",
-              border: copied ? "1px solid rgba(0, 230, 118, 0.3)" : "1px solid rgba(100, 180, 255, 0.2)",
+              background: copied ? "rgba(0, 230, 118, 0.3)" : "linear-gradient(135deg, rgba(100, 80, 255, 0.25) 0%, rgba(150, 100, 255, 0.25) 100%)",
+              border: copied ? "1px solid rgba(0, 230, 118, 0.3)" : "1px solid rgba(150, 100, 255, 0.2)",
               borderRadius: 10,
               cursor: "pointer",
               transition: "all 0.2s",
@@ -3765,7 +3764,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             onMouseEnter={(e) => {
               if (!copied) {
                 e.target.style.transform = "translateY(-1px)";
-                e.target.style.boxShadow = "0 4px 16px rgba(50, 180, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)";
+                e.target.style.boxShadow = "0 4px 16px rgba(150, 100, 255, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)";
               }
             }}
             onMouseLeave={(e) => {
@@ -3773,9 +3772,6 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               e.target.style.boxShadow = copied ? '0 0 12px rgba(0, 230, 118, 0.2)' : 'inset 0 1px 0 rgba(255,255,255,0.08)';
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 111 111" fill="currentColor" style={{ opacity: copied ? 0 : 1 }}>
-              <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6318 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
-            </svg>
             {copied ? (
               <>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -3784,7 +3780,16 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
                 Copied!
               </>
             ) : (
-              "Share Base"
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                Share
+              </>
             )}
           </button>
         </div>
