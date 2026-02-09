@@ -3540,15 +3540,19 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     }
   }, [stats, roast, playerName]);
 
+  // Store the playerName when verdict screen loads (before any name changes)
+  const [scorePlayerName] = useState(playerName);
+
   useEffect(() => {
     const saveScore = async () => {
       // Validate playerName properly - check for empty string and whitespace
-      if (!playerName || !playerName.trim() || saved) return;
+      // Use the scorePlayerName that was captured when verdict loaded, not current playerName
+      if (!scorePlayerName || !scorePlayerName.trim() || saved) return;
       
       try {
         const timestamp = Date.now();
         const scoreData = {
-          name: playerName.trim(), // Ensure trimmed name is saved
+          name: scorePlayerName.trim(), // Use the captured name, not current playerName
           score: stats.totalScore,
           streak: stats.bestStreak,
           accuracy: stats.accuracy,
@@ -3574,7 +3578,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         // Try localStorage as fallback
         try {
           const scoreData = {
-            name: playerName.trim(), // Ensure trimmed name in fallback too
+            name: scorePlayerName.trim(), // Use the captured name in fallback too
             score: stats.totalScore,
             streak: stats.bestStreak,
             accuracy: stats.accuracy,
@@ -3591,7 +3595,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     };
     
     saveScore();
-  }, [playerName, stats, saved]);
+  }, [stats, saved, scorePlayerName]); // Removed playerName, added scorePlayerName
 
   // Determine grade
   let grade, gradeColor;
@@ -5186,19 +5190,22 @@ export default function App() {
     const previousName = localStorage.getItem("reflexGlassPlayerName");
     
     if (previousName && previousName !== tempName.trim()) {
-      // User is changing their name - automatically delete all previous scores
+      // User is changing their name - delete ALL previous scores with old name
       try {
-        if (db) {
-          // Delete from Firebase - all scores with the old name from this device
-          // Note: We can't delete from Firestore client-side without proper setup
-          // But we can clear localStorage
-          localStorage.removeItem("reflexGlassScores");
-          console.log(`Cleared local scores for previous name: ${previousName}`);
-        } else {
-          // Delete from localStorage
-          localStorage.removeItem("reflexGlassScores");
-          console.log(`Cleared all scores for previous name: ${previousName}`);
-        }
+        // Get all scores from localStorage
+        const existingScores = JSON.parse(localStorage.getItem("reflexGlassScores") || "[]");
+        
+        // Filter out ALL scores with the old name (not just from this session)
+        const filteredScores = existingScores.filter(score => score.name !== previousName);
+        
+        // Save back the filtered scores
+        localStorage.setItem("reflexGlassScores", JSON.stringify(filteredScores));
+        
+        console.log(`Deleted all scores for previous name: ${previousName}`);
+        console.log(`Removed ${existingScores.length - filteredScores.length} score(s)`);
+        
+        // Note: Firebase scores cannot be deleted client-side without proper permissions
+        // They will remain in Firebase but won't show in localStorage
       } catch (error) {
         console.error("Error clearing previous scores:", error);
       }
