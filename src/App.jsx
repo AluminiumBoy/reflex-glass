@@ -435,7 +435,7 @@ async function genericShare(stats, roast) {
   const columnWidth = 420; // Wider columns
   const startX = centerX - columnWidth * 1.5 + columnWidth / 2;
   
-  // Helper to draw stat
+  // Helper to draw stat (text already center-aligned from ctx.textAlign = 'center' on line 386)
   const drawStat = (label, value, color, x, y) => {
     // Label
     ctx.font = 'bold 20px sans-serif';
