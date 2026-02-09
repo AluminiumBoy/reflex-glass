@@ -418,7 +418,7 @@ async function genericShare(stats, roast) {
   const maxWidth = contentWidth * 0.85;
   const words = roast.split(' ');
   let line = '';
-  let y = centerY + 140;
+  let y = centerY + 170;
   const lineHeight = 40;
   
   for (let word of words) {
@@ -445,7 +445,7 @@ async function genericShare(stats, roast) {
   
   // Helper to draw stat - EXACT app proportions
   const drawStat = (label, value, color, columnIndex, y) => {
-    const x = gridStartX + (columnIndex * columnWidth) + (15 * scale); // App's padding
+    const x = gridStartX + (columnIndex * columnWidth) + (12 * scale); // App's padding
     
     // Label - app fontSize: 8
     ctx.textAlign = 'left';
