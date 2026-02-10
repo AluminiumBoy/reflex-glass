@@ -216,85 +216,81 @@ function generateRoast(stats) {
   
 const roasts = {
   legendary: [
-    "Fucking mooned, you absolute chad",
-    "Your thumb mooned the whole chart, absolute chad god",
-    "Bears got fucked, king shit",
-    "You printed so clean even the SEC is jealous",
-    "100x degen god, holy fuck",
-    "Middle finger to bears: fuck you, 100x aura maxed",
-    "Aura so big it broke my screen",
-    "Bears bent over, crying in the corner—king shit eternal",
-    "You printed while I cried",
-    "Everyone else got rugged, you just casually took their lunch money",
-    "Printed Lambos while we aped bananas—peak alpha",
-    "100x degen godmode activated, my screen's in therapy",
-    "Mooned so nuclear bears formed a suicide pact",
-    "Aura vaporized my stops into HODL nirvana",
-    "You printed so clean even the SEC is jealous",
-  ],
+    "Fucking mooned. Absolute chad.",
+    "Your thumb mooned the whole chart. Chad energy.",
+    "Bears nowhere to be found. King shit.",
+    "You printed so clean even regulators are jealous.",
+    "100x aura activated.",
+    "Middle finger to bears. Aura maxed.",
+    "Aura so big it broke my screen.",
+    "You printed while I cried.",
+    "Everyone else got rugged. You took their lunch money.",
+    "Printed lambos while others aped bananas.",
+    "Godmode activated. Charts still shaking.",
+    "Mooned so hard bears went silent.",
+    "Aura vaporized my stops into acceptance.",
+
+    ],
 
   pro: [
-    "Clean pump, you sexy bastard",
-    "Brrr mf, respect",
-    "Middle finger volume king, got us all FOMO'd",
-    "Fingertips dancing on charts, pro-level wizardry",
-    "Clean pump got me simping, you sexy chart wizard",
-    "Brrr'd the dip into oblivion, respect the grind",
-    "Cooking alphas hotter than a bear's regret tears",
-    "FOMO'd my portfolio watching your W's stack",
-    "That entry was so good it felt illegal… and I’m into it",
-    "Cooking the market while I’m still trying to find the stove",
-    "Wagmi? Nah, you already made it, the rest of us are just coping",
-    "Pattern recognition so sharp I cut myself looking at your trades",
-    "Entry so filthy it got its own OnlyFans",
+    "Clean pump. Respect.",
+    "Brrr moment confirmed.",
+    "That was a confident entry.",
+    "Fingertips dancing on charts. Pro behavior.",
+    "Clean execution. No notes.",
+    "Brrr’d the dip into submission.",
+    "Cooking alphas while others panic.",
+    "Watching this gave me FOMO.",
+    "That entry felt illegal. Respectfully.",
+    "Market cooked. You ate.",
+    "You’re already there. The rest of us are coping.",
+    "Pattern recognition on point.",
 
   ],
 
   decent: [
-    "Not rekt… yet, you lucky prick",
-    "Sideways like my love life",
-    "Flatline gains, but hey, not zeroed lol",
-    "Mid, but in a charming ‘I might still make it’ kinda way",
-    "Sideways like my entire personality since 2022",
-    "Surviving purely on vibes and the power of friendship (and hopium)",
-    "Sideways chop matching my 2022 life crisis",
-    "Breathing on vibes, friendship, and 0.1% gains",
-    "Not rekt yet… which is honestly impressive for you",
-    "This is the financial equivalent of ‘I’m not mad, just disappointed’",
-    "Solid C+ performance, participation trophy unlocked",        
-    "You’re doing better than 67% of CT, congrats I guess",
+    "Not rekt. Yet.",
+    "Sideways, but holding it together.",
+    "Flat gains, solid survival.",
+    "Mid, but in a charming way.",
+    "Sideways like my 2022 personality.",
+    "Running on vibes and mild optimism.",
+    "Chop city, but you made it through.",
+    "Breathing on vibes and tiny gains.",
+    "Not rekt yet, which is impressive.",
+    "This was… acceptable.",
+    "Solid C+ energy.",
+    "Better than most, honestly.",
   ],
 
   struggling: [
-    "Dip got you good huh",
-    "Rekt a little, we’ve all been there",
-    "Panic hands moment, happens",
-    "You’re not rekt yet, but you’re definitely on the waitlist",
-    "Your portfolio is currently having an identity crisis",
-    "You bought the top so perfectly it’s almost impressive",
-    "Rough one, but at least you’re consistent at being inconsistent",   
-    "Panic sold at the exact bottom – beautiful, truly art",
-    "Paper hands so fast you should get a medal for speed",
-    "Consistent chaos king, bags in therapy",
-    "John Weak vibes hitting hard, oof that dip",
-    "Full hand struggle mode, my heart's with ya",
-    "You bought the top so cleanly it deserves its own plaque",    
+    "That dip hurt a bit, huh.",
+    "Rekt-ish. Happens.",
+    "Panic hands moment. Classic.",
+    "You’re wobbling, but still standing.",
+    "Your portfolio is having thoughts.",
+    "Bought the top with confidence.",
+    "Rough one, but you showed up.",
+    "That timing was… artistic.",
+    "Paper hands speedrun attempt.",
+    "Consistent chaos energy.",
+    "Full hand struggle mode. Respect.",
+    "You’ll laugh about this later. Probably.",
   ],
 
   ngmi: [
-    "Rekt city population: you",
-    "NGMI energy, but tomorrow’s another chart",
-    "Bags zeroed out—tough day at the casino",
-    "NGMI aura glowing red, charts laughing at you",    
-    "Fud incarnate, even alts are ghosting you",
-    "Dead bags so cold the obituary bounced",   
-    "Permabear tomb: bots filed noise complaint",
-    "You just speedran financial ruin, impressive honestly",
-    "The market didn’t rug you… you rug’d yourself",
-    "Zeroed so smoothly it should be studied in film school",
-    "Bags so dead even the funeral forgot to show up",
-    "You’re the reason the market has trust issues now",
-    "Not just NGMI, you’re NGMI with style points",
+    "Rekt city. Population: you.",
+    "NGMI vibes, but tomorrow’s another chart.",
+    "Tough day at the casino.",
+    "NGMI aura detected.",
+    "Even the charts are confused.",
+    "Dead bags, but lessons learned.",
+    "Permabear energy unlocked.",
+    "You speedran this one.",
+    "Market didn’t rug you — it educated you.",
+    "Zeroed with confidence.",
+    "Bags so dead they need closure.",
+    "NGMI, but with style points.",
   ]
 };
 
@@ -315,20 +311,15 @@ function getMemeForScore(accuracy) {
 
 
 
-function shareToTwitter(stats, roast) {
-  const { accuracy, correct, total, totalScore } = stats;
-  const meme = getMemeForScore(accuracy);
-  
-  const tweetText = encodeURIComponent(
-    `Just scored ${accuracy.toFixed(1)}% on Reflex Glass! ${meme}\n\n` +
-    `${correct}/${total} correct • ${totalScore.toLocaleString()} pts\n\n` +
-    `${roast}\n\n` +
-    `Think you can beat my score? 👇`
-  );
-  
-  const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(window.location.href)}`;
-  window.open(tweetUrl, '_blank');
-}
+  function shareToTwitter() {
+    const tweet = `This is harder than it looks.`;
+
+    const tweetUrl =
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`;
+
+    window.open(tweetUrl, "_blank");
+  }
+
 
 async function genericShare(stats, roast) {
   const { accuracy, correct, total, totalScore, bestStreak } = stats;
@@ -3829,7 +3820,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           justifyContent: "center",
         }}>
           <div style={{ 
-            fontSize: 11, 
+            fontSize: 13, 
             fontStyle: "italic", 
             color: "rgba(200, 220, 240, 0.65)", 
             lineHeight: 1.4, 
@@ -5683,7 +5674,7 @@ export default function App() {
             borderRadius: 8,
             border: "1px solid rgba(255, 180, 100, 0.2)"
           }}>
-            ⚠️ Changing your name will delete all your previous statistics
+            ⚠️ If you change your name, you won't be able to restore it!
           </div>
         )}
       </GlassPanel>
