@@ -1,11 +1,16 @@
+/* ================================================
+   JAVÍTOTT index.css – Reflex Glass Mini App-hez
+   2026-as verzió – teljes képernyős, csíkmentes
+   ================================================ */
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: dark;                    /* erőltetett sötét mód */
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #06060c;             /* sötét háttér egységesen */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,6 +18,30 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Teljes képernyő reset – semmi margó, semmi center */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: #06060c;
+  touch-action: manipulation;            /* jobb touch élmény */
+}
+
+/* #root teljes képernyős – minden screen itt van */
+#root {
+  width: 100vw;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #06060c;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Link stílusok – ha használod */
 a {
   font-weight: 500;
   color: #646cff;
@@ -22,19 +51,7 @@ a:hover {
   color: #535bf2;
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
+/* Button alap stílusok – GlassButton felülírja őket */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -54,15 +71,24 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Light mode kikapcsolása – Mini App mindig sötét */
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: rgba(255, 255, 255, 0.87);
+    background-color: #06060c;
   }
-  a:hover {
-    color: #747bff;
+  body {
+    background: #06060c;
   }
-  button {
-    background-color: #f9f9f9;
-  }
+}
+
+/* Extra biztonság: minden elem box-sizing */
+* {
+  box-sizing: border-box;
+}
+
+/* Ha később kell valami globális finomítás */
+body {
+  -webkit-tap-highlight-color: transparent;   /* eltünteti a tap highlight-ot */
+  overscroll-behavior: none;                   /* tiltja az overscroll-t */
 }
