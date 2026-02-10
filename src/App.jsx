@@ -4085,15 +4085,14 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 13,
-           marginBottom: 18,
-           padding: "0 30px"
+            padding: "0 30px"
           }}
         >
           <div>
             <div style={{ 
               fontSize: 8, 
               color: "rgba(150, 180, 200, 0.45)", 
-              marginBottom: 4, 
+              marginBottom: -4, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
               fontWeight: 600
@@ -4114,7 +4113,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             <div style={{ 
               fontSize: 8, 
               color: "rgba(150, 180, 200, 0.45)", 
-              marginBottom: 4, 
+              marginBottom: -4, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
               fontWeight: 600
@@ -4135,7 +4134,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             <div style={{ 
               fontSize: 8, 
               color: "rgba(150, 180, 200, 0.45)", 
-              marginBottom: 4, 
+              marginBottom: -4, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
               fontWeight: 600
