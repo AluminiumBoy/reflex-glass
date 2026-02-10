@@ -3766,7 +3766,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div style={{ 
           fontSize: 15, 
           fontWeight: 700,
-          marginTop: -40, 
+          marginTop: 28.5, 
           marginBottom: 18, 
           color: "rgba(100, 200, 230, 0.9)", 
           textShadow: "0 0 15px rgba(100, 200, 230, 0.6), 0 0 30px rgba(100, 200, 230, 0.3)",
