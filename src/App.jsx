@@ -3800,7 +3800,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 10,
             padding: "0 30px",
-            marginTop: 40
+            marginTop: 35
           }}
         >
           <div>
@@ -3815,7 +3815,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               ACCURACY
             </div>
             <div style={{ 
-              fontSize: 18, 
+              fontSize: 22, 
               fontWeight: 800, 
               color: "rgba(100, 230, 180, 0.9)", 
               textShadow: `0 0 12px rgba(100, 230, 180, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
@@ -3836,7 +3836,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               CORRECT
             </div>
             <div style={{ 
-              fontSize: 18, 
+              fontSize: 22, 
               fontWeight: 800, 
               color: "rgba(100, 200, 255, 0.9)", 
               textShadow: `0 0 12px rgba(100, 200, 255, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
@@ -3857,7 +3857,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               STREAK
             </div>
             <div style={{ 
-              fontSize: 18, 
+              fontSize: 22, 
               fontWeight: 800, 
               color: "rgba(255, 100, 80, 0.9)", 
               textShadow: `0 0 12px rgba(255, 100, 80, 0.5), 0 2px 4px rgba(0,0,0,0.4)`,
