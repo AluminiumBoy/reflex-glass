@@ -1,7 +1,38 @@
 {
+  "rewrites": [
+    {
+      "source": "/.well-known/farcaster.json",
+      "destination": "/farcaster.json"
+    }
+  ],
   "headers": [
     {
       "source": "/farcaster.json",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/.well-known/farcaster.json",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",

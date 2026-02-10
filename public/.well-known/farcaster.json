@@ -4,15 +4,30 @@
     "payload": "eyJkb21haW4iOiJyZWZsZXgtZ2xhc3MudmVyY2VsLmFwcCJ9",
     "signature": "AAAAAAAAAAAAAAAAyhG94Fl3s2MRZwKIYr4qFzl2yhEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiSCrVbLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAul7REO_bo9AFv8iC11NYrLu4WEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASQ_-6NvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAA4DOwwOIqO_SdqmUBcz1TxAyHMwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAPhSELIcxQMC9He6VmhtIBncm2etAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBQpSo1BCUxaX3xw7NFpkx41xZWYl0EpNDWmvVC7vxP9Nd9gX5Kcn71r4fL84DQ1P1zpojc1pcuTLNZkpF6-Vq_RsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJI"
   },
+
   "frame": {
     "version": "next",
     "name": "Reflex Glass",
     "iconUrl": "https://reflex-glass.vercel.app/icon.png",
     "homeUrl": "https://reflex-glass.vercel.app/",
     "imageUrl": "https://reflex-glass.vercel.app/preview.png",
-    "buttonTitle": "Play Now",
+    "buttonTitle": "Play",
     "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
     "splashBackgroundColor": "#06060c",
-    "webhookUrl": ""
+    "webhookUrl": "",
+    "primaryCategory": "game",
+    "tags": [
+      "game",
+      "price-action",
+      "charts",
+      "pattern-recognition",
+      "trading"
+    ],
+    "subtitle": "A reflex training game for reading charts",
+    "description": "Reflex Glass is a fast-paced chart reading game built around pure price action. You get seconds to decide: BUY or SELL. No indicators. No hints. Just real market structures, streak-based scoring, and brutal honesty. Train your eye, sharpen your instincts, and see if you actually understand charts.",
+    "tagline": "This is harder than it looks.",
+    "ogTitle": "Reflex Glass",
+    "ogDescription": "A fast-paced price action game. Seconds to decide. No indicators. Just charts.",
+    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png"
   }
 }
