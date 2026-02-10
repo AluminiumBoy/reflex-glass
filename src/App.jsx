@@ -5691,7 +5691,8 @@ export default function App() {
         justifyContent: "space-between", 
         alignItems: "center", 
         flexShrink: 0,
-        padding: isMobile ? "0 10px" : "0"
+        padding: isMobile ? "40px 10px 0 10px" : "60px 0 0 0",
+        marginBottom: 8
       }}>
         <GlassPanel style={{ padding: "5px 12px", borderRadius: 14 }}>
           <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.5)" }}>
@@ -5737,7 +5738,7 @@ export default function App() {
 
       {/* Timer - only show when playing, more compact */}
       {screen === "playing" && (
-        <div style={{ flexShrink: 0, padding: isMobile ? "0 10px" : "0" }}>
+        <div style={{ flexShrink: 0, padding: isMobile ? "0 10px 8px 10px" : "0 0 8px 0" }}>
           <TimerBar timeLeft={timeLeft} totalTime={DECISION_MS} />
         </div>
       )}
@@ -6159,4 +6160,4 @@ export default function App() {
         `}</style>
       </div>
     );
- }
+  }
