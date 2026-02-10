@@ -55,9 +55,25 @@ function haptic(pattern = [30]) {
 class SoundEngine {
   constructor() {
     this.ctx = null;
-    this.on = true;
+    this.fxOn = true;  // FX default ON
+    this.musicOn = false;  // Music default OFF
     this.masterGain = null;
     this.compressor = null;
+    
+    // Music layers
+    this.musicGain = null;
+    this.bassOsc = null;
+    this.padOsc = null;
+    this.pulseOsc = null;
+    this.bassGain = null;
+    this.padGain = null;
+    this.pulseGain = null;
+    this.filterNode = null;
+    
+    // Music state
+    this.currentIntensity = 0;
+    this.targetIntensity = 0;
+    this.isPlaying = false;
   }
 
   _ensure() {
@@ -73,18 +89,190 @@ class SoundEngine {
       this.compressor.release.value = 0.25;
       this.masterGain.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
+      
+      // Create music gain (separate from FX)
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.value = 0;
+      this.musicGain.connect(this.compressor);
     }
     return this.ctx;
   }
 
   unlock() {
-    if (!this.on) return;
     const ctx = this._ensure();
     if (ctx.state === "suspended") ctx.resume();
   }
 
+  // Music control
+  startMusic() {
+    if (!this.musicOn || this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    this.isPlaying = true;
+    
+    // Bass layer (60 BPM feel) - Dark sub bass
+    this.bassOsc = ctx.createOscillator();
+    this.bassGain = ctx.createGain();
+    this.bassOsc.type = "sine";
+    this.bassOsc.frequency.setValueAtTime(55, now); // A1 - deep bass
+    this.bassGain.gain.value = 0;
+    this.bassOsc.connect(this.bassGain);
+    this.bassGain.connect(this.musicGain);
+    this.bassOsc.start(now);
+    
+    // Pad layer - Atmospheric texture
+    this.padOsc = ctx.createOscillator();
+    this.padGain = ctx.createGain();
+    this.filterNode = ctx.createBiquadFilter();
+    this.padOsc.type = "sawtooth";
+    this.padOsc.frequency.setValueAtTime(110, now); // A2
+    this.filterNode.type = "lowpass";
+    this.filterNode.frequency.setValueAtTime(800, now);
+    this.filterNode.Q.value = 0.5;
+    this.padGain.gain.value = 0;
+    this.padOsc.connect(this.filterNode);
+    this.filterNode.connect(this.padGain);
+    this.padGain.connect(this.musicGain);
+    this.padOsc.start(now);
+    
+    // Pulse layer - Rhythmic element
+    this.pulseOsc = ctx.createOscillator();
+    this.pulseGain = ctx.createGain();
+    this.pulseOsc.type = "square";
+    this.pulseOsc.frequency.setValueAtTime(220, now); // A3
+    this.pulseGain.gain.value = 0;
+    this.pulseOsc.connect(this.pulseGain);
+    this.pulseGain.connect(this.musicGain);
+    this.pulseOsc.start(now);
+    
+    // Start with ultra low volume
+    this.musicGain.gain.setValueAtTime(0, now);
+    this.musicGain.gain.linearRampToValueAtTime(0.08, now + 2);
+    
+    this.updateMusicIntensity(0.1); // Very soft ambient start
+  }
+
+  stopMusic(fadeOut = true) {
+    if (!this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    if (fadeOut) {
+      this.musicGain.gain.linearRampToValueAtTime(0, now + 0.5);
+      setTimeout(() => this._cleanupMusic(), 600);
+    } else {
+      this.musicGain.gain.setValueAtTime(0, now);
+      this._cleanupMusic();
+    }
+  }
+
+  _cleanupMusic() {
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    if (this.bassOsc) {
+      this.bassOsc.stop(now);
+      this.bassOsc = null;
+    }
+    if (this.padOsc) {
+      this.padOsc.stop(now);
+      this.padOsc = null;
+    }
+    if (this.pulseOsc) {
+      this.pulseOsc.stop(now);
+      this.pulseOsc = null;
+    }
+    this.isPlaying = false;
+  }
+
+  // Adaptive music intensity (0 = ultra soft, 1 = max tension)
+  updateMusicIntensity(intensity, streak = 0) {
+    if (!this.musicOn || !this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    this.targetIntensity = Math.min(1, intensity + (streak * 0.05));
+    
+    // Bass layer - grows with intensity
+    if (this.bassGain) {
+      const bassVol = 0.15 + (this.targetIntensity * 0.15);
+      this.bassGain.gain.linearRampToValueAtTime(bassVol, now + 0.3);
+    }
+    
+    // Pad layer - filter opens with intensity
+    if (this.padGain && this.filterNode) {
+      const padVol = 0.05 + (this.targetIntensity * 0.08);
+      const filterFreq = 800 + (this.targetIntensity * 1200);
+      this.padGain.gain.linearRampToValueAtTime(padVol, now + 0.3);
+      this.filterNode.frequency.linearRampToValueAtTime(filterFreq, now + 0.3);
+    }
+    
+    // Pulse layer - rhythm emerges with tension
+    if (this.pulseGain) {
+      const pulseVol = this.targetIntensity * 0.03;
+      this.pulseGain.gain.linearRampToValueAtTime(pulseVol, now + 0.3);
+    }
+  }
+
+  // Timer countdown pulse (last second tension)
+  timerPulse(timeLeftMs) {
+    if (!this.musicOn || !this.isPlaying) return;
+    if (timeLeftMs > 1000) return;
+    
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    // Quick pulse effect
+    if (this.pulseGain) {
+      const currentVol = this.pulseGain.gain.value;
+      this.pulseGain.gain.setValueAtTime(currentVol, now);
+      this.pulseGain.gain.linearRampToValueAtTime(currentVol + 0.04, now + 0.05);
+      this.pulseGain.gain.linearRampToValueAtTime(currentVol, now + 0.15);
+    }
+  }
+
+  // Cut music on wrong answer
+  cutMusic() {
+    if (!this.musicOn || !this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
+    this.musicGain.gain.linearRampToValueAtTime(0, now + 0.08);
+  }
+
+  // Silence for learning (outcome/explanation screens)
+  fadeToSilence() {
+    if (!this.musicOn || !this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    this.musicGain.gain.linearRampToValueAtTime(0, now + 0.8);
+  }
+
+  // Resume after silence
+  fadeFromSilence() {
+    if (!this.musicOn || !this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    this.musicGain.gain.linearRampToValueAtTime(0.08, now + 1.5);
+  }
+
+  toggleMusic() {
+    this.musicOn = !this.musicOn;
+    if (!this.musicOn && this.isPlaying) {
+      this.stopMusic(true);
+    }
+  }
+
+  toggleFx() {
+    this.fxOn = !this.fxOn;
+  }
+
   click() {
-    if (!this.on) return;
+    if (!this.fxOn) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
@@ -101,7 +289,7 @@ class SoundEngine {
   }
 
   tick(n) {
-    if (!this.on) return;
+    if (!this.fxOn) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
@@ -135,7 +323,7 @@ class SoundEngine {
   }
 
   buildTick(progress) {
-    if (!this.on) return;
+    if (!this.fxOn) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
@@ -169,7 +357,7 @@ class SoundEngine {
   }
 
   correct() {
-    if (!this.on) return;
+    if (!this.fxOn) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     [523.25, 659.25, 783.99].forEach((freq, i) => {
@@ -187,7 +375,7 @@ class SoundEngine {
   }
 
   wrong() {
-    if (!this.on) return;
+    if (!this.fxOn) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -201,10 +389,6 @@ class SoundEngine {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
     osc.start(now);
     osc.stop(now + 0.4);
-  }
-
-  toggle() {
-    this.on = !this.on;
   }
 }
 
@@ -5095,6 +5279,11 @@ export default function App() {
       setWindowStart(0); 
       buildAnimationProgress.current = 0;
       lastCandleCount.current = 0; 
+      
+      // Start music at round 0 (first round)
+      if (roundNum === 0) {
+        sound.startMusic();
+      }
 
       const duration = 4200; 
       const startTime = Date.now();
@@ -5114,12 +5303,20 @@ export default function App() {
           setWindowStart(newStructure.decisionIndex);
           setScreen("playing");
           
+          // Set ultra low volume for playing screen
+          sound.updateMusicIntensity(0.1, streak);
+          
           const timerStart = Date.now();
           if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = setInterval(() => {
             const timerElapsed = Date.now() - timerStart;
             const remaining = Math.max(0, DECISION_MS - timerElapsed);
             setTimeLeft(remaining);
+            
+            // Timer pulse in last second
+            if (remaining <= 1000) {
+              sound.timerPulse(remaining);
+            }
 
             if (remaining === 0) {
               clearInterval(timerRef.current);
@@ -5174,7 +5371,7 @@ export default function App() {
 
       animateScroll();
     },
-    [] 
+    [streak] 
   );
 
   const startGame = useCallback(() => {
@@ -5257,8 +5454,18 @@ export default function App() {
           setCurrentAnnotation(annotation);
           setShowAnnotation(true);
 
-          if (correct) sound.correct();
-          else sound.wrong();
+          if (correct) {
+            sound.correct();
+            // Increase intensity with streak
+            sound.updateMusicIntensity(0.3, newStreak);
+          } else {
+            sound.wrong();
+            // Cut music on wrong answer
+            sound.cutMusic();
+          }
+          
+          // Fade to silence for learning (outcome screen)
+          sound.fadeToSilence();
 
           setScreen("outcome");
         }
@@ -5273,8 +5480,14 @@ export default function App() {
     setSwipeOffset(0); 
     setShowAnnotation(false); 
     setCurrentAnnotation(null);
+    
+    // Resume music from silence when moving to next round
+    sound.fadeFromSilence();
+    
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
+      // Stop music when game ends
+      sound.stopMusic(true);
     } else {
       initializeRound(round + 1);
     }
@@ -5661,6 +5874,75 @@ export default function App() {
         />
         Start Training
       </GlassButton>
+
+      {/* Audio Controls */}
+      <div style={{ 
+        display: "flex", 
+        gap: 10, 
+        justifyContent: "center",
+        flexWrap: "wrap",
+        maxWidth: 340
+      }}>
+        <button
+          onClick={() => {
+            sound.toggleMusic();
+            // Force re-render to update button state
+            setRound(r => r);
+          }}
+          style={{
+            padding: "10px 20px",
+            fontSize: 12,
+            fontWeight: 600,
+            background: sound.musicOn 
+              ? "linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(168, 85, 247, 0.15))"
+              : "rgba(255, 255, 255, 0.05)",
+            border: `1.5px solid ${sound.musicOn ? "rgba(168, 85, 247, 0.4)" : "rgba(255, 255, 255, 0.15)"}`,
+            borderRadius: 10,
+            color: sound.musicOn ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.5)",
+            cursor: "pointer",
+            backdropFilter: "blur(20px)",
+            transition: "all 0.2s",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation"
+          }}
+        >
+          <span style={{ fontSize: 14 }}>{sound.musicOn ? "🎧" : "🔇"}</span>
+          <span>Music: {sound.musicOn ? "ON" : "OFF"}</span>
+        </button>
+
+        <button
+          onClick={() => {
+            sound.toggleFx();
+            // Force re-render to update button state
+            setRound(r => r);
+          }}
+          style={{
+            padding: "10px 20px",
+            fontSize: 12,
+            fontWeight: 600,
+            background: sound.fxOn 
+              ? "linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(56, 189, 248, 0.15))"
+              : "rgba(255, 255, 255, 0.05)",
+            border: `1.5px solid ${sound.fxOn ? "rgba(56, 189, 248, 0.4)" : "rgba(255, 255, 255, 0.15)"}`,
+            borderRadius: 10,
+            color: sound.fxOn ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.5)",
+            cursor: "pointer",
+            backdropFilter: "blur(20px)",
+            transition: "all 0.2s",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation"
+          }}
+        >
+          <span style={{ fontSize: 14 }}>{sound.fxOn ? "🔊" : "🔇"}</span>
+          <span>FX: {sound.fxOn ? "ON" : "OFF"}</span>
+        </button>
+      </div>
 
       <div
         style={{
