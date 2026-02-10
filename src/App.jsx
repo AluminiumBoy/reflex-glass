@@ -4084,8 +4084,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 0,
-            padding: "0 60px"
+            gap: 12,
+            padding: "0 30px"
           }}
         >
           <div>
@@ -4466,7 +4466,7 @@ const SupportDevButton = () => {
             marginBottom: 12,
             lineHeight: 1.5,
           }}>
-            You are amazing. I truly appreciate your generosity! 
+            You are amazing. I truly appreciate your generosity!
           </div>
           {txHash && (
             <a
