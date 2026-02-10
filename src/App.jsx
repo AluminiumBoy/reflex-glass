@@ -4106,14 +4106,6 @@ const SupportDevButton = () => {
       setTxHash(transactionHash);
       setTxStatus('success');
       
-      setTimeout(() => {
-        setShowOptions(false);
-        setShowCustomInput(false);
-        setCustomAmount("");
-        setTxStatus(null);
-        setTxHash("");
-      }, 5000);
-      
     } catch (error) {
       console.error("Donation error:", error);
       setTxStatus('error');
@@ -4142,6 +4134,7 @@ const SupportDevButton = () => {
     if (txStatus === 'success') {
       return (
         <div style={{
+          position: "relative",
           background: "linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 200, 100, 0.15))",
           border: "1.5px solid rgba(0, 230, 118, 0.4)",
           borderRadius: 12,
@@ -4149,6 +4142,44 @@ const SupportDevButton = () => {
           backdropFilter: "blur(12px)",
           textAlign: "center",
         }}>
+          <button
+            onClick={() => {
+              setShowOptions(false);
+              setShowCustomInput(false);
+              setCustomAmount("");
+              setTxStatus(null);
+              setTxHash("");
+            }}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 24,
+              height: 24,
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              background: "rgba(0, 0, 0, 0.3)",
+              borderRadius: 6,
+              color: "rgba(255, 255, 255, 0.8)",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s",
+              padding: 0,
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.15)";
+              e.target.style.borderColor = "rgba(255, 255, 255, 0.5)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(0, 0, 0, 0.3)";
+              e.target.style.borderColor = "rgba(255, 255, 255, 0.3)";
+            }}
+          >
+            ✕
+          </button>
           <div style={{
             fontSize: 32,
             marginBottom: 8,
@@ -4161,7 +4192,7 @@ const SupportDevButton = () => {
             color: "rgba(0, 230, 118, 1)",
             marginBottom: 8,
           }}>
-            Thank you for your support!
+            Thank you{playerName ? `, ${playerName}` : ""} for your support!
           </div>
           <div style={{
             fontSize: 11,
