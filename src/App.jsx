@@ -55,28 +55,9 @@ function haptic(pattern = [30]) {
 class SoundEngine {
   constructor() {
     this.ctx = null;
-    this.fxOn = true;  // FX default ON
-    this.musicOn = false;  // Music default OFF
+    this.on = true;
     this.masterGain = null;
     this.compressor = null;
-    
-    // Music layers
-    this.musicGain = null;
-    this.bassOsc = null;
-    this.kickOsc = null;
-    this.chordOscs = [];
-    this.leadOsc = null;
-    this.bassGain = null;
-    this.kickGain = null;
-    this.chordGains = [];
-    this.leadGain = null;
-    this.filterNode = null;
-    
-    // Music state
-    this.isPlaying = false;
-    this.bpm = 128;
-    this.beatInterval = null;
-    this.currentBeat = 0;
   }
 
   _ensure() {
@@ -92,246 +73,18 @@ class SoundEngine {
       this.compressor.release.value = 0.25;
       this.masterGain.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
-      
-      // Create music gain (separate from FX)
-      this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = 0;
-      this.musicGain.connect(this.compressor);
     }
     return this.ctx;
   }
 
   unlock() {
+    if (!this.on) return;
     const ctx = this._ensure();
     if (ctx.state === "suspended") ctx.resume();
   }
 
-  // Music control - Chill Hype Positive vibes
-  startMusic() {
-    if (!this.musicOn || this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    this.isPlaying = true;
-    this.currentBeat = 0;
-    
-    // C Major chord progression (C - G - Am - F) - happy vibes
-    const chordFreqs = [
-      [261.63, 329.63, 392.00], // C Major (C, E, G)
-      [392.00, 493.88, 587.33], // G Major (G, B, D)
-      [220.00, 261.63, 329.63], // A Minor (A, C, E)
-      [174.61, 220.00, 261.63]  // F Major (F, A, C)
-    ];
-    
-    // Bass line (continuous)
-    this.bassOsc = ctx.createOscillator();
-    this.bassGain = ctx.createGain();
-    this.bassOsc.type = "sine";
-    this.bassOsc.frequency.setValueAtTime(130.81, now); // C3
-    this.bassGain.gain.value = 0.25;
-    this.bassOsc.connect(this.bassGain);
-    this.bassGain.connect(this.musicGain);
-    this.bassOsc.start(now);
-    
-    // Chord pads (warm, uplifting)
-    this.chordOscs = [];
-    this.chordGains = [];
-    
-    for (let i = 0; i < 3; i++) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(chordFreqs[0][i], now);
-      
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(2000, now);
-      filter.Q.value = 1;
-      
-      gain.gain.value = 0.08;
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.musicGain);
-      osc.start(now);
-      
-      this.chordOscs.push(osc);
-      this.chordGains.push(gain);
-    }
-    
-    // Lead melody (uplifting)
-    this.leadOsc = ctx.createOscillator();
-    this.leadGain = ctx.createGain();
-    this.filterNode = ctx.createBiquadFilter();
-    
-    this.leadOsc.type = "square";
-    this.leadOsc.frequency.setValueAtTime(523.25, now); // C5
-    
-    this.filterNode.type = "lowpass";
-    this.filterNode.frequency.setValueAtTime(3000, now);
-    this.filterNode.Q.value = 2;
-    
-    this.leadGain.gain.value = 0.12;
-    
-    this.leadOsc.connect(this.filterNode);
-    this.filterNode.connect(this.leadGain);
-    this.leadGain.connect(this.musicGain);
-    this.leadOsc.start(now);
-    
-    // Fade in
-    this.musicGain.gain.setValueAtTime(0, now);
-    this.musicGain.gain.linearRampToValueAtTime(0.35, now + 2);
-    
-    // Start beat loop
-    const beatDuration = (60 / this.bpm) * 1000; // ms per beat
-    this.beatInterval = setInterval(() => {
-      this.playBeat();
-    }, beatDuration);
-  }
-
-  playBeat() {
-    if (!this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // Kick drum on every beat
-    const kickOsc = ctx.createOscillator();
-    const kickGain = ctx.createGain();
-    
-    kickOsc.type = "sine";
-    kickOsc.frequency.setValueAtTime(150, now);
-    kickOsc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
-    
-    kickGain.gain.setValueAtTime(0.4, now);
-    kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-    
-    kickOsc.connect(kickGain);
-    kickGain.connect(this.musicGain);
-    kickOsc.start(now);
-    kickOsc.stop(now + 0.2);
-    
-    // Hi-hat on off-beats (8th notes)
-    if (this.currentBeat % 2 === 1) {
-      const hihatBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
-      const data = hihatBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.3));
-      }
-      
-      const hihat = ctx.createBufferSource();
-      hihat.buffer = hihatBuffer;
-      
-      const hihatFilter = ctx.createBiquadFilter();
-      hihatFilter.type = "highpass";
-      hihatFilter.frequency.value = 7000;
-      
-      const hihatGain = ctx.createGain();
-      hihatGain.gain.value = 0.15;
-      
-      hihat.connect(hihatFilter);
-      hihatFilter.connect(hihatGain);
-      hihatGain.connect(this.musicGain);
-      hihat.start(now);
-    }
-    
-    // Change chord every 4 beats
-    const chordIndex = Math.floor(this.currentBeat / 4) % 4;
-    const chordFreqs = [
-      [261.63, 329.63, 392.00], // C Major
-      [392.00, 493.88, 587.33], // G Major
-      [220.00, 261.63, 329.63], // A Minor
-      [174.61, 220.00, 261.63]  // F Major
-    ];
-    
-    if (this.currentBeat % 4 === 0 && this.chordOscs.length === 3) {
-      for (let i = 0; i < 3; i++) {
-        this.chordOscs[i].frequency.linearRampToValueAtTime(
-          chordFreqs[chordIndex][i],
-          now + 0.2
-        );
-      }
-    }
-    
-    // Melody notes (pentatonic scale - always sounds good)
-    const melodyScale = [523.25, 587.33, 659.25, 783.99, 880.00]; // C D E G A
-    if (this.currentBeat % 2 === 0) {
-      const noteIndex = Math.floor(Math.random() * melodyScale.length);
-      this.leadOsc.frequency.linearRampToValueAtTime(
-        melodyScale[noteIndex],
-        now + 0.1
-      );
-    }
-    
-    // Bass note change on chord changes
-    const bassNotes = [130.81, 196.00, 110.00, 87.31]; // C G A F
-    if (this.currentBeat % 4 === 0 && this.bassOsc) {
-      this.bassOsc.frequency.linearRampToValueAtTime(
-        bassNotes[chordIndex],
-        now + 0.2
-      );
-    }
-    
-    this.currentBeat++;
-  }
-
-  stopMusic(fadeOut = true) {
-    if (!this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    if (this.beatInterval) {
-      clearInterval(this.beatInterval);
-      this.beatInterval = null;
-    }
-    
-    if (fadeOut) {
-      this.musicGain.gain.linearRampToValueAtTime(0, now + 1);
-      setTimeout(() => this._cleanupMusic(), 1100);
-    } else {
-      this.musicGain.gain.setValueAtTime(0, now);
-      this._cleanupMusic();
-    }
-  }
-
-  _cleanupMusic() {
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    if (this.bassOsc) {
-      this.bassOsc.stop(now);
-      this.bassOsc = null;
-    }
-    
-    this.chordOscs.forEach(osc => {
-      if (osc) osc.stop(now);
-    });
-    this.chordOscs = [];
-    this.chordGains = [];
-    
-    if (this.leadOsc) {
-      this.leadOsc.stop(now);
-      this.leadOsc = null;
-    }
-    
-    this.isPlaying = false;
-  }
-
-  toggleMusic() {
-    this.musicOn = !this.musicOn;
-    if (this.musicOn && !this.isPlaying) {
-      this.startMusic();
-    } else if (!this.musicOn && this.isPlaying) {
-      this.stopMusic(true);
-    }
-  }
-
-  toggleFx() {
-    this.fxOn = !this.fxOn;
-  }
-
   click() {
-    if (!this.fxOn) return;
+    if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
@@ -348,7 +101,7 @@ class SoundEngine {
   }
 
   tick(n) {
-    if (!this.fxOn) return;
+    if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
@@ -382,7 +135,7 @@ class SoundEngine {
   }
 
   buildTick(progress) {
-    if (!this.fxOn) return;
+    if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
@@ -416,7 +169,7 @@ class SoundEngine {
   }
 
   correct() {
-    if (!this.fxOn) return;
+    if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     [523.25, 659.25, 783.99].forEach((freq, i) => {
@@ -434,7 +187,7 @@ class SoundEngine {
   }
 
   wrong() {
-    if (!this.fxOn) return;
+    if (!this.on) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -448,6 +201,10 @@ class SoundEngine {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
     osc.start(now);
     osc.stop(now + 0.4);
+  }
+
+  toggle() {
+    this.on = !this.on;
   }
 }
 
@@ -5500,11 +5257,8 @@ export default function App() {
           setCurrentAnnotation(annotation);
           setShowAnnotation(true);
 
-          if (correct) {
-            sound.correct();
-          } else {
-            sound.wrong();
-          }
+          if (correct) sound.correct();
+          else sound.wrong();
 
           setScreen("outcome");
         }
@@ -5519,7 +5273,6 @@ export default function App() {
     setSwipeOffset(0); 
     setShowAnnotation(false); 
     setCurrentAnnotation(null);
-    
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
     } else {
@@ -5908,75 +5661,6 @@ export default function App() {
         />
         Start Training
       </GlassButton>
-
-      {/* Audio Controls */}
-      <div style={{ 
-        display: "flex", 
-        gap: 10, 
-        justifyContent: "center",
-        flexWrap: "wrap",
-        maxWidth: 340
-      }}>
-        <button
-          onClick={() => {
-            sound.toggleMusic();
-            // Force re-render to update button state
-            setPlayerName(n => n);
-          }}
-          style={{
-            padding: "10px 20px",
-            fontSize: 12,
-            fontWeight: 600,
-            background: sound.musicOn 
-              ? "linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(168, 85, 247, 0.15))"
-              : "rgba(255, 255, 255, 0.05)",
-            border: `1.5px solid ${sound.musicOn ? "rgba(168, 85, 247, 0.4)" : "rgba(255, 255, 255, 0.15)"}`,
-            borderRadius: 10,
-            color: sound.musicOn ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.5)",
-            cursor: "pointer",
-            backdropFilter: "blur(20px)",
-            transition: "all 0.2s",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            WebkitTapHighlightColor: "transparent",
-            touchAction: "manipulation"
-          }}
-        >
-          <span style={{ fontSize: 14 }}>{sound.musicOn ? "🎵" : "🔇"}</span>
-          <span>Music: {sound.musicOn ? "ON" : "OFF"}</span>
-        </button>
-
-        <button
-          onClick={() => {
-            sound.toggleFx();
-            // Force re-render to update button state
-            setPlayerName(n => n);
-          }}
-          style={{
-            padding: "10px 20px",
-            fontSize: 12,
-            fontWeight: 600,
-            background: sound.fxOn 
-              ? "linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(56, 189, 248, 0.15))"
-              : "rgba(255, 255, 255, 0.05)",
-            border: `1.5px solid ${sound.fxOn ? "rgba(56, 189, 248, 0.4)" : "rgba(255, 255, 255, 0.15)"}`,
-            borderRadius: 10,
-            color: sound.fxOn ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.5)",
-            cursor: "pointer",
-            backdropFilter: "blur(20px)",
-            transition: "all 0.2s",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            WebkitTapHighlightColor: "transparent",
-            touchAction: "manipulation"
-          }}
-        >
-          <span style={{ fontSize: 14 }}>{sound.fxOn ? "🔊" : "🔇"}</span>
-          <span>FX: {sound.fxOn ? "ON" : "OFF"}</span>
-        </button>
-      </div>
 
       <div
         style={{
