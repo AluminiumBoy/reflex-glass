@@ -3557,7 +3557,7 @@ const OutcomeCard = ({ correct, points, streak, patternName, choice, signal, onN
             marginBottom: 2,
           }}
         >
-          {correct ? "BASED! ✅" : "Incorrect"}
+          {correct ? "BASED" : "Incorrect"}
         </div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "monospace" }}>
           You chose {choice} • Signal was {signal}
@@ -3766,7 +3766,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div style={{ 
           fontSize: 13, 
           fontWeight: 700,
-          marginTop: -20, 
+          marginTop: -25, 
           marginBottom: 18, 
           color: "rgba(100, 200, 230, 0.9)", 
           textShadow: "0 0 15px rgba(100, 200, 230, 0.6), 0 0 30px rgba(100, 200, 230, 0.3)",
@@ -3782,7 +3782,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           marginBottom: 18,
         }}>
           <div style={{ 
-            fontSize: 11, 
+            fontSize: 13, 
             fontStyle: "italic", 
             color: "rgba(200, 220, 240, 0.65)", 
             lineHeight: 1.4, 
