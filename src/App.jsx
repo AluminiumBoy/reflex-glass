@@ -4192,7 +4192,7 @@ const SupportDevButton = ({ playerName }) => {
             color: "rgba(0, 230, 118, 1)",
             marginBottom: 8,
           }}>
-            I appreciate this more than I can put into words. Bullish on you, ser.{playerName ? `, ${playerName}` : ""}
+            I appreciate this more than I can put into words. Bullish on you ser{playerName ? ` ${playerName}` : ""}
           </div>
           <div style={{
             fontSize: 11,
