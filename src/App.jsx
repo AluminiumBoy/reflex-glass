@@ -435,9 +435,10 @@ async function genericShare(stats, roast) {
   drawStat('STREAK', `${bestStreak}`, 'rgba(255, 100, 80, 0.9)', 2, statsY);
   
   const shareText = 
-    `Just scored ${totalScore.toLocaleString()} on Reflex Glass! ${meme}\n\n` +
+    `I wasn't ready for this \n\n` +
     `${accuracy}% accuracy • ${correct}/${total} correct\n\n` +
     `${roast}`;
+    
   
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
   
