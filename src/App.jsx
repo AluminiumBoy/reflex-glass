@@ -3829,7 +3829,13 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             color: "rgba(200, 220, 240, 0.65)", 
             lineHeight: 1.4, 
             textShadow: "0 2px 6px rgba(0,0,0,0.6)",
-            fontWeight: 300
+            fontWeight: 300,
+            wordWrap: "break-word",
+            overflowWrap: "break-word",
+            display: "-webkit-box",
+            WebkitLineClamp: 4,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}>
             "{roast}"
           </div>
