@@ -4095,7 +4095,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               marginBottom: 4, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
-              fontWeight: 600
+              fontWeight: 750
             }}>
               ACCURACY
             </div>
