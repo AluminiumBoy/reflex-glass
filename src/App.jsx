@@ -63,17 +63,20 @@ class SoundEngine {
     // Music layers
     this.musicGain = null;
     this.bassOsc = null;
-    this.padOsc = null;
-    this.pulseOsc = null;
+    this.kickOsc = null;
+    this.chordOscs = [];
+    this.leadOsc = null;
     this.bassGain = null;
-    this.padGain = null;
-    this.pulseGain = null;
+    this.kickGain = null;
+    this.chordGains = [];
+    this.leadGain = null;
     this.filterNode = null;
     
     // Music state
-    this.currentIntensity = 0;
-    this.targetIntensity = 0;
     this.isPlaying = false;
+    this.bpm = 128;
+    this.beatInterval = null;
+    this.currentBeat = 0;
   }
 
   _ensure() {
@@ -103,54 +106,173 @@ class SoundEngine {
     if (ctx.state === "suspended") ctx.resume();
   }
 
-  // Music control
+  // Music control - Chill Hype Positive vibes
   startMusic() {
     if (!this.musicOn || this.isPlaying) return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
     this.isPlaying = true;
+    this.currentBeat = 0;
     
-    // Bass layer (60 BPM feel) - Dark sub bass
+    // C Major chord progression (C - G - Am - F) - happy vibes
+    const chordFreqs = [
+      [261.63, 329.63, 392.00], // C Major (C, E, G)
+      [392.00, 493.88, 587.33], // G Major (G, B, D)
+      [220.00, 261.63, 329.63], // A Minor (A, C, E)
+      [174.61, 220.00, 261.63]  // F Major (F, A, C)
+    ];
+    
+    // Bass line (continuous)
     this.bassOsc = ctx.createOscillator();
     this.bassGain = ctx.createGain();
     this.bassOsc.type = "sine";
-    this.bassOsc.frequency.setValueAtTime(55, now); // A1 - deep bass
-    this.bassGain.gain.value = 0;
+    this.bassOsc.frequency.setValueAtTime(130.81, now); // C3
+    this.bassGain.gain.value = 0.25;
     this.bassOsc.connect(this.bassGain);
     this.bassGain.connect(this.musicGain);
     this.bassOsc.start(now);
     
-    // Pad layer - Atmospheric texture
-    this.padOsc = ctx.createOscillator();
-    this.padGain = ctx.createGain();
+    // Chord pads (warm, uplifting)
+    this.chordOscs = [];
+    this.chordGains = [];
+    
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(chordFreqs[0][i], now);
+      
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(2000, now);
+      filter.Q.value = 1;
+      
+      gain.gain.value = 0.08;
+      
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.musicGain);
+      osc.start(now);
+      
+      this.chordOscs.push(osc);
+      this.chordGains.push(gain);
+    }
+    
+    // Lead melody (uplifting)
+    this.leadOsc = ctx.createOscillator();
+    this.leadGain = ctx.createGain();
     this.filterNode = ctx.createBiquadFilter();
-    this.padOsc.type = "sawtooth";
-    this.padOsc.frequency.setValueAtTime(110, now); // A2
+    
+    this.leadOsc.type = "square";
+    this.leadOsc.frequency.setValueAtTime(523.25, now); // C5
+    
     this.filterNode.type = "lowpass";
-    this.filterNode.frequency.setValueAtTime(800, now);
-    this.filterNode.Q.value = 0.5;
-    this.padGain.gain.value = 0;
-    this.padOsc.connect(this.filterNode);
-    this.filterNode.connect(this.padGain);
-    this.padGain.connect(this.musicGain);
-    this.padOsc.start(now);
+    this.filterNode.frequency.setValueAtTime(3000, now);
+    this.filterNode.Q.value = 2;
     
-    // Pulse layer - Rhythmic element
-    this.pulseOsc = ctx.createOscillator();
-    this.pulseGain = ctx.createGain();
-    this.pulseOsc.type = "square";
-    this.pulseOsc.frequency.setValueAtTime(220, now); // A3
-    this.pulseGain.gain.value = 0;
-    this.pulseOsc.connect(this.pulseGain);
-    this.pulseGain.connect(this.musicGain);
-    this.pulseOsc.start(now);
+    this.leadGain.gain.value = 0.12;
     
-    // Start with ultra low volume
+    this.leadOsc.connect(this.filterNode);
+    this.filterNode.connect(this.leadGain);
+    this.leadGain.connect(this.musicGain);
+    this.leadOsc.start(now);
+    
+    // Fade in
     this.musicGain.gain.setValueAtTime(0, now);
-    this.musicGain.gain.linearRampToValueAtTime(0.08, now + 2);
+    this.musicGain.gain.linearRampToValueAtTime(0.35, now + 2);
     
-    this.updateMusicIntensity(0.1); // Very soft ambient start
+    // Start beat loop
+    const beatDuration = (60 / this.bpm) * 1000; // ms per beat
+    this.beatInterval = setInterval(() => {
+      this.playBeat();
+    }, beatDuration);
+  }
+
+  playBeat() {
+    if (!this.isPlaying) return;
+    const ctx = this._ensure();
+    const now = ctx.currentTime;
+    
+    // Kick drum on every beat
+    const kickOsc = ctx.createOscillator();
+    const kickGain = ctx.createGain();
+    
+    kickOsc.type = "sine";
+    kickOsc.frequency.setValueAtTime(150, now);
+    kickOsc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+    
+    kickGain.gain.setValueAtTime(0.4, now);
+    kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    
+    kickOsc.connect(kickGain);
+    kickGain.connect(this.musicGain);
+    kickOsc.start(now);
+    kickOsc.stop(now + 0.2);
+    
+    // Hi-hat on off-beats (8th notes)
+    if (this.currentBeat % 2 === 1) {
+      const hihatBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+      const data = hihatBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.3));
+      }
+      
+      const hihat = ctx.createBufferSource();
+      hihat.buffer = hihatBuffer;
+      
+      const hihatFilter = ctx.createBiquadFilter();
+      hihatFilter.type = "highpass";
+      hihatFilter.frequency.value = 7000;
+      
+      const hihatGain = ctx.createGain();
+      hihatGain.gain.value = 0.15;
+      
+      hihat.connect(hihatFilter);
+      hihatFilter.connect(hihatGain);
+      hihatGain.connect(this.musicGain);
+      hihat.start(now);
+    }
+    
+    // Change chord every 4 beats
+    const chordIndex = Math.floor(this.currentBeat / 4) % 4;
+    const chordFreqs = [
+      [261.63, 329.63, 392.00], // C Major
+      [392.00, 493.88, 587.33], // G Major
+      [220.00, 261.63, 329.63], // A Minor
+      [174.61, 220.00, 261.63]  // F Major
+    ];
+    
+    if (this.currentBeat % 4 === 0 && this.chordOscs.length === 3) {
+      for (let i = 0; i < 3; i++) {
+        this.chordOscs[i].frequency.linearRampToValueAtTime(
+          chordFreqs[chordIndex][i],
+          now + 0.2
+        );
+      }
+    }
+    
+    // Melody notes (pentatonic scale - always sounds good)
+    const melodyScale = [523.25, 587.33, 659.25, 783.99, 880.00]; // C D E G A
+    if (this.currentBeat % 2 === 0) {
+      const noteIndex = Math.floor(Math.random() * melodyScale.length);
+      this.leadOsc.frequency.linearRampToValueAtTime(
+        melodyScale[noteIndex],
+        now + 0.1
+      );
+    }
+    
+    // Bass note change on chord changes
+    const bassNotes = [130.81, 196.00, 110.00, 87.31]; // C G A F
+    if (this.currentBeat % 4 === 0 && this.bassOsc) {
+      this.bassOsc.frequency.linearRampToValueAtTime(
+        bassNotes[chordIndex],
+        now + 0.2
+      );
+    }
+    
+    this.currentBeat++;
   }
 
   stopMusic(fadeOut = true) {
@@ -158,9 +280,14 @@ class SoundEngine {
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
+    if (this.beatInterval) {
+      clearInterval(this.beatInterval);
+      this.beatInterval = null;
+    }
+    
     if (fadeOut) {
-      this.musicGain.gain.linearRampToValueAtTime(0, now + 0.5);
-      setTimeout(() => this._cleanupMusic(), 600);
+      this.musicGain.gain.linearRampToValueAtTime(0, now + 1);
+      setTimeout(() => this._cleanupMusic(), 1100);
     } else {
       this.musicGain.gain.setValueAtTime(0, now);
       this._cleanupMusic();
@@ -175,94 +302,26 @@ class SoundEngine {
       this.bassOsc.stop(now);
       this.bassOsc = null;
     }
-    if (this.padOsc) {
-      this.padOsc.stop(now);
-      this.padOsc = null;
+    
+    this.chordOscs.forEach(osc => {
+      if (osc) osc.stop(now);
+    });
+    this.chordOscs = [];
+    this.chordGains = [];
+    
+    if (this.leadOsc) {
+      this.leadOsc.stop(now);
+      this.leadOsc = null;
     }
-    if (this.pulseOsc) {
-      this.pulseOsc.stop(now);
-      this.pulseOsc = null;
-    }
+    
     this.isPlaying = false;
-  }
-
-  // Adaptive music intensity (0 = ultra soft, 1 = max tension)
-  updateMusicIntensity(intensity, streak = 0) {
-    if (!this.musicOn || !this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    this.targetIntensity = Math.min(1, intensity + (streak * 0.05));
-    
-    // Bass layer - grows with intensity
-    if (this.bassGain) {
-      const bassVol = 0.15 + (this.targetIntensity * 0.15);
-      this.bassGain.gain.linearRampToValueAtTime(bassVol, now + 0.3);
-    }
-    
-    // Pad layer - filter opens with intensity
-    if (this.padGain && this.filterNode) {
-      const padVol = 0.05 + (this.targetIntensity * 0.08);
-      const filterFreq = 800 + (this.targetIntensity * 1200);
-      this.padGain.gain.linearRampToValueAtTime(padVol, now + 0.3);
-      this.filterNode.frequency.linearRampToValueAtTime(filterFreq, now + 0.3);
-    }
-    
-    // Pulse layer - rhythm emerges with tension
-    if (this.pulseGain) {
-      const pulseVol = this.targetIntensity * 0.03;
-      this.pulseGain.gain.linearRampToValueAtTime(pulseVol, now + 0.3);
-    }
-  }
-
-  // Timer countdown pulse (last second tension)
-  timerPulse(timeLeftMs) {
-    if (!this.musicOn || !this.isPlaying) return;
-    if (timeLeftMs > 1000) return;
-    
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    // Quick pulse effect
-    if (this.pulseGain) {
-      const currentVol = this.pulseGain.gain.value;
-      this.pulseGain.gain.setValueAtTime(currentVol, now);
-      this.pulseGain.gain.linearRampToValueAtTime(currentVol + 0.04, now + 0.05);
-      this.pulseGain.gain.linearRampToValueAtTime(currentVol, now + 0.15);
-    }
-  }
-
-  // Cut music on wrong answer
-  cutMusic() {
-    if (!this.musicOn || !this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
-    this.musicGain.gain.linearRampToValueAtTime(0, now + 0.08);
-  }
-
-  // Silence for learning (outcome/explanation screens)
-  fadeToSilence() {
-    if (!this.musicOn || !this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    this.musicGain.gain.linearRampToValueAtTime(0, now + 0.8);
-  }
-
-  // Resume after silence
-  fadeFromSilence() {
-    if (!this.musicOn || !this.isPlaying) return;
-    const ctx = this._ensure();
-    const now = ctx.currentTime;
-    
-    this.musicGain.gain.linearRampToValueAtTime(0.08, now + 1.5);
   }
 
   toggleMusic() {
     this.musicOn = !this.musicOn;
-    if (!this.musicOn && this.isPlaying) {
+    if (this.musicOn && !this.isPlaying) {
+      this.startMusic();
+    } else if (!this.musicOn && this.isPlaying) {
       this.stopMusic(true);
     }
   }
@@ -5279,11 +5338,6 @@ export default function App() {
       setWindowStart(0); 
       buildAnimationProgress.current = 0;
       lastCandleCount.current = 0; 
-      
-      // Start music at round 0 (first round)
-      if (roundNum === 0) {
-        sound.startMusic();
-      }
 
       const duration = 4200; 
       const startTime = Date.now();
@@ -5303,20 +5357,12 @@ export default function App() {
           setWindowStart(newStructure.decisionIndex);
           setScreen("playing");
           
-          // Set ultra low volume for playing screen
-          sound.updateMusicIntensity(0.1, streak);
-          
           const timerStart = Date.now();
           if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = setInterval(() => {
             const timerElapsed = Date.now() - timerStart;
             const remaining = Math.max(0, DECISION_MS - timerElapsed);
             setTimeLeft(remaining);
-            
-            // Timer pulse in last second
-            if (remaining <= 1000) {
-              sound.timerPulse(remaining);
-            }
 
             if (remaining === 0) {
               clearInterval(timerRef.current);
@@ -5371,7 +5417,7 @@ export default function App() {
 
       animateScroll();
     },
-    [streak] 
+    [] 
   );
 
   const startGame = useCallback(() => {
@@ -5456,16 +5502,9 @@ export default function App() {
 
           if (correct) {
             sound.correct();
-            // Increase intensity with streak
-            sound.updateMusicIntensity(0.3, newStreak);
           } else {
             sound.wrong();
-            // Cut music on wrong answer
-            sound.cutMusic();
           }
-          
-          // Fade to silence for learning (outcome screen)
-          sound.fadeToSilence();
 
           setScreen("outcome");
         }
@@ -5481,13 +5520,8 @@ export default function App() {
     setShowAnnotation(false); 
     setCurrentAnnotation(null);
     
-    // Resume music from silence when moving to next round
-    sound.fadeFromSilence();
-    
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
-      // Stop music when game ends
-      sound.stopMusic(true);
     } else {
       initializeRound(round + 1);
     }
@@ -5887,7 +5921,7 @@ export default function App() {
           onClick={() => {
             sound.toggleMusic();
             // Force re-render to update button state
-            setRound(r => r);
+            setPlayerName(n => n);
           }}
           style={{
             padding: "10px 20px",
@@ -5909,7 +5943,7 @@ export default function App() {
             touchAction: "manipulation"
           }}
         >
-          <span style={{ fontSize: 14 }}>{sound.musicOn ? "🎧" : "🔇"}</span>
+          <span style={{ fontSize: 14 }}>{sound.musicOn ? "🎵" : "🔇"}</span>
           <span>Music: {sound.musicOn ? "ON" : "OFF"}</span>
         </button>
 
@@ -5917,7 +5951,7 @@ export default function App() {
           onClick={() => {
             sound.toggleFx();
             // Force re-render to update button state
-            setRound(r => r);
+            setPlayerName(n => n);
           }}
           style={{
             padding: "10px 20px",
