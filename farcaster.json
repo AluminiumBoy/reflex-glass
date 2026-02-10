@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "frame": {
+    "version": "next",
+    "name": "Reflex Glass",
+    "iconUrl": "https://reflex-glass.vercel.app/icon.png",
+    "homeUrl": "https://reflex-glass.vercel.app/",
+    "imageUrl": "https://reflex-glass.vercel.app/preview.png",
+    "buttonTitle": "Play Now",
+    "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
+    "splashBackgroundColor": "#06060c",
+    "webhookUrl": ""
+  }
+}
