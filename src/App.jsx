@@ -6443,120 +6443,121 @@ export default function App() {
     };
   }, []);
 
-// ── Main render ──
-return (
-  <div
-    style={{
-      width: "100vw",
-      height: "100dvh",
-      margin: 0,
-      padding: 0,
-      overflow: "hidden",
-      background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
-      position: "fixed",          // fixed jobb, mint relative – teljes képernyőt fed
-      inset: 0,
-      boxSizing: "border-box",
-    }}
-  >
-    {/* Ambient orbs – maradhatnak, de most fixed inset-0 kell legyen */}
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+    // ── Main render ──
+    return (
       <div
         style={{
-          position: "absolute",
-          top: "10%",
-          left: "15%",
-          width: 220,
-          height: 220,
-          borderRadius: "50%",
-          background: `radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`,
-          filter: "blur(40px)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: "60%",
-          right: "10%",
-          width: 180,
-          height: 180,
-          borderRadius: "50%",
-          background: `radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`,
-          filter: "blur(36px)",
-        }}
-      />
-    </div>
-
-    {/* Main content – teljes képernyős, nincs center, nincs padding */}
-    <div 
-      style={{ 
-        position: "relative", 
-        zIndex: 1, 
-        width: "100vw",
-        height: "100dvh",
-        margin: 0,
-        padding: 0,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {screen === "home" && renderHome()}
-      {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
-        renderPlaying()}
-      {screen === "verdict" && renderVerdict()}
-      {screen === "leaderboard" && (
-        <div style={{ 
           width: "100vw",
           height: "100dvh",
           margin: 0,
-          padding: "16px",                  // csak minimális belső padding, ha kell
-          overflowY: "auto",
-          overflowX: "hidden",
+          padding: 0,
+          overflow: "hidden",
+          background: `radial-gradient(ellipse at 30% 20%, #0f1a2e 0%, ${C.bg1} 55%, ${C.bg2} 100%)`,
+          position: "fixed",          // fixed jobb, mint relative – teljes képernyőt fed
+          inset: 0,
           boxSizing: "border-box",
-        }}>
-          <Leaderboard onBack={() => setScreen("verdict")} currentPlayerName={playerName} />
+        }}
+      >
+        {/* Ambient orbs – maradhatnak, de most fixed inset-0 kell legyen */}
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+          <div
+            style={{
+              position: "absolute",
+              top: "10%",
+              left: "15%",
+              width: 220,
+              height: 220,
+              borderRadius: "50%",
+              background: `radial-gradient(circle, ${C.nGreen}0a 0%, transparent 70%)`,
+              filter: "blur(40px)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "60%",
+              right: "10%",
+              width: 180,
+              height: 180,
+              borderRadius: "50%",
+              background: `radial-gradient(circle, ${C.nPurple}0d 0%, transparent 70%)`,
+              filter: "blur(36px)",
+            }}
+          />
         </div>
-      )}
-    </div>
 
-    {/* Animations – marad */}
-    <style>{`
-      * {
-        -webkit-user-select: none;
-        -webkit-touch-callout: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      
-      html, body {
-        touch-action: pan-x pan-y;
-        -ms-touch-action: pan-x pan-y;
-        overscroll-behavior: none;
-        -webkit-text-size-adjust: 100%;
-        -ms-text-size-adjust: 100%;
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100dvh;
-        overflow: hidden;
-      }
-      
-      @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-      }
-      @keyframes pulse {
-        0%, 100% { opacity: 0.6; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.05); }
-      }
-      @keyframes ringPulse {
-        0% { transform: scale(1); opacity: 1; }
-        100% { transform: scale(1.15); opacity: 0; }
-      }
-      @keyframes buttonActivate {
-        0% { opacity: 0.6; transform: scale(0.98); }
-        50% { opacity: 1; transform: scale(1.02); }
-        100% { opacity: 1; transform: scale(1); }
-      }
-    `}</style>
-  </div>
-);
+        {/* Main content – teljes képernyős, nincs center, nincs padding */}
+        <div 
+          style={{ 
+            position: "relative", 
+            zIndex: 1, 
+            width: "100vw",
+            height: "100dvh",
+            margin: 0,
+            padding: 0,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {screen === "home" && renderHome()}
+          {(screen === "building" || screen === "playing" || screen === "revealing" || screen === "outcome") &&
+            renderPlaying()}
+          {screen === "verdict" && renderVerdict()}
+          {screen === "leaderboard" && (
+            <div style={{ 
+              width: "100vw",
+              height: "100dvh",
+              margin: 0,
+              padding: "16px",                  // csak minimális belső padding, ha kell
+              overflowY: "auto",
+              overflowX: "hidden",
+              boxSizing: "border-box",
+            }}>
+              <Leaderboard onBack={() => setScreen("verdict")} currentPlayerName={playerName} />
+            </div>
+          )}
+        </div>
+
+        {/* Animations – marad */}
+        <style>{`
+          * {
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+          }
+          
+          html, body {
+            touch-action: pan-x pan-y;
+            -ms-touch-action: pan-x pan-y;
+            overscroll-behavior: none;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+          }
+          
+          @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+          }
+          @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+          }
+          @keyframes ringPulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.15); opacity: 0; }
+          }
+          @keyframes buttonActivate {
+            0% { opacity: 0.6; transform: scale(0.98); }
+            50% { opacity: 1; transform: scale(1.02); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
+      </div>
+    );
+ }
