@@ -3818,10 +3818,15 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           {playerName}
         </div>
 
-        {/* Roast Section - compact */}
+        {/* Roast Section - compact with fixed height */}
         <div style={{
           padding: "0 20px",
           marginBottom: 18,
+          minHeight: "80px",
+          maxHeight: "80px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}>
           <div style={{ 
             fontSize: 13, 
