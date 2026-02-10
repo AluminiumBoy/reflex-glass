@@ -3821,7 +3821,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         {/* Roast Section - compact with fixed height */}
         <div style={{
           padding: "0 20px",
-          marginBottom: 18,
+          marginBottom: 0,
           minHeight: "80px",
           maxHeight: "80px",
           display: "flex",
