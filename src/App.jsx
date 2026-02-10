@@ -4085,7 +4085,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 10,
-            padding: "50 530px"
+            padding: "0 30px"
           }}
         >
           <div>
@@ -4095,7 +4095,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               marginBottom: 4, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
-              fontWeight: 600
+              fontWeight: 1600
             }}>
               ACCURACY
             </div>
