@@ -140,7 +140,7 @@ class SoundEngine {
     const now = ctx.currentTime;
     
     
-    const bufferSize = ctx.sampleRate * 0.015; // 15ms
+    const bufferSize = ctx.sampleRate * 0.015; 
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -152,8 +152,8 @@ class SoundEngine {
     
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(1800 + (progress * 300), now); // Subtle pitch variation
-    filter.Q.value = 12; // High Q for mechanical resonance
+    filter.frequency.setValueAtTime(1800 + (progress * 300), now); 
+    filter.Q.value = 12; 
     
     const gain = ctx.createGain();
     
@@ -293,8 +293,8 @@ async function genericShare(stats, roast) {
   const meme = getMemeForScore(accuracy);
   
   const canvas = document.createElement('canvas');
-  canvas.width = 1400;  // Wider to fit all stats comfortably
-  canvas.height = 1920; // Mobile aspect ratio
+  canvas.width = 1400;  
+  canvas.height = 1920; 
   const ctx = canvas.getContext('2d');
   
   try {
@@ -323,28 +323,28 @@ async function genericShare(stats, roast) {
   }
   
   
-  const centerY = 600; // Vertical center position
-  const centerX = 700; // Horizontal center (canvas width / 2)
-  const appWidth = 450; // App's content width
-  const scale = 1400 / 450; // ~3.11x scale factor
-  const contentWidth = 450 * scale; // ~1400px
-  const contentX = centerX; // Center horizontally
+  const centerY = 600; 
+  const centerX = 700; 
+  const appWidth = 450; 
+  const scale = 1400 / 450; 
+  const contentWidth = 450 * scale; 
+  const contentX = centerX; 
   
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `bold ${65 * scale}px monospace`; // 56 * 3.11 = ~174px
+  ctx.font = `bold ${65 * scale}px monospace`; 
   ctx.shadowColor = 'rgba(100, 180, 255, 0.7)';
   ctx.shadowBlur = 60;
   ctx.fillStyle = 'rgba(150, 200, 255, 0.95)';
   ctx.fillText(totalScore.toLocaleString(), contentX, centerY);
   ctx.shadowBlur = 0;
   
-  ctx.font = `bold ${17 * scale}px sans-serif`; // 13 * 3.11 = ~40px
+  ctx.font = `bold ${17 * scale}px sans-serif`; 
   ctx.fillStyle = 'rgba(100, 200, 230, 0.9)';
   ctx.shadowColor = 'rgba(100, 200, 230, 0.6)';
   ctx.shadowBlur = 30;
   const playerName = window.currentPlayerName || 'PLAYER';
-  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (130 * scale / 3.11)); // Adjust spacing
+  ctx.fillText(playerName.toUpperCase(), contentX, centerY + (130 * scale / 3.11)); 
   ctx.shadowBlur = 0;
   
   ctx.font = `italic ${11 * scale}px sans-serif`;
@@ -375,25 +375,25 @@ async function genericShare(stats, roast) {
   ctx.shadowBlur = 0;
   
   const statsY = y + 120;
-  const gridWidth = contentWidth * 1.3; // Match app's padding: "0 12px" relative to 450px
+  const gridWidth = contentWidth * 1.3; 
   const columnWidth = gridWidth / 5.4;
   const gridStartX = contentX - gridWidth / 5.3;
   
   const drawStat = (label, value, color, columnIndex, y) => {
-    const x = gridStartX + (columnIndex * columnWidth) + (12 * scale); // App's padding
+    const x = gridStartX + (columnIndex * columnWidth) + (12 * scale); 
     
     ctx.textAlign = 'middle';
-    ctx.font = `bold ${8.7 * scale}px sans-serif`; // 8 * 3.11 = ~25px
+    ctx.font = `bold ${8.7 * scale}px sans-serif`; 
     ctx.fillStyle = 'rgba(150, 180, 200, 0.45)';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 8;
     ctx.fillText(label, x, y);
     
-    ctx.font = `bold ${25 * scale}px monospace`; // 18 * 3.11 = ~56px
+    ctx.font = `bold ${25 * scale}px monospace`; 
     ctx.fillStyle = color;
     ctx.shadowColor = color.replace('0.9)', '0.5)');
     ctx.shadowBlur = 30;
-    ctx.fillText(value, x, y + (22 * scale)); // Match app's marginBottom: 4 + fontSize: 18
+    ctx.fillText(value, x, y + (22 * scale)); 
     ctx.shadowBlur = 0;
   };
   
@@ -429,7 +429,7 @@ async function genericShare(stats, roast) {
   
   try {
     await navigator.clipboard.writeText(shareText + `\n\n${window.location.href}`);
-    return false; // Indicates clipboard copy, not native share
+    return false; 
   } catch (err) {
     console.error('Clipboard copy failed:', err);
     return false;
@@ -2118,7 +2118,7 @@ class MarketStructureGenerator {
       attempts++;
       
       const setupType = this._pickSetupType();
-      const signal = setupType.signal; // BUY or SELL
+      const signal = setupType.signal;
 
       const context = this._buildContext(setupType, contextSize);
 
@@ -2142,7 +2142,7 @@ class MarketStructureGenerator {
             priorStructure: context.priorPattern,
             momentum: setupType.momentum,
             quality: setupType.quality,
-            edgeScore, // Expose edge quality
+            edgeScore, 
           },
           pattern: setupType.name,
           regime: context.regime,
@@ -2570,7 +2570,7 @@ class MarketStructureGenerator {
 
     for (let i = 0; i < count; i++) {
       const isBull = this.rng() < bullRatio;
-      const bodyPercent = 0.4 + this.rng() * 0.4; // 40-80% of range
+      const bodyPercent = 0.4 + this.rng() * 0.4; 
       const range = price * volatility;
 
       const open = price;
@@ -2624,7 +2624,7 @@ class MarketStructureGenerator {
     let price = startPrice;
 
     for (let i = 0; i < count; i++) {
-      const compressionFactor = 1 - (i / count) * 0.5; // Range decreases
+      const compressionFactor = 1 - (i / count) * 0.5; 
       const isBull = this.rng() < 0.5;
       const bodySize = price * baseVol * compressionFactor * (0.3 + this.rng() * 0.4);
       const wickSize = bodySize * (0.4 + this.rng() * 0.6);
@@ -2734,7 +2734,7 @@ class MarketStructureGenerator {
         const oscillation = Math.sin(i * 0.8) * channelHeight * 0.25;
         let price = priceTarget + oscillation;
         
-        const vol = 0.004 * (1 - progress * 0.3); // Gets tighter
+        const vol = 0.004 * (1 - progress * 0.3); 
         const isBull = this.rng() < 0.48;
         const bodySize = price * vol * (0.3 + this.rng() * 0.2);
         const wickSize = bodySize * (0.5 + this.rng() * 0.4);
@@ -2761,7 +2761,7 @@ class MarketStructureGenerator {
         const oscillation = Math.sin(i * 0.8) * channelHeight * 0.25;
         let price = priceTarget + oscillation;
         
-        const vol = 0.004 * (1 - progress * 0.3); // Gets tighter
+        const vol = 0.004 * (1 - progress * 0.3); 
         const isBull = this.rng() < 0.52;
         const bodySize = price * vol * (0.3 + this.rng() * 0.2);
         const wickSize = bodySize * (0.5 + this.rng() * 0.4);
@@ -2776,8 +2776,8 @@ class MarketStructureGenerator {
       }
     } else if (setupType.type === "bullish_reversal") {
       let price = startPrice;
-      const bottomPrice = startPrice * 0.985; // Target low
-      const peakPrice = startPrice * 1.005; // Neckline level
+      const bottomPrice = startPrice * 0.985; 
+      const peakPrice = startPrice * 1.005; 
       
       const firstBottomLength = Math.floor(setupLength * 0.3);
       for (let i = 0; i < firstBottomLength; i++) {
@@ -2834,8 +2834,8 @@ class MarketStructureGenerator {
       }
     } else if (setupType.type === "bearish_reversal") {
       let price = startPrice;
-      const topPrice = startPrice * 1.015; // Target high
-      const troughPrice = startPrice * 0.995; // Neckline level
+      const topPrice = startPrice * 1.015; 
+      const troughPrice = startPrice * 0.995; 
       
       const firstTopLength = Math.floor(setupLength * 0.3);
       for (let i = 0; i < firstTopLength; i++) {
@@ -2962,14 +2962,7 @@ class MarketStructureGenerator {
 }
 
     /* ═══════════════════════════════════════════════════════════════
-      5. CHART RENDERER - Stabil kanóc javítás
-
-      Javítva:
-      - Stabil kanóc 6–10 gyertyánál
-      - Wick width limit
-      - Minimum wick magasság
-      - Dinamikus SCALE_LOOKBACK
-      - Animáció progress-szel
+      5. CHART RENDERER 
       ═══════════════════════════════════════════════════════════════ */
 
 
@@ -3133,7 +3126,7 @@ class ChartRenderer {
     if (bullCandles.length > 0) {
       ctx.fillStyle = C.bull;
       ctx.strokeStyle = C.bull;
-      ctx.lineWidth = 0; // Nincs border - tisztább
+      ctx.lineWidth = 0; 
       bullCandles.forEach(cd => {
         ctx.beginPath();
         ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 4 : 3);
@@ -3144,7 +3137,7 @@ class ChartRenderer {
     if (bearCandles.length > 0) {
       ctx.fillStyle = C.bear;
       ctx.strokeStyle = C.bear;
-      ctx.lineWidth = 0; // Nincs border - tisztább
+      ctx.lineWidth = 0; 
       bearCandles.forEach(cd => {
         ctx.beginPath();
         ctx.roundRect(cd.x, cd.top, cd.bodyWidth, cd.bodyHeight, mobile ? 4 : 3);
@@ -3184,7 +3177,7 @@ class ChartRenderer {
     };
 
     const adjustLabelPosition = (targetX, targetY, label, minSpacing = 60) => {
-      const labelX = width - 200; // Még távolabb a széltől
+      const labelX = width - 200; 
       let adjustedY = targetY;
       let attempts = 0;
       const maxAttempts = 25;
@@ -3197,7 +3190,7 @@ class ChartRenderer {
           
           if (dy < minSpacing) {
             hasCollision = true;
-            adjustedY += minSpacing * 1.5; // Még nagyobb lépésekkel toljuk lefelé
+            adjustedY += minSpacing * 1.5; 
             break;
           }
         }
@@ -3683,7 +3676,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
       try {
         const timestamp = Date.now();
         const scoreData = {
-          name: scorePlayerName.trim(), // Use the captured name, not current playerName
+          name: scorePlayerName.trim(), 
           score: stats.totalScore,
           streak: stats.bestStreak,
           accuracy: stats.accuracy,
@@ -3706,7 +3699,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         console.error("Failed to save score:", err);
         try {
           const scoreData = {
-            name: scorePlayerName.trim(), // Use the captured name in fallback too
+            name: scorePlayerName.trim(), 
             score: stats.totalScore,
             streak: stats.bestStreak,
             accuracy: stats.accuracy,
@@ -3723,7 +3716,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
     };
     
     saveScore();
-  }, [stats, saved, scorePlayerName]); // Removed playerName, added scorePlayerName
+  }, [stats, saved, scorePlayerName]); 
 
   let grade, gradeColor;
   if (stats.accuracy >= 90) {
@@ -4027,12 +4020,12 @@ const SupportDevButton = () => {
   const [customAmount, setCustomAmount] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [txStatus, setTxStatus] = useState(null); // 'success', 'error', or null
+  const [txStatus, setTxStatus] = useState(null); 
   const [txHash, setTxHash] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const RECIPIENT_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";
-  const BASE_CHAIN_ID = "0x2105"; // Base Mainnet (8453 in decimal)
+  const BASE_CHAIN_ID = "0x2105"; 
 
   const handleDonate = async (amount) => {
     try {
@@ -5073,11 +5066,11 @@ export default function App() {
       setTimeLeft(DECISION_MS);
       setScreen("building");
       setRevealProgress(0);
-      setWindowStart(0); // Start from 0
+      setWindowStart(0); 
       buildAnimationProgress.current = 0;
-      lastCandleCount.current = 0; // Reset candle count for tick sounds
+      lastCandleCount.current = 0; 
 
-      const duration = 4200; // Gyorsabb, pörgősebb ritmus - csökkentve 6500-ról
+      const duration = 4200; 
       const startTime = Date.now();
 
       const animateScroll = () => {
@@ -5155,7 +5148,7 @@ export default function App() {
 
       animateScroll();
     },
-    [] // Don't include handleChoice - causes circular dependency
+    [] 
   );
 
   const startGame = useCallback(() => {
@@ -5172,7 +5165,7 @@ export default function App() {
       rendererRef.current = null;
     }
     
-    setScreen("game"); // Reset screen to prevent verdict from showing
+    setScreen("game"); 
     setRound(0);
     setScores([]);
     setStreak(0);
@@ -5218,7 +5211,7 @@ export default function App() {
 
       let progress = 0;
       const animate = () => {
-        progress += 0.03; // Faster increment
+        progress += 0.03; 
         setRevealProgress(progress);
 
         if (progress < 1) {
@@ -5251,8 +5244,8 @@ export default function App() {
 
   const advanceRound = useCallback(() => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    setSwipeOffset(0); // Reset scroll position
-    setShowAnnotation(false); // Reset annotation
+    setSwipeOffset(0); 
+    setShowAnnotation(false); 
     setCurrentAnnotation(null);
     if (round + 1 >= ROUNDS) {
       setScreen("verdict");
@@ -5274,7 +5267,7 @@ export default function App() {
 
       let targetFps = 60;
       if (screen === "building") {
-        targetFps = isMobile ? 24 : 40;        // még film-szerűbbé tettem
+        targetFps = isMobile ? 24 : 40;        
       } else if (screen === "playing") {
         targetFps = 24;
       } else {
@@ -5296,7 +5289,7 @@ export default function App() {
         if (screen === "building") {
           const targetIndex = buildAnimationProgress.current * structure.decisionIndex;
           const displayedIndex = Math.floor(targetIndex);
-          const partialProgress = targetIndex - displayedIndex;   // 0.0 → 1.0
+          const partialProgress = targetIndex - displayedIndex;   
 
           if (displayedIndex > lastCandleCount.current) {
             sound.buildTick(displayedIndex / structure.decisionIndex);
@@ -5309,7 +5302,7 @@ export default function App() {
             const nextCandle = structure.candles[displayedIndex];
 
             const partialCandle = {
-              ...nextCandle,                    // time, volume, stb. marad
+              ...nextCandle,                    
               open: nextCandle.open,
               high: nextCandle.open + (nextCandle.high - nextCandle.open) * partialProgress,
               low:  nextCandle.open + (nextCandle.low  - nextCandle.open) * partialProgress,
