@@ -4023,13 +4023,13 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   }
 
   return (
-    <div style={{ position: 'absolute', top: 0, left: 0, height: '100vh', width: '130%' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, height: '100vh', width: '100%' }}>
       {/* Score display - positioned in the holographic frame */}
       <div style={{ 
         textAlign: "center", 
         position: 'relative', 
         zIndex: 2,
-        marginBottom: 16,
+        marginBottom: 10,
       }}>
         
         {/* Score - fits in frame */}
