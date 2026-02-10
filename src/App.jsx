@@ -3822,14 +3822,14 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div style={{
           padding: "0 20px",
           marginBottom: 0,
-          minHeight: "80px",
-          maxHeight: "80px",
+          minHeight: "50px",
+          maxHeight: "50px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}>
           <div style={{ 
-            fontSize: 13, 
+            fontSize: 11, 
             fontStyle: "italic", 
             color: "rgba(200, 220, 240, 0.65)", 
             lineHeight: 1.4, 
