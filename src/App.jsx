@@ -3753,7 +3753,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             fontWeight: 800,
             fontFamily: "monospace",
             color: "rgba(150, 200, 255, 0.95)",
-            marginTop: 20,
+            marginTop: -10,
             marginBottom: 20,
             textShadow: "0 0 25px rgba(100, 180, 255, 0.7), 0 0 50px rgba(100, 180, 255, 0.3), 0 3px 6px rgba(0,0,0,0.4)",
             letterSpacing: '3px'
@@ -3766,7 +3766,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div style={{ 
           fontSize: 15, 
           fontWeight: 700,
-          marginTop: -5, 
+          marginTop: 5, 
           marginBottom: 18, 
           color: "rgba(100, 200, 230, 0.9)", 
           textShadow: "0 0 15px rgba(100, 200, 230, 0.6), 0 0 30px rgba(100, 200, 230, 0.3)",
