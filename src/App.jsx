@@ -4023,7 +4023,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
   }
 
   return (
-    <div style={{ position: 'absolute', top: 0, left: 0, height: '100vh', width: '100%' }}>
+    <div style={{ position: 'absolute', top: 0, left: 0, height: '100vh', width: '130%' }}>
       {/* Score display - positioned in the holographic frame */}
       <div style={{ 
         textAlign: "center", 
@@ -4095,7 +4095,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
               marginBottom: 4, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
-              fontWeight: 1600
+              fontWeight: 600
             }}>
               ACCURACY
             </div>
