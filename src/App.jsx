@@ -4092,7 +4092,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             <div style={{ 
               fontSize: 8, 
               color: "rgba(150, 180, 200, 0.45)", 
-              marginBottom: 4, 
+              marginBottom: 2, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
               fontWeight: 600
@@ -4113,7 +4113,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             <div style={{ 
               fontSize: 8, 
               color: "rgba(150, 180, 200, 0.45)", 
-              marginBottom: 4, 
+              marginBottom: 2, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
               fontWeight: 600
@@ -4134,7 +4134,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             <div style={{ 
               fontSize: 8, 
               color: "rgba(150, 180, 200, 0.45)", 
-              marginBottom: 4, 
+              marginBottom: 2, 
               textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               letterSpacing: '1px',
               fontWeight: 600
@@ -4466,7 +4466,7 @@ const SupportDevButton = () => {
             marginBottom: 12,
             lineHeight: 1.5,
           }}>
-            Your donation helps keep this project alive and improving. We truly appreciate your generosity! 💚
+            You are amazing. I truly appreciate your generosity! 
           </div>
           {txHash && (
             <a
