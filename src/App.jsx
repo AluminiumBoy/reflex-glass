@@ -3764,9 +3764,9 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 
         {/* Player name instead of grade - blue color */}
         <div style={{ 
-          fontSize: 13, 
+          fontSize: 15, 
           fontWeight: 700,
-          marginTop: -25, 
+          marginTop: -10, 
           marginBottom: 18, 
           color: "rgba(100, 200, 230, 0.9)", 
           textShadow: "0 0 15px rgba(100, 200, 230, 0.6), 0 0 30px rgba(100, 200, 230, 0.3)",
