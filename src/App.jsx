@@ -4009,7 +4009,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
           </div>
           
           {/* Support the Dev */}
-          <SupportDevButton />
+          <SupportDevButton playerName={playerName} />
         </div>
       </div>
     </div>
@@ -4017,7 +4017,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
 };
 
 
-const SupportDevButton = () => {
+const SupportDevButton = ({ playerName }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -4229,13 +4229,6 @@ const SupportDevButton = () => {
               View on BaseScan →
             </a>
           )}
-          <div style={{
-            fontSize: 9,
-            color: "rgba(255, 255, 255, 0.5)",
-            marginTop: 8,
-          }}>
-            Closing in 5 seconds...
-          </div>
         </div>
       );
     }
