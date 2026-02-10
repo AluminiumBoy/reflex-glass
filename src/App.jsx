@@ -3822,8 +3822,8 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
         <div style={{
           padding: "0 20px",
           marginBottom: 0,
-          minHeight: "36.5px",
-          maxHeight: "36.5px",
+          minHeight: "20.5px",
+          maxHeight: "20.5px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
