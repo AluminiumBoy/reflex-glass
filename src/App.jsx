@@ -6129,8 +6129,8 @@ export default function App() {
       {/* Chart - MUCH BIGGER on mobile */}
       <div style={{ 
         flex: 1, 
-        minHeight: 0, 
         position: "relative",
+        minHeight: "50vh" // Force minimum height for mobile
       }}>
         <canvas
           ref={chartRef}
