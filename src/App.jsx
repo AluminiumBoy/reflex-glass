@@ -4085,7 +4085,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
             display: "grid",
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 10,
-            padding: "50 130px"
+            padding: "50 530px"
           }}
         >
           <div>
