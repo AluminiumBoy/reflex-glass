@@ -23,7 +23,7 @@ try {
 }
 
 
-const ROUNDS = 5;
+const ROUNDS = 7;
 const DECISION_MS = 3000; 
 const BASE_SCORE = 1000;
 const STREAK_MULT = [1, 1.3, 1.6, 2.0, 2.5, 3.0, 3.5, 4.0];
@@ -2319,7 +2319,7 @@ class MarketStructureGenerator {
         priorStructure: "Clean Trend",
         momentum: "strong",
         quality: "guaranteed",
-        edgeScore: 5,
+        edgeScore: 7,
       },
       pattern: signal === "BUY" ? "Bull Flag" : "Bear Flag",
       regime: signal === "BUY" ? "uptrend" : "downtrend",
