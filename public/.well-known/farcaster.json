@@ -7,7 +7,9 @@
   "miniapp": {
     "version": "1",
     "name": "Reflex Glass",
+    "imageUrl": "https://reflex-glass.vercel.app/preview.png",
     "iconUrl": "https://reflex-glass.vercel.app/icon.png",
+    "screenshotUrls": "https://reflex-glass.vercel.app/screenshot.png",
     "homeUrl": "https://reflex-glass.vercel.app/",
     "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
     "splashBackgroundColor": "#06060c",
