@@ -16,7 +16,7 @@
     <meta property="og:description" content="Context-Aware Chart Pattern Reflex Trainer. Redesigned 2026 - Realistic Market Structure Edition" />
     <meta property="og:image" content="https://reflex-glass.vercel.app/preview.png" />
     <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:height" content="800" />
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
@@ -25,12 +25,24 @@
     <meta property="twitter:description" content="Context-Aware Chart Pattern Reflex Trainer" />
     <meta property="twitter:image" content="https://reflex-glass.vercel.app/preview.png" />
 
-    <!-- Farcaster Frame (Base Mini App) -->
-    <meta property="fc:frame" content="vNext" />
-    <meta property="fc:frame:image" content="https://reflex-glass.vercel.app/preview.png" />
-    <meta property="fc:frame:button:1" content="Play Now" />
-    <meta property="fc:frame:button:1:action" content="link" />
-    <meta property="fc:frame:button:1:target" content="https://reflex-glass.vercel.app/" />
+    <!-- Base Mini App Embed & Preview (required for image preview) -->
+    <meta
+      name="fc:miniapp"
+      content='{
+        "version": "1",
+        "imageUrl": "https://reflex-glass.vercel.app/preview.png",
+        "button": {
+          "title": "Play Now",
+          "action": {
+            "type": "launch_frame",
+            "url": "https://reflex-glass.vercel.app/",
+            "name": "Reflex Glass",
+            "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
+            "splashBackgroundColor": "#06060c"
+          }
+        }
+      }'
+    />
 
     <!-- PWA / App Manifest -->
     <link rel="manifest" href="/manifest.json" />
