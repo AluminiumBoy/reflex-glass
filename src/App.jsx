@@ -4076,14 +4076,14 @@ const SupportDevButton = () => {
             } catch (addError) {
               console.error("Error adding Base network:", addError);
               setTxStatus('error');
-              setErrorMessage("Failed to add Base network. Please add it manually.");
+              setErrorMessage("Failed, try again");
               setIsConnecting(false);
               return;
             }
           } else {
             console.error("Error switching to Base network:", switchError);
             setTxStatus('error');
-            setErrorMessage("Failed to switch to Base network.");
+            setErrorMessage("Failed, try again");
             setIsConnecting(false);
             return;
           }
@@ -4120,7 +4120,7 @@ const SupportDevButton = () => {
       if (error.code === 4001) {
         setErrorMessage("Transaction cancelled by user.");
       } else {
-        setErrorMessage(error.message || "Transaction failed. Please try again.");
+        setErrorMessage("Failed, try again");
       }
     } finally {
       setIsConnecting(false);
@@ -5382,7 +5382,7 @@ export default function App() {
           .map(s => s.name.trim().toLowerCase());
         
         if (existingNames.includes(normalizedNewName)) {
-          alert("This username is already taken. Please choose a different one.");
+          alert("Taken, choose another name");
           return;
         }
       } catch (err) {
