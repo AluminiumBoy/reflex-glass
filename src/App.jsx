@@ -4184,7 +4184,7 @@ const SupportDevButton = ({ playerName }) => {
             fontSize: 32,
             marginBottom: 8,
           }}>
-            🎉
+            💙
           </div>
           <div style={{
             fontSize: 14,
@@ -4192,7 +4192,7 @@ const SupportDevButton = ({ playerName }) => {
             color: "rgba(0, 230, 118, 1)",
             marginBottom: 8,
           }}>
-            Thank you{playerName ? `, ${playerName}` : ""} for your support!
+            I appreciate this more than I can put into words. Bullish on you, ser.{playerName ? `, ${playerName}` : ""}
           </div>
           <div style={{
             fontSize: 11,
@@ -4200,7 +4200,6 @@ const SupportDevButton = ({ playerName }) => {
             marginBottom: 12,
             lineHeight: 1.5,
           }}>
-            You are amazing. I truly appreciate your generosity!
           </div>
           {txHash && (
             <a
