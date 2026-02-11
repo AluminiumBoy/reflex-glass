@@ -1,9 +1,4 @@
 {
-  "accountAssociation": {
-    "header": "eyJmaWQiOjI0MjY2NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdFN2VFNTc5NzUwM2UyYUE5MzdFYzIwZmM4QTlhRWQ1MDdiMTc1MTUifQ",
-    "payload": "eyJkb21haW4iOiJyZWZsZXgtZ2xhc3MudmVyY2VsLmFwcCJ9",
-    "signature": "yptXbRGVzeb3oU6HIw5jg6LFmGb9OW3ahbv8wNzX/LJ/zfz9xpDmdMuPXS7hCK/iw4GJBbkz4QbPs2yEeupu3Bw="
-  },
   "frame": {
     "name": "Reflex Glass",
     "version": "1",
@@ -14,10 +9,10 @@
     "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
     "splashBackgroundColor": "#06060c",
     "subtitle": "A fast-paced price action training game",
-    "description": "Reflex Glass is a high-speed chart reading game built around pure price action. You get seconds to decide: BUY or SELL. No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure. Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
+    "description": "Reflex Glass is a high-speed chart reading game built around pure price action.  You get seconds to decide: BUY or SELL.  No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure.  Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
     "primaryCategory": "games",
     "screenshotUrls": [
-      "https://reflex-glass.vercel.app/screenshot.png?v=2"
+      "https://reflex-glass.vercel.app/screenshot.png"
     ],
     "heroImageUrl": "https://reflex-glass.vercel.app/preview.png?v=8.8.8.1",
     "tags": [
@@ -29,7 +24,12 @@
     ],
     "tagline": "This is harder than it looks",
     "ogTitle": "Reflex Glass",
-    "ogDescription": "BUY or SELL in seconds. No indicators. Just chart.",
+    "ogDescription": "BUY or SELL in seconds No indidactors. Just chart ",
     "ogImageUrl": "https://reflex-glass.vercel.app/preview.png?v=8.8.8.1"
+  },
+  "accountAssociation": {
+    "header": "eyJmaWQiOjI0MjY2NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdFN2VFNTc5NzUwM2UyYUE5MzdFYzIwZmM4QTlhRWQ1MDdiMTc1MTUifQ",
+    "payload": "eyJkb21haW4iOiJyZWZsZXgtZ2xhc3MudmVyY2VsLmFwcCJ9",
+    "signature": "yptXbRGVzeb3oU6HIw5jg6LFmGb9OW3ahbv8wNzX/LJ/zfz9xpDmdMuPXS7hCK/iw4GJBbkz4QbPs2yEeupu3Bw="
   }
 }
