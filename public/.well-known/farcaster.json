@@ -4,17 +4,17 @@
     "version": "1",
     "iconUrl": "https://reflex-glass.vercel.app/icon.png",
     "homeUrl": "https://reflex-glass.vercel.app",
-    "imageUrl": "https://reflex-glass.vercel.app/preview.png?v=8.8.8.1",
+    "imageUrl": "https://reflex-glass.vercel.app/preview.png",
     "buttonTitle": "Play",
     "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
     "splashBackgroundColor": "#06060c",
     "subtitle": "A fast-paced price action training game",
-    "description": "Reflex Glass is a high-speed chart reading game built around pure price action.  You get seconds to decide: BUY or SELL.  No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure.  Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
+    "description": "Reflex Glass is a high-speed chart reading game built around pure price action. You get seconds to decide: BUY or SELL. No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure. Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
     "primaryCategory": "games",
     "screenshotUrls": [
       "https://reflex-glass.vercel.app/screenshot.png"
     ],
-    "heroImageUrl": "https://reflex-glass.vercel.app/preview.png?v=8.8.8.1",
+    "heroImageUrl": "https://reflex-glass.vercel.app/preview.png",
     "tags": [
       "game",
       "trading",
@@ -24,8 +24,8 @@
     ],
     "tagline": "This is harder than it looks",
     "ogTitle": "Reflex Glass",
-    "ogDescription": "BUY or SELL in seconds No indidactors. Just chart ",
-    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png?v=8.8.8.1"
+    "ogDescription": "BUY or SELL in seconds. No indicators. Just charts.",
+    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png"
   },
   "accountAssociation": {
     "header": "eyJmaWQiOjI0MjY2NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdFN2VFNTc5NzUwM2UyYUE5MzdFYzIwZmM4QTlhRWQ1MDdiMTc1MTUifQ",
