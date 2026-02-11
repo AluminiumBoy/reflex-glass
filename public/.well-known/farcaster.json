@@ -2,19 +2,19 @@
   "frame": {
     "name": "Reflex Glass",
     "version": "1",
-    "iconUrl": "https://reflex-glass.vercel.app/icon.png?v=1.1",
+    "iconUrl": "https://reflex-glass.vercel.app/icon2.png",
     "homeUrl": "https://reflex-glass.vercel.app",
-    "imageUrl": "https://reflex-glass.vercel.app/preview.png?v=1.1",
+    "imageUrl": "https://reflex-glass.vercel.app/preview2.png",
     "buttonTitle": "Play",
-    "splashImageUrl": "https://reflex-glass.vercel.app/splash.png?v=1.1",
+    "splashImageUrl": "https://reflex-glass.vercel.app/splash2.png",
     "splashBackgroundColor": "#06060c",
     "subtitle": "Price action reflex game",
     "description": "A fast-paced chart reading game. Decide BUY or SELL in seconds. No indicators. Just real market patterns and pure price action reflex..",
     "primaryCategory": "games",
     "screenshotUrls": [
-      "https://reflex-glass.vercel.app/screenshot.png?v=1.1"
+      "https://reflex-glass.vercel.app/screenshot2.png"
     ],
-    "heroImageUrl": "https://reflex-glass.vercel.app/hero.png?v=1.1",
+    "heroImageUrl": "https://reflex-glass.vercel.app/hero2.png",
     "tags": [
       "game",
       "trading",
