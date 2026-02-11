@@ -1,30 +1,30 @@
 /* ================================================
-   JAVÍTOTT app.css – Reflex Glass Mini App-hez
+   
    ================================================ */
 
-/* Teljes képernyős root – eltünteti a fehér csíkokat */
+/*  */
 #root {
   width: 100vw;
   height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #06060c;           /* ugyanaz a sötét háttér, mint a splash */
+  background: #06060c;           /* */
   box-sizing: border-box;
   text-align: center;
   position: relative;
 }
 
-/* Ha később mégis kell némi belső padding a tartalomnak, használd belső wrapper-t */
+/* */
 .inner-content {
   width: 100%;
   height: 100%;
-  padding: 1rem;                /* opcionális – ha kell némi lélegzet */
+  padding: 1rem;                
   box-sizing: border-box;
   overflow-y: auto;
 }
 
-/* Logo stílusok – ha még használod */
+/* */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -55,17 +55,17 @@
   }
 }
 
-/* Card stílus – ha még kell */
+/*  */
 .card {
   padding: 2em;
 }
 
-/* Olvasd el a doksit link – ha használod */
+/*  */
 .read-the-docs {
   color: #888;
 }
 
-/* Extra: biztosítjuk, hogy ne legyen semmilyen alapértelmezett margó/padding */
+/* */
 html, body {
   margin: 0;
   padding: 0;

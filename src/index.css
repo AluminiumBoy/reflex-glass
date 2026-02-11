@@ -1,6 +1,5 @@
 /* ================================================
-   JAVÍTOTT index.css – Reflex Glass Mini App-hez
-   2026-as verzió – teljes képernyős, csíkmentes
+   
    ================================================ */
 
 :root {
@@ -8,9 +7,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: dark;                    /* erőltetett sötét mód */
+  color-scheme: dark;                   
   color: rgba(255, 255, 255, 0.87);
-  background-color: #06060c;             /* sötét háttér egységesen */
+  background-color: #06060c;             
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -18,7 +17,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Teljes képernyő reset – semmi margó, semmi center */
+/*  */
 html, body {
   margin: 0;
   padding: 0;
@@ -26,10 +25,10 @@ html, body {
   height: 100dvh;
   overflow: hidden;
   background: #06060c;
-  touch-action: manipulation;            /* jobb touch élmény */
+  touch-action: manipulation;           
 }
 
-/* #root teljes képernyős – minden screen itt van */
+/* */
 #root {
   width: 100vw;
   height: 100dvh;
@@ -41,7 +40,7 @@ html, body {
   position: relative;
 }
 
-/* Link stílusok – ha használod */
+/**/
 a {
   font-weight: 500;
   color: #646cff;
@@ -51,7 +50,7 @@ a:hover {
   color: #535bf2;
 }
 
-/* Button alap stílusok – GlassButton felülírja őket */
+/*  */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -71,7 +70,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* Light mode kikapcsolása – Mini App mindig sötét */
+/* */
 @media (prefers-color-scheme: light) {
   :root {
     color: rgba(255, 255, 255, 0.87);
@@ -82,13 +81,13 @@ button:focus-visible {
   }
 }
 
-/* Extra biztonság: minden elem box-sizing */
+/*  */
 * {
   box-sizing: border-box;
 }
 
-/* Ha később kell valami globális finomítás */
+/* */
 body {
-  -webkit-tap-highlight-color: transparent;   /* eltünteti a tap highlight-ot */
-  overscroll-behavior: none;                   /* tiltja az overscroll-t */
+  -webkit-tap-highlight-color: transparent;   
+  overscroll-behavior: none;                  
 }
