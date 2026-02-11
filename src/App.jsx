@@ -4091,7 +4091,7 @@ const SupportDevButton = ({ playerName }) => {
   const [errorMessage, setErrorMessage] = useState("");
 
   const RECIPIENT_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";
-  const BASE_CHAIN_ID = "0x2105"; 
+  const BASE_CHAIN_ID = "8453"; 
 
   const handleDonate = async (amount) => {
     try {
