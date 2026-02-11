@@ -9,7 +9,7 @@
     "version": "1",
     "iconUrl": "https://reflex-glass.vercel.app/icon.png",
     "homeUrl": "https://reflex-glass.vercel.app",
-    "imageUrl": "https://reflex-glass.vercel.app/preview.png?v=6.7",
+    "imageUrl": "https://reflex-glass.vercel.app/preview.png?v=6.8",
     "buttonTitle": "Play",
     "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
     "splashBackgroundColor": "#06060c",
@@ -19,7 +19,7 @@
     "screenshotUrls": [
       "https://reflex-glass.vercel.app/screenshot.png?v=2"
     ],
-    "heroImageUrl": "https://reflex-glass.vercel.app/preview.png?v=6.7",
+    "heroImageUrl": "https://reflex-glass.vercel.app/preview.png?v=6.8",
     "tags": [
       "game",
       "trading",
@@ -30,6 +30,6 @@
     "tagline": "This is harder than it looks",
     "ogTitle": "Reflex Glass",
     "ogDescription": "BUY or SELL in seconds. No indicators. Just chart.",
-    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png?v=6.7"
+    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png?v=6.8"
   }
 }
