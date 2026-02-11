@@ -55,7 +55,7 @@ function haptic(pattern = [30]) {
 class SoundEngine {
   constructor() {
     this.ctx = null;
-    this.on = true;
+    this.volume = "full"; // "mute", "half", "full"
     this.masterGain = null;
     this.compressor = null;
   }
@@ -77,14 +77,25 @@ class SoundEngine {
     return this.ctx;
   }
 
+  _updateVolume() {
+    if (!this.masterGain) return;
+    if (this.volume === "mute") {
+      this.masterGain.gain.value = 0;
+    } else if (this.volume === "half") {
+      this.masterGain.gain.value = 0.35;
+    } else {
+      this.masterGain.gain.value = 0.7;
+    }
+  }
+
   unlock() {
-    if (!this.on) return;
+    if (this.volume === "mute") return;
     const ctx = this._ensure();
     if (ctx.state === "suspended") ctx.resume();
   }
 
   click() {
-    if (!this.on) return;
+    if (this.volume === "mute") return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     const osc1 = ctx.createOscillator();
@@ -101,7 +112,7 @@ class SoundEngine {
   }
 
   tick(n) {
-    if (!this.on) return;
+    if (this.volume === "mute") return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
@@ -135,7 +146,7 @@ class SoundEngine {
   }
 
   buildTick(progress) {
-    if (!this.on) return;
+    if (this.volume === "mute") return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     
@@ -169,7 +180,7 @@ class SoundEngine {
   }
 
   correct() {
-    if (!this.on) return;
+    if (this.volume === "mute") return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     [523.25, 659.25, 783.99].forEach((freq, i) => {
@@ -187,7 +198,7 @@ class SoundEngine {
   }
 
   wrong() {
-    if (!this.on) return;
+    if (this.volume === "mute") return;
     const ctx = this._ensure();
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -203,8 +214,16 @@ class SoundEngine {
     osc.stop(now + 0.4);
   }
 
-  toggle() {
-    this.on = !this.on;
+  cycleVolume() {
+    if (this.volume === "full") {
+      this.volume = "half";
+    } else if (this.volume === "half") {
+      this.volume = "mute";
+    } else {
+      this.volume = "full";
+    }
+    this._updateVolume();
+    return this.volume;
   }
 }
 
@@ -4981,7 +5000,7 @@ export default function App() {
   const [currentAnnotation, setCurrentAnnotation] = useState(null);
 
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
-  const [volume, setVolume] = useState(70);
+  const [volumeLevel, setVolumeLevel] = useState("full"); // "mute", "half", "full"
 
   const chartRef = useRef(null);
   const rendererRef = useRef(null);
@@ -5573,16 +5592,16 @@ export default function App() {
             }}
           >
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            {volume > 50 && (
+            {volumeLevel === "full" && (
               <>
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
               </>
             )}
-            {volume > 0 && volume <= 50 && (
+            {volumeLevel === "half" && (
               <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
             )}
-            {volume === 0 && (
+            {volumeLevel === "mute" && (
               <>
                 <line x1="23" y1="9" x2="17" y2="15" />
                 <line x1="17" y1="9" x2="23" y2="15" />
@@ -5623,41 +5642,50 @@ export default function App() {
               }}>
                 Volume
               </span>
-              <span style={{ 
-                fontSize: 14, 
-                color: C.nGreen, 
-                fontWeight: 700,
-                textShadow: `0 0 10px ${C.nGreen}40`,
-              }}>
-                {volume}%
-              </span>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={volume}
-              onChange={(e) => {
-                const newVolume = parseInt(e.target.value);
-                setVolume(newVolume);
-                if (sound.masterGain) {
-                  sound.masterGain.gain.value = newVolume / 100;
-                }
-                sound.on = newVolume > 0;
-              }}
-              style={{
-                width: "100%",
-                height: 6,
-                borderRadius: 3,
-                outline: "none",
-                background: `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${volume}%, rgba(255,255,255,0.08) ${volume}%, rgba(255,255,255,0.08) 100%)`,
-                appearance: "none",
-                cursor: "pointer",
-              }}
-              onInput={(e) => {
-                e.target.style.background = `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${e.target.value}%, rgba(255,255,255,0.08) ${e.target.value}%, rgba(255,255,255,0.08) 100%)`;
-              }}
-            />
+            <div style={{
+              display: "flex",
+              gap: 8,
+              justifyContent: "space-between"
+            }}>
+              {["mute", "half", "full"].map((level) => {
+                const isActive = volumeLevel === level;
+                const labels = { mute: "🔇", half: "🔉", full: "🔊" };
+                return (
+                  <button
+                    key={level}
+                    onClick={() => {
+                      sound.volume = level;
+                      sound._updateVolume();
+                      setVolumeLevel(level);
+                      haptic([20]);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "10px",
+                      fontSize: 18,
+                      background: isActive 
+                        ? `linear-gradient(135deg, ${C.nGreen}40, ${C.nGreen}20)` 
+                        : "rgba(255,255,255,0.05)",
+                      border: isActive 
+                        ? `1px solid ${C.nGreen}` 
+                        : "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 12,
+                      color: isActive ? C.nGreen : "rgba(255,255,255,0.4)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: isActive 
+                        ? `0 0 12px ${C.nGreen}40` 
+                        : "none",
+                      WebkitTapHighlightColor: "transparent",
+                      touchAction: "manipulation"
+                    }}
+                  >
+                    {labels[level]}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
