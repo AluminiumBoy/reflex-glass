@@ -1,10 +1,9 @@
 {
   "accountAssociation": {
-    "header": "eyJmaWQiOi0xLCJ0eXBlIjoiYXV0aCIsImtleSI6IjB4ZjczQWRlQTkwYTgwMTIyRTY5ZjY1MUQ4NmFGMGE0QUMzYjIyQ2U3MiJ9",
+    "header": "eyJmaWQiOjI0MjY2NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdFN2VFNTc5NzUwM2UyYUE5MzdFYzIwZmM4QTlhRWQ1MDdiMTc1MTUifQ",
     "payload": "eyJkb21haW4iOiJyZWZsZXgtZ2xhc3MudmVyY2VsLmFwcCJ9",
-    "signature": "AAAAAAAAAAAAAAAAyhG94Fl3s2MRZwKIYr4qFzl2yhEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiSCrVbLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAul7REO_bo9AFv8iC11NYrLu4WEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASQ_-6NvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAA4DOwwOIqO_SdqmUBcz1TxAyHMwwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAPhSELIcxQMC9He6VmhtIBncm2etAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBQpSo1BCUxaX3xw7NFpkx41xZWYl0EpNDWmvVC7vxP9Nd9gX5Kcn71r4fL84DQ1P1zpojc1pcuTLNZkpF6-Vq_RsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJI"
+    "signature": "yptXbRGVzeb3oU6HIw5jg6LFmGb9OW3ahbv8wNzX/LJ/zfz9xpDmdMuPXS7hCK/iw4GJBbkz4QbPs2yEeupu3Bw="
   },
-
   "frame": {
     "name": "Reflex Glass",
     "version": "1",
@@ -16,10 +15,10 @@
     "splashBackgroundColor": "#06060c",
     "webhookUrl": "https://reflex-glass.vercel.app/api/webhook",
     "subtitle": "A fast-paced price action training game",
-    "description": "Reflex Glass is a high-speed chart reading game built around pure price action.  You get seconds to decide: BUY or SELL.  No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure.  Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
+    "description": "Reflex Glass is a high-speed chart reading game built around pure price action. You get seconds to decide: BUY or SELL. No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure. Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
     "primaryCategory": "games",
     "screenshotUrls": [
-      "https://reflex-glass.vercel.app/screeshot.png"
+      "https://reflex-glass.vercel.app/screenshot.png"
     ],
     "heroImageUrl": "https://reflex-glass.vercel.app/preview.png",
     "tags": [
@@ -31,7 +30,7 @@
     ],
     "tagline": "This is harder than it looks",
     "ogTitle": "Reflex Glass",
-    "ogDescription": "BUY or SELL in seconds No indidactors. Just chart ",
+    "ogDescription": "BUY or SELL in seconds. No indicators. Just chart.",
     "ogImageUrl": "https://reflex-glass.vercel.app/preview.png"
   }
 }
