@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -4980,6 +4979,9 @@ export default function App() {
   const [showAnnotation, setShowAnnotation] = useState(false);
   const [currentAnnotation, setCurrentAnnotation] = useState(null);
 
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [volume, setVolume] = useState(70);
+
   const chartRef = useRef(null);
   const rendererRef = useRef(null);
   const timerRef = useRef(null);
@@ -5517,20 +5519,23 @@ export default function App() {
       <div
         style={{
           position: "absolute",
-          top: 20,
+          bottom: 20,
           left: 20,
           zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
         }}
       >
         <button
           onClick={() => {
-            sound.toggle();
+            setShowVolumeSlider(!showVolumeSlider);
             haptic([10]);
           }}
           style={{
-            background: sound.on ? C.glass : "rgba(255,68,148,0.15)",
+            background: C.glass,
             backdropFilter: "blur(12px)",
-            border: `1px solid ${sound.on ? C.glassBr : "rgba(255,68,148,0.3)"}`,
+            border: `1px solid ${C.glassBr}`,
             borderRadius: 12,
             width: 44,
             height: 44,
@@ -5542,11 +5547,11 @@ export default function App() {
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = "scale(1.05)";
-            e.currentTarget.style.background = sound.on ? C.glassHi : "rgba(255,68,148,0.25)";
+            e.currentTarget.style.background = C.glassHi;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.background = sound.on ? C.glass : "rgba(255,68,148,0.15)";
+            e.currentTarget.style.background = C.glass;
           }}
         >
           <svg
@@ -5554,29 +5559,90 @@ export default function App() {
             height="20"
             viewBox="0 0 24 24"
             fill="none"
-            stroke={sound.on ? "#fff" : C.nPink}
+            stroke="#fff"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {sound.on ? (
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            {volume > 50 && (
               <>
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
               </>
-            ) : (
+            )}
+            {volume > 0 && volume <= 50 && (
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            )}
+            {volume === 0 && (
               <>
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
                 <line x1="23" y1="9" x2="17" y2="15" />
                 <line x1="17" y1="9" x2="23" y2="15" />
               </>
             )}
           </svg>
         </button>
+
+        {/* Volume Slider Popup */}
+        {showVolumeSlider && (
+          <div
+            style={{
+              background: C.glass,
+              backdropFilter: "blur(12px)",
+              border: `1px solid ${C.glassBr}`,
+              borderRadius: 12,
+              padding: "16px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              minWidth: 200,
+              animation: "slideIn 0.2s ease",
+            }}
+          >
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center",
+              marginBottom: 4,
+            }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>
+                Volume
+              </span>
+              <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>
+                {volume}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(e) => {
+                const newVolume = parseInt(e.target.value);
+                setVolume(newVolume);
+                if (sound.masterGain) {
+                  sound.masterGain.gain.value = newVolume / 100;
+                }
+                sound.on = newVolume > 0;
+              }}
+              style={{
+                width: "100%",
+                height: 6,
+                borderRadius: 3,
+                outline: "none",
+                background: `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${volume}%, rgba(255,255,255,0.1) ${volume}%, rgba(255,255,255,0.1) 100%)`,
+                appearance: "none",
+                cursor: "pointer",
+              }}
+              onInput={(e) => {
+                e.target.style.background = `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${e.target.value}%, rgba(255,255,255,0.1) ${e.target.value}%, rgba(255,255,255,0.1) 100%)`;
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
+    <div style={{ textAlign: "center", marginBottom: 10 }}>
         <img 
           src="title.png" 
           alt="REFLEX GLASS" 
@@ -6271,6 +6337,37 @@ export default function App() {
             width: 100%;
             height: 100dvh;
             overflow: hidden;
+          }
+          
+          input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          }
+          
+          input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          }
+          
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
           }
           
           @keyframes shimmer {
