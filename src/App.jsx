@@ -5521,8 +5521,8 @@ export default function App() {
         style={{
           position: "fixed",
           bottom: 30,
-          left: 30,
-          zIndex: 100,
+          left: 15,
+          zIndex: 200,
           display: "flex",
           flexDirection: "column-reverse",
           alignItems: "center",
