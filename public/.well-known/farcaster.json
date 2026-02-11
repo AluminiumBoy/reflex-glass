@@ -13,7 +13,6 @@
     "buttonTitle": "Play",
     "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
     "splashBackgroundColor": "#06060c",
-    "webhookUrl": "https://reflex-glass.vercel.app/api/webhook",
     "subtitle": "A fast-paced price action training game",
     "description": "Reflex Glass is a high-speed chart reading game built around pure price action. You get seconds to decide: BUY or SELL. No indicators. No signals. No noise. Just real market structures and your ability to read them under pressure. Train your pattern recognition, build streak multipliers, and see if you actually understand charts — or just thought you did.",
     "primaryCategory": "games",
