@@ -2,19 +2,19 @@
   "frame": {
     "name": "Reflex Glass",
     "version": "1",
-    "iconUrl": "https://reflex-glass.vercel.app/icon.png",
+    "iconUrl": "https://reflex-glass.vercel.app/icon.png?v=1.1",
     "homeUrl": "https://reflex-glass.vercel.app",
-    "imageUrl": "https://reflex-glass.vercel.app/preview.png",
+    "imageUrl": "https://reflex-glass.vercel.app/preview.png?v=1.1",
     "buttonTitle": "Play",
-    "splashImageUrl": "https://reflex-glass.vercel.app/splash.png",
+    "splashImageUrl": "https://reflex-glass.vercel.app/splash.png?v=1.1",
     "splashBackgroundColor": "#06060c",
     "subtitle": "Price action reflex game",
     "description": "A fast-paced chart reading game. Decide BUY or SELL in seconds. No indicators. Just real market patterns and pure price action reflex..",
     "primaryCategory": "games",
     "screenshotUrls": [
-      "https://reflex-glass.vercel.app/screenshot.png"
+      "https://reflex-glass.vercel.app/screenshot.png?v=1.1"
     ],
-    "heroImageUrl": "https://reflex-glass.vercel.app/preview.png",
+    "heroImageUrl": "https://reflex-glass.vercel.app/hero.png?v=1.1",
     "tags": [
       "game",
       "trading",
@@ -25,11 +25,12 @@
     "tagline": "This is harder than it looks",
     "ogTitle": "Reflex Glass",
     "ogDescription": "BUY or SELL in seconds. No indicators. Just charts.",
-    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png"
+    "ogImageUrl": "https://reflex-glass.vercel.app/preview.png?v=1.1"
   },
   "accountAssociation": {
     "header": "eyJmaWQiOjI0MjY2NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdFN2VFNTc5NzUwM2UyYUE5MzdFYzIwZmM4QTlhRWQ1MDdiMTc1MTUifQ",
     "payload": "eyJkb21haW4iOiJyZWZsZXgtZ2xhc3MudmVyY2VsLmFwcCJ9",
     "signature": "yptXbRGVzeb3oU6HIw5jg6LFmGb9OW3ahbv8wNzX/LJ/zfz9xpDmdMuPXS7hCK/iw4GJBbkz4QbPs2yEeupu3Bw="
   }
+
 }
