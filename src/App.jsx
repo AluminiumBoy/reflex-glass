@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -4089,11 +4088,77 @@ const SupportDevButton = ({ playerName }) => {
   const [txStatus, setTxStatus] = useState(null); 
   const [txHash, setTxHash] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isFarcasterFrame, setIsFarcasterFrame] = useState(false);
+  const [farcasterContext, setFarcasterContext] = useState(null);
 
   const RECIPIENT_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";
-  const BASE_CHAIN_ID = "8453"; 
+  const BASE_CHAIN_ID = "0x2105"; 
 
-  const handleDonate = async (amount) => {
+  // 🔍 Detektálja hogy Farcaster Frame-ben vagyunk-e
+  useEffect(() => {
+    const checkFarcasterContext = async () => {
+      if (window.fc && window.fc.context) {
+        console.log("✅ Farcaster Frame detected!");
+        setIsFarcasterFrame(true);
+        setFarcasterContext(window.fc.context);
+      } else if (window.parent !== window) {
+        setTimeout(() => {
+          if (window.fc && window.fc.context) {
+            console.log("✅ Farcaster Frame detected (delayed)!");
+            setIsFarcasterFrame(true);
+            setFarcasterContext(window.fc.context);
+          }
+        }, 500);
+      }
+    };
+
+    checkFarcasterContext();
+  }, []);
+
+  // 🎯 FARCASTER FRAME DONATE
+  const handleFarcasterDonate = async (amount) => {
+    try {
+      setIsConnecting(true);
+      setTxStatus(null);
+      setErrorMessage("");
+      setTxHash("");
+
+      const amountInWei = BigInt(Math.floor(amount * 1e18)).toString();
+
+      const result = await window.fc.transaction({
+        chainId: `eip155:${parseInt(BASE_CHAIN_ID, 16)}`,
+        method: 'eth_sendTransaction',
+        params: {
+          abi: [],
+          to: RECIPIENT_ADDRESS,
+          value: amountInWei,
+        },
+      });
+
+      if (result.transactionHash) {
+        console.log("✅ Farcaster transaction sent:", result.transactionHash);
+        setTxHash(result.transactionHash);
+        setTxStatus('success');
+      } else {
+        throw new Error("Transaction failed");
+      }
+
+    } catch (error) {
+      console.error("Farcaster donation error:", error);
+      setTxStatus('error');
+      
+      if (error.code === 4001 || error.message?.includes('rejected')) {
+        setErrorMessage("Transaction cancelled by user.");
+      } else {
+        setErrorMessage("Failed, try again");
+      }
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // 🦊 BROWSER DONATE (MetaMask/Coinbase Wallet)
+  const handleBrowserDonate = async (amount) => {
     try {
       setIsConnecting(true);
       setTxStatus(null);
@@ -4166,12 +4231,12 @@ const SupportDevButton = ({ playerName }) => {
         }],
       });
 
-      console.log("Transaction sent:", transactionHash);
+      console.log("✅ Browser transaction sent:", transactionHash);
       setTxHash(transactionHash);
       setTxStatus('success');
       
     } catch (error) {
-      console.error("Donation error:", error);
+      console.error("Browser donation error:", error);
       setTxStatus('error');
       
       if (error.code === 4001) {
@@ -4181,6 +4246,18 @@ const SupportDevButton = ({ playerName }) => {
       }
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  // 🎯 SMART DONATE ROUTER
+  const handleDonate = async (amount) => {
+    console.log('🚀 Donate clicked, amount:', amount);
+    console.log('📱 Is Farcaster Frame?', isFarcasterFrame);
+    
+    if (isFarcasterFrame && window.fc) {
+      await handleFarcasterDonate(amount);
+    } else {
+      await handleBrowserDonate(amount);
     }
   };
 
@@ -4385,6 +4462,17 @@ const SupportDevButton = ({ playerName }) => {
             <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6318 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H3.9565e-07C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
           </svg>
           Support via Base Network
+        </div>
+        
+        {/* Environment indicator */}
+        <div style={{
+          fontSize: 9,
+          color: "rgba(100, 200, 255, 0.6)",
+          textAlign: "center",
+          marginBottom: 10,
+          fontWeight: 500,
+        }}>
+          {isFarcasterFrame ? "📱 Farcaster Wallet" : "🦊 Browser Wallet"}
         </div>
         
         {!showCustomInput ? (
