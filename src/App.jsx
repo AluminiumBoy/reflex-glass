@@ -3918,7 +3918,7 @@ const FinalVerdict = ({ stats, onRestart, onLeaderboard, playerName }) => {
       {/* Action buttons - transparent, no background */}
       <div style={{ 
         position: "absolute",
-        bottom: 140,
+        bottom: 240,
         left: "50%",
         transform: "translateX(-50%)",
         width: "min(85%, 450px)",
