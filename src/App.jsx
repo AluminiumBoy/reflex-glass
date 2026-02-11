@@ -4094,21 +4094,77 @@ const SupportDevButton = ({ playerName }) => {
   const RECIPIENT_ADDRESS = "0xa800F14C07935e850e9e20221956d99920E9a498";
   const BASE_CHAIN_ID = "0x2105"; 
 
+  // 🔧 Dinamikusan betölti a Farcaster SDK-t ha még nincs
+  useEffect(() => {
+    const loadFarcasterSDK = () => {
+      // Ha már be van töltve, kész
+      if (window.fc) {
+        console.log("✅ Farcaster SDK already loaded");
+        setIsFarcasterFrame(true);
+        return;
+      }
+
+      // Ellenőrizzük hogy szükség van-e rá (iframe-ben vagyunk-e)
+      if (window.self !== window.top) {
+        console.log("🔍 Running in iframe, loading Farcaster SDK...");
+        
+        const script = document.createElement('script');
+        script.src = 'https://farcaster.xyz/sdk/v2.0.0/frame.js';
+        script.async = true;
+        script.onload = () => {
+          console.log("✅ Farcaster SDK script loaded");
+          // Várunk egy kicsit hogy inicializálódjon
+          setTimeout(() => {
+            if (window.fc) {
+              console.log("✅ Farcaster SDK ready!", window.fc);
+              setIsFarcasterFrame(true);
+            }
+          }, 100);
+        };
+        script.onerror = () => {
+          console.log("❌ Failed to load Farcaster SDK");
+        };
+        
+        // Csak akkor adjuk hozzá ha még nincs ilyen script
+        if (!document.querySelector('script[src*="farcaster.xyz"]')) {
+          document.head.appendChild(script);
+        }
+      }
+    };
+
+    loadFarcasterSDK();
+  }, []);
+
   // 🔍 Detektálja hogy Farcaster Frame-ben vagyunk-e
   useEffect(() => {
     const checkFarcasterContext = async () => {
-      if (window.fc && window.fc.context) {
-        console.log("✅ Farcaster Frame detected!");
-        setIsFarcasterFrame(true);
-        setFarcasterContext(window.fc.context);
-      } else if (window.parent !== window) {
-        setTimeout(() => {
-          if (window.fc && window.fc.context) {
-            console.log("✅ Farcaster Frame detected (delayed)!");
+      // Próbáljuk meg betölteni a Farcaster SDK-t ha még nincs
+      if (typeof window !== 'undefined') {
+        // Várunk egy kicsit, hogy az SDK betöltődjön
+        const checkSDK = () => {
+          if (window.fc) {
+            console.log("✅ Farcaster SDK found!", window.fc);
             setIsFarcasterFrame(true);
-            setFarcasterContext(window.fc.context);
+            if (window.fc.context) {
+              setFarcasterContext(window.fc.context);
+            }
+            return true;
           }
-        }, 500);
+          return false;
+        };
+
+        // Azonnal próbáljuk
+        if (!checkSDK()) {
+          // Ha nem sikerült, várunk és újra próbáljuk
+          setTimeout(() => {
+            if (!checkSDK()) {
+              // Még egy próba 1 másodperc után
+              setTimeout(() => {
+                checkSDK();
+              }, 1000);
+            }
+          }, 500);
+        }
       }
     };
 
@@ -4123,34 +4179,68 @@ const SupportDevButton = ({ playerName }) => {
       setErrorMessage("");
       setTxHash("");
 
-      const amountInWei = BigInt(Math.floor(amount * 1e18)).toString();
+      console.log("🎯 Starting Farcaster donation for amount:", amount);
 
+      // Ellenőrizzük hogy van-e SDK
+      if (!window.fc || typeof window.fc.transaction !== 'function') {
+        throw new Error("Farcaster SDK not available");
+      }
+
+      // Wei konverzió hexadecimálisan
+      const amountInWei = `0x${BigInt(Math.floor(amount * 1e18)).toString(16)}`;
+      
+      console.log("📤 Sending Farcaster transaction:", {
+        to: RECIPIENT_ADDRESS,
+        value: amountInWei,
+        chainId: parseInt(BASE_CHAIN_ID, 16)
+      });
+
+      // Farcaster SDK transaction hívás
+      // A Farcaster SDK automatikusan kezeli a wallet-et
       const result = await window.fc.transaction({
-        chainId: `eip155:${parseInt(BASE_CHAIN_ID, 16)}`,
+        chainId: `eip155:${parseInt(BASE_CHAIN_ID, 16)}`, // "eip155:8453"
         method: 'eth_sendTransaction',
         params: {
           abi: [],
           to: RECIPIENT_ADDRESS,
           value: amountInWei,
+          data: '0x', // Üres data simple transfer-hez
         },
       });
 
-      if (result.transactionHash) {
-        console.log("✅ Farcaster transaction sent:", result.transactionHash);
-        setTxHash(result.transactionHash);
-        setTxStatus('success');
+      console.log("📥 Farcaster transaction result:", result);
+
+      // Ellenőrizzük a választ
+      if (result) {
+        // A result lehet transactionHash string vagy object
+        const txHash = typeof result === 'string' ? result : result.transactionHash;
+        
+        if (txHash) {
+          console.log("✅ Farcaster transaction sent:", txHash);
+          setTxHash(txHash);
+          setTxStatus('success');
+        } else {
+          throw new Error("No transaction hash returned");
+        }
       } else {
-        throw new Error("Transaction failed");
+        throw new Error("Transaction failed - no result");
       }
 
     } catch (error) {
-      console.error("Farcaster donation error:", error);
+      console.error("❌ Farcaster donation error:", error);
       setTxStatus('error');
       
-      if (error.code === 4001 || error.message?.includes('rejected')) {
+      // Különböző hiba típusok kezelése
+      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
         setErrorMessage("Transaction cancelled by user.");
+      } else if (error.message?.includes('rejected') || error.message?.includes('cancelled')) {
+        setErrorMessage("Transaction cancelled.");
+      } else if (error.message?.includes('SDK not available')) {
+        setErrorMessage("Please open in Farcaster app");
+      } else if (error.message?.includes('insufficient funds')) {
+        setErrorMessage("Insufficient funds");
       } else {
-        setErrorMessage("Failed, try again");
+        setErrorMessage(`Error: ${error.message || 'Unknown error'}`);
       }
     } finally {
       setIsConnecting(false);
@@ -4253,11 +4343,24 @@ const SupportDevButton = ({ playerName }) => {
   const handleDonate = async (amount) => {
     console.log('🚀 Donate clicked, amount:', amount);
     console.log('📱 Is Farcaster Frame?', isFarcasterFrame);
+    console.log('🔍 window.fc available?', !!window.fc);
+    console.log('🦊 window.ethereum available?', !!window.ethereum);
     
-    if (isFarcasterFrame && window.fc) {
+    // Prioritás: ha van Farcaster SDK, azt használjuk
+    if (window.fc && typeof window.fc.transaction === 'function') {
+      console.log('✅ Using Farcaster wallet');
       await handleFarcasterDonate(amount);
-    } else {
+    } 
+    // Ha nincs Farcaster de van ethereum wallet
+    else if (window.ethereum) {
+      console.log('✅ Using browser wallet');
       await handleBrowserDonate(amount);
+    }
+    // Ha egyik sincs
+    else {
+      setTxStatus('error');
+      setErrorMessage("No wallet available. Please install MetaMask or use Farcaster app.");
+      console.log('❌ No wallet available');
     }
   };
 
@@ -4472,7 +4575,12 @@ const SupportDevButton = ({ playerName }) => {
           marginBottom: 10,
           fontWeight: 500,
         }}>
-          {isFarcasterFrame ? "📱 Farcaster Wallet" : "🦊 Browser Wallet"}
+          {window.fc ? "📱 Farcaster Wallet" : window.ethereum ? "🦊 Browser Wallet" : "⚠️ No Wallet"}
+          {/* Debug info - mutatja mi van betöltve */}
+          <div style={{ fontSize: 8, marginTop: 4, opacity: 0.5 }}>
+            FC: {window.fc ? '✓' : '✗'} | 
+            ETH: {window.ethereum ? '✓' : '✗'}
+          </div>
         </div>
         
         {!showCustomInput ? (
