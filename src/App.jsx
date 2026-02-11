@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -5518,11 +5519,12 @@ export default function App() {
       {/* Volume Control */}
       <div
         style={{
-          position: "absolute",
-          bottom: 20,
-          left: 20,
+          position: "fixed",
+          bottom: 30,
+          left: 30,
           zIndex: 100,
           display: "flex",
+          flexDirection: "column-reverse",
           alignItems: "center",
           gap: 12,
         }}
@@ -5533,36 +5535,42 @@ export default function App() {
             haptic([10]);
           }}
           style={{
-            background: C.glass,
-            backdropFilter: "blur(12px)",
-            border: `1px solid ${C.glassBr}`,
-            borderRadius: 12,
-            width: 44,
-            height: 44,
+            background: "rgba(6,6,12,0.7)",
+            backdropFilter: "blur(16px)",
+            border: `1.5px solid ${C.glassBr}`,
+            borderRadius: 16,
+            width: 52,
+            height: 52,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            transition: "all 0.2s ease",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "scale(1.05)";
-            e.currentTarget.style.background = C.glassHi;
+            e.currentTarget.style.transform = "scale(1.08)";
+            e.currentTarget.style.background = "rgba(14,14,26,0.85)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "scale(1)";
-            e.currentTarget.style.background = C.glass;
+            e.currentTarget.style.background = "rgba(6,6,12,0.7)";
+            e.currentTarget.style.borderColor = C.glassBr;
           }}
         >
           <svg
-            width="20"
-            height="20"
+            width="22"
+            height="22"
             viewBox="0 0 24 24"
             fill="none"
             stroke="#fff"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            style={{
+              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+            }}
           >
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
             {volume > 50 && (
@@ -5583,20 +5591,21 @@ export default function App() {
           </svg>
         </button>
 
-        {/* Volume Slider Popup */}
+        {/* Volume Slider Popup - Above the button */}
         {showVolumeSlider && (
           <div
             style={{
-              background: C.glass,
-              backdropFilter: "blur(12px)",
-              border: `1px solid ${C.glassBr}`,
-              borderRadius: 12,
-              padding: "16px 20px",
+              background: "rgba(6,6,12,0.85)",
+              backdropFilter: "blur(20px)",
+              border: `1.5px solid ${C.glassBr}`,
+              borderRadius: 16,
+              padding: "18px 22px",
               display: "flex",
               flexDirection: "column",
-              gap: 8,
-              minWidth: 200,
-              animation: "slideIn 0.2s ease",
+              gap: 10,
+              minWidth: 220,
+              animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
             }}
           >
             <div style={{ 
@@ -5605,10 +5614,21 @@ export default function App() {
               alignItems: "center",
               marginBottom: 4,
             }}>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>
+              <span style={{ 
+                fontSize: 12, 
+                color: "rgba(255,255,255,0.6)", 
+                fontWeight: 500,
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+              }}>
                 Volume
               </span>
-              <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>
+              <span style={{ 
+                fontSize: 14, 
+                color: C.nGreen, 
+                fontWeight: 700,
+                textShadow: `0 0 10px ${C.nGreen}40`,
+              }}>
                 {volume}%
               </span>
             </div>
@@ -5630,12 +5650,12 @@ export default function App() {
                 height: 6,
                 borderRadius: 3,
                 outline: "none",
-                background: `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${volume}%, rgba(255,255,255,0.1) ${volume}%, rgba(255,255,255,0.1) 100%)`,
+                background: `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${volume}%, rgba(255,255,255,0.08) ${volume}%, rgba(255,255,255,0.08) 100%)`,
                 appearance: "none",
                 cursor: "pointer",
               }}
               onInput={(e) => {
-                e.target.style.background = `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${e.target.value}%, rgba(255,255,255,0.1) ${e.target.value}%, rgba(255,255,255,0.1) 100%)`;
+                e.target.style.background = `linear-gradient(to right, ${C.nGreen} 0%, ${C.nGreen} ${e.target.value}%, rgba(255,255,255,0.08) ${e.target.value}%, rgba(255,255,255,0.08) 100%)`;
               }}
             />
           </div>
@@ -6341,32 +6361,44 @@ export default function App() {
           
           input[type="range"]::-webkit-slider-thumb {
             appearance: none;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: #fff;
+            background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+          }
+          
+          input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5), 0 0 0 3px rgba(0,255,170,0.3);
           }
           
           input[type="range"]::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: #fff;
+            background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
             cursor: pointer;
             border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 2px rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
           }
           
-          @keyframes slideIn {
+          input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5), 0 0 0 3px rgba(0,255,170,0.3);
+          }
+          
+          @keyframes slideUp {
             from {
               opacity: 0;
-              transform: translateX(-10px);
+              transform: translateY(15px);
             }
             to {
               opacity: 1;
-              transform: translateX(0);
+              transform: translateY(0);
             }
           }
           
